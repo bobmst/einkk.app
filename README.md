@@ -27,8 +27,9 @@ The boundary is a JSON Schema contract in [`contracts/`](contracts/). See
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
+npm run dev        # http://localhost:3000
 npm run lint
+npm run typecheck  # generates Next's route types first, then runs tsc
 npm run build
 ```
 
