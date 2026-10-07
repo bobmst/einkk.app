@@ -49,7 +49,19 @@ site ── writes ──> inbox: validated, rate-limited player reports ── 
 | `history.schema.json` | engine → site | planned: our past forecasts, bands and grading |
 | `report.schema.json` | site → engine | planned: server, season, rank (percentage or number), damage, timestamps |
 
+## Hosting (free tiers)
+
+| Piece | Where |
+|---|---|
+| Site | Cloudflare Pages, as a Next.js static export (`output: "export"`). The live numbers are fetched in the browser, so no rebuild is needed when they change. |
+| Report intake and read API | One Cloudflare Worker. Intake does Turnstile, rate limiting and validation against `contracts/`. The read API serves the outbox. |
+| Inbox | Cloudflare D1 |
+| Outbox | Cloudflare R2 |
+| Domain | `einkk.app` (planned); `*.pages.dev` until then |
+
+A static export keeps the site independent of server-side Next.js features. Next.js 16 is not yet officially
+supported by the Workers adapters.
+
 ## Open decisions
 
-- Hosting, and the storage behind the inbox and the outbox.
 - How game data such as boss names and elements is credited on the site.
