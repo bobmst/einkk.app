@@ -15,6 +15,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   its database.
 - The site reads predictions only from the outbox and writes player reports only to the inbox. It never calls
   the engine. See `docs/ARCHITECTURE.md`.
+- Player reports are numbers only. Never add image upload or image storage. There is no admin area on this
+  site: review tooling belongs to the private engine.
+- Show only our own data (forecasts, bands, grading). Never republish data compiled by third parties.
 - `contracts/` is the boundary with the engine. Change it only through a pull request, bump `schema_version`
   by semver (`contracts/README.md`), and keep every example valid.
 - Player-facing text is English, 中文 and 日本語, with 한국어 to come later. Damage is in 0.1B (1e8) units unless

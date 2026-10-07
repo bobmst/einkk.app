@@ -9,7 +9,8 @@ need to finish inside the top 1%, 3%, 5% … on each server, with honest uncerta
 ## What it will do
 
 - Border forecasts per server (JP, KR, NA, SEA, TW-HK, Global) and per percentile, updated as the raid goes on.
-- In-raid score reports from players (screenshot or form), which sharpen the forecast near the end of the raid.
+- In-raid score reports from players (numbers only, no screenshots), which sharpen the forecast near the end
+  of the raid. The end-of-season survey stays a separate form, linked here once the raid ends.
 - A score checker: how likely is your score to stay inside a given percentile?
 - A track record: every season's forecast graded against the final border.
 

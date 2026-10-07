@@ -5,9 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        If you attach a screenshot, crop it to your rank and total damage and hide your in-game name and union name.
-        截图请只保留排名和总伤害，并遮住游戏内名称和联盟名称。
-        スクリーンショットは順位と合計ダメージだけに切り取り、ゲーム内の名前とユニオン名を隠してください。
+        Numbers are enough. Please don't post screenshots, your in-game name or your union name. Issues are public.
+        写数字就够了。请不要贴截图，也不要写游戏内名称或联盟名称：issue 是公开的。
+        数字だけで十分です。issue は公開されるため、スクリーンショットやゲーム内の名前、ユニオン名は載せないでください。
   - type: dropdown
     id: server
     attributes:
@@ -28,4 +28,4 @@ body:
   - type: textarea
     id: evidence
     attributes:
-      label: "Evidence (cropped screenshot or link) / 证据（裁剪后的截图或链接） / 根拠（切り取ったスクリーンショットやリンク）"
+      label: "How do you know? (what you saw in game, or a link) / 你是怎么知道的？（游戏里看到的数字或链接） / 根拠（ゲーム内で見た数字やリンク）"
