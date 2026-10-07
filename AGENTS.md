@@ -1,0 +1,23 @@
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
+
+# einkk.app — project rules
+
+- **This repository is public.** Never commit secrets (`.env*`, keys, tokens), raw player submissions or
+  screenshots, or anything from the private engine repository: model code, coefficients, research notes or
+  its database.
+- The site reads predictions only from the outbox and writes player reports only to the inbox. It never calls
+  the engine. See `docs/ARCHITECTURE.md`.
+- `contracts/` is the boundary with the engine. Change it only through a pull request, bump `schema_version`
+  by semver (`contracts/README.md`), and keep every example valid.
+- Player-facing text is English, 中文 and 日本語, with 한국어 to come later. Damage is in 0.1B (1e8) units unless
+  a field says otherwise.
+- Issues use the templates in `.github/ISSUE_TEMPLATE/`. The triage labels are `needs-triage`, `needs-info`,
+  `ready-for-agent`, `ready-for-human` and `wontfix`.

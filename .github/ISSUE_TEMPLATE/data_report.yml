@@ -1,0 +1,31 @@
+name: "Wrong number or data / 数据有误 / データの誤り"
+description: "A forecast, border or other number on the site looks wrong."
+labels: ["data", "needs-triage", "source:player"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If you attach a screenshot, crop it to your rank and total damage and hide your in-game name and union name.
+        截图请只保留排名和总伤害，并遮住游戏内名称和联盟名称。
+        スクリーンショットは順位と合計ダメージだけに切り取り、ゲーム内の名前とユニオン名を隠してください。
+  - type: dropdown
+    id: server
+    attributes:
+      label: "Server / 服务器 / サーバー"
+      options: ["JP", "KR", "NA", "SEA", "TW-HK", "Global"]
+    validations:
+      required: true
+  - type: input
+    id: season
+    attributes:
+      label: "Solo Raid season (number) / 赛季编号 / シーズン番号"
+  - type: textarea
+    id: what
+    attributes:
+      label: "What is wrong, and what should it be? / 哪里不对，应该是多少？ / どこが違い、正しくはいくつですか？"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence (cropped screenshot or link) / 证据（裁剪后的截图或链接） / 根拠（切り取ったスクリーンショットやリンク）"

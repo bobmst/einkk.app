@@ -1,0 +1,31 @@
+name: "Site bug / 网站问题 / サイトの不具合"
+description: "Something on the site is broken or looks wrong."
+labels: ["bug", "needs-triage", "source:player"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! · 感谢反馈！ · ご報告ありがとうございます！
+        Please do not include your in-game name or union name. · 请不要填写游戏内名称或联盟名称。 · ゲーム内の名前やユニオン名は書かないでください。
+  - type: textarea
+    id: what
+    attributes:
+      label: "What happened? / 发生了什么？ / 何が起きましたか？"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "What did you expect? / 你期望的是？ / 期待していた動作は？"
+  - type: input
+    id: page
+    attributes:
+      label: "Page URL / 页面地址 / ページの URL"
+  - type: dropdown
+    id: device
+    attributes:
+      label: "Device / 设备 / 端末"
+      options:
+        - "PC"
+        - "Phone / 手机 / スマホ"
+        - "Tablet / 平板 / タブレット"

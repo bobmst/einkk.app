@@ -1,0 +1,19 @@
+name: "Feature idea / 功能建议 / 機能の提案"
+description: "Something the site should do."
+labels: ["enhancement", "needs-triage", "source:player"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: "What would you like? / 你希望有什么功能？ / どんな機能がほしいですか？"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: "Why would it help? / 它能帮你解决什么？ / どう役に立ちますか？"
+  - type: dropdown
+    id: server
+    attributes:
+      label: "Your server / 你的服务器 / あなたのサーバー"
+      options: ["JP", "KR", "NA", "SEA", "TW-HK", "Global"]
