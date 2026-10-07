@@ -53,14 +53,14 @@ site ── writes ──> inbox: validated, rate-limited player reports ── 
 
 | Piece | Where |
 |---|---|
-| Site | Cloudflare Pages, as a Next.js static export (`output: "export"`). The live numbers are fetched in the browser, so no rebuild is needed when they change. |
-| Report intake and read API | One Cloudflare Worker. Intake does Turnstile, rate limiting and validation against `contracts/`. The read API serves the outbox. |
+| Site | One Cloudflare Worker (`wrangler.jsonc`, named `einkk-app`) serves the Next.js static export in `out/` as static assets. Workers Builds deploys it on every push to `main`. The live numbers are fetched in the browser, so no rebuild is needed when they change. |
+| Report intake and read API | The same Worker, under `/api/*`. Intake does Turnstile, rate limiting and validation against `contracts/`. The read API serves the outbox. Being on the same origin means no CORS. |
 | Inbox | Cloudflare D1 |
 | Outbox | Cloudflare R2 |
-| Domain | `einkk.app` (planned); `*.pages.dev` until then |
+| Domain | `einkk.app` (planned); `einkk-app.<account>.workers.dev` until then |
 
 A static export keeps the site independent of server-side Next.js features. Next.js 16 is not yet officially
-supported by the Workers adapters.
+supported by the Workers adapters, and partial prerendering (`cacheComponents`) cannot be used in export mode.
 
 ## Open decisions
 
