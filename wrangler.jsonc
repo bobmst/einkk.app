@@ -28,5 +28,16 @@
       "database_name": "einkk-inbox",
       "database_id": "fb8d7947-3d7a-4c0f-b93e-c7b1b53cda56"
     }
+  ],
+  // Outbox: versioned prediction JSON (engine -> site), read through /api/*.
+  // The engine's private snapshot bucket (engine-snapshots) is never bound here.
+  "r2_buckets": [
+    {
+      "binding": "OUTBOX",
+      "bucket_name": "einkk-outbox"
+    }
   ]
+  // Worker Previews get no bindings unless listed in a "previews" block, so a
+  // preview deployment can never touch the production inbox or outbox. Add
+  // einkk-inbox-dev / einkk-outbox-dev there once intake needs preview testing.
 }
