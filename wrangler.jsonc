@@ -1,13 +1,32 @@
 // Cloudflare Worker for einkk.app (docs/ARCHITECTURE.md, "Hosting").
-// For now it only serves the static export in out/. The intake/read API will
-// add "main", a "run_worker_first" pattern for /api/*, and the D1 / R2 bindings.
 // The name must match the Worker (project) name in the Cloudflare dashboard.
+// Static pages in out/ are served by the assets layer; only /api/* runs
+// worker/index.ts. Settings live here, not in the dashboard: every Workers
+// Builds deploy applies this file. Secrets (TURNSTILE_SECRET) are the
+// exception: they are set in the dashboard or with `wrangler secret put` and
+// never committed. After changing bindings, run `npm run cf-typegen`.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "einkk-app",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./out",
-    "not_found_handling": "404-page"
-  }
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  // Workers Logs: free plan 200k events/day, 3-day retention.
+  "observability": { "enabled": true },
+  "vars": {
+    // Public by design: it is embedded in the page that shows the widget.
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFQsgJjxzq_7vl6M"
+  },
+  // Inbox: player reports (site -> engine). Not a secret; access needs the account.
+  "d1_databases": [
+    {
+      "binding": "INBOX",
+      "database_name": "einkk-inbox",
+      "database_id": "fb8d7947-3d7a-4c0f-b93e-c7b1b53cda56"
+    }
+  ]
 }

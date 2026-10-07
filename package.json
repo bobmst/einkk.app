@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "next typegen && tsc --noEmit"
+    "cf-typegen": "wrangler types",
+    "typecheck": "next typegen && wrangler types && tsc --noEmit && tsc --noEmit -p worker"
   },
   "dependencies": {
     "next": "16.4.0",
