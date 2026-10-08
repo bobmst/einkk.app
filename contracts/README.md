@@ -7,10 +7,16 @@ engine. This directory is the single source of truth for both sides.
 |---|---|---|---|
 | `prediction.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
 | `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
+| `season.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
 
 `report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
 only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_at` and `client`;
 `client` carries a salted hash for rate limiting and never an IP address or account.
+
+`season.schema.json` is the season the site shows: boss, UTC schedule, `state` (upcoming → live →
+measuring → closed) and the Tally survey, which is `null` until the form exists. The site links
+to the survey only after the raid has ended and while the survey window is open. The schema
+accepts only `https://tally.so/` URLs, because the site renders this value as a link.
 
 ## Examples and checks
 

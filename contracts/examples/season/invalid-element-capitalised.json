@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1.0",
+  "issued_at": "2026-11-01T20:05:00Z",
+  "season": 42,
+  "boss": {
+    "name": "Example Boss",
+    "element": "Fire"
+  },
+  "starts_at": "2026-10-27T20:00:00Z",
+  "ends_at": "2026-11-01T19:59:00Z",
+  "state": "measuring",
+  "survey": {
+    "url": "https://tally.so/r/example",
+    "opens_at": "2026-11-01T20:00:00Z",
+    "closes_at": "2026-11-21T14:59:00Z"
+  }
+}
