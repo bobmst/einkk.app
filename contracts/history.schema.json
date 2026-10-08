@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/history.schema.json",
+  "title": "Forecast track record (draft 0.1.0)",
+  "description": "Our past forecasts and how they were graded, per season and server. Only our own data: no daily borders republished from third parties. Until the final border can be measured from our own reports, a graded entry carries the signed error and whether the band hit, never the border itself. The private engine writes it to the outbox.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "issued_at",
+    "entries"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "entries": {
+      "description": "Newest season first. Empty before the first season is graded.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "season",
+        "server",
+        "forecast",
+        "band",
+        "grading"
+      ],
+      "properties": {
+        "season": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "server": {
+          "enum": [
+            "jp",
+            "kr",
+            "na",
+            "sea",
+            "tw",
+            "gb"
+          ]
+        },
+        "model_version": {
+          "type": "string"
+        },
+        "forecast": {
+          "description": "The forecast of record for the end-of-raid border, in 0.1B.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "band": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lo",
+            "hi",
+            "level",
+            "method"
+          ],
+          "properties": {
+            "lo": {
+              "type": "number"
+            },
+            "hi": {
+              "type": "number"
+            },
+            "level": {
+              "description": "The confidence level the method actually certifies. null for the legacy in-sample t-band, which was labelled 99.9% but certified no level.",
+              "type": [
+                "number",
+                "null"
+              ],
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "method": {
+              "enum": [
+                "conformal_walk_forward",
+                "t_in_sample_legacy"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "method": {
+                "const": "conformal_walk_forward"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "level": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "grading": {
+          "description": "null until the season is graded.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "error_pct",
+                "hit"
+              ],
+              "properties": {
+                "error_pct": {
+                  "description": "Signed: (forecast - final) / final x 100.",
+                  "type": "number"
+                },
+                "hit": {
+                  "description": "Whether the final border fell inside the band.",
+                  "type": "boolean"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
