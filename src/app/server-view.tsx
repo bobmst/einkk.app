@@ -15,7 +15,7 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { alpha, useTheme } from "@mui/material/styles";
+import { alpha, useColorScheme, useTheme } from "@mui/material/styles";
 import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
 import { useDrawingArea, useXScale, useYScale } from "@mui/x-charts/hooks";
 import { LineChart, lineClasses } from "@mui/x-charts/LineChart";
@@ -32,8 +32,15 @@ function bandsOf(p: Prediction): Band[] {
 }
 
 const pctLabel = (level: number) => `${Math.round(level * 1000) / 10}%`;
-// narrowest band darkest
-const SHADES = [0.5, 0.3, 0.16, 0.1];
+/** Band i's fill, narrowest (0) darkest. Dark mode needs much more opacity for
+ *  the steps to stay apart on a near-black card. */
+function useShade() {
+  const theme = useTheme();
+  const { mode, systemMode } = useColorScheme();
+  const dark = (mode === "system" ? systemMode : mode) === "dark";
+  const steps = dark ? [0.9, 0.55, 0.28, 0.15] : [0.5, 0.3, 0.16, 0.1];
+  return (i: number) => alpha(theme.palette.primary.main, steps[i] ?? steps[steps.length - 1]);
+}
 
 function rangeLabel(t: Text, level: number | null) {
   return level === null ? t.rangeUncertified : t.range(Math.round(level * 1000) / 10);
@@ -42,7 +49,7 @@ function rangeLabel(t: Text, level: number | null) {
 /** The nested ranges as one bar: darker = narrower = more likely, the forecast
  *  as a line, the widest range's ends written under it. */
 function RangeBar({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
-  const theme = useTheme();
+  const shade = useShade();
   const bands = bandsOf(p);
   const widest = bands[bands.length - 1];
   const pad = (widest.hi - widest.lo) * 0.25 || 1;
@@ -55,7 +62,7 @@ function RangeBar({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
         {bands.map((b, i) => ({ b, i })).reverse().map(({ b, i }) => (
           <Box key={b.level} sx={{
             position: "absolute", top: 0, bottom: 0, left: `${at(b.lo)}%`, width: `${at(b.hi) - at(b.lo)}%`,
-            bgcolor: alpha(theme.palette.primary.main, SHADES[i] ?? 0.1), borderRadius: 1,
+            bgcolor: shade(i), borderRadius: 1,
           }} />
         ))}
         <Box sx={{ position: "absolute", top: -4, bottom: -4, left: `${at(p.prediction)}%`, width: 3, ml: "-1.5px",
@@ -71,7 +78,7 @@ function RangeBar({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
       <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mt: 0.5 }}>
         {bands.map((b, i) => (
           <Stack key={b.level} direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-            <Box sx={{ width: 12, height: 12, borderRadius: 0.5, bgcolor: alpha(theme.palette.primary.main, SHADES[i] ?? 0.1) }} />
+            <Box sx={{ width: 12, height: 12, borderRadius: 0.5, bgcolor: shade(i) }} />
             <Typography variant="caption">{pctLabel(b.level)}: {damage(lang, b.lo)} – {damage(lang, b.hi)}</Typography>
           </Stack>
         ))}
@@ -125,6 +132,7 @@ function YouMarker({ pct, value, label, color }: { pct: number; value: number; l
 
 export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
   const theme = useTheme();
+  const shade = useShade();
   const [mine, setMine] = useState("");
   const cells = [...(p.cells ?? [])].sort((a, b) => a.percentile - b.percentile);
   if (cells.length < 2) return null;
@@ -149,15 +157,15 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
 
   // Shading: stacked areas from the widest low edge up to the widest high edge,
   // each slice coloured by the band it belongs to.
-  const edges: { data: number[]; shade: number }[] = [];
-  for (let i = bands.length - 1; i >= 1; i--) edges.push({ data: at(bands[i - 1], "lo"), shade: SHADES[i] ?? 0.1 });
-  edges.push({ data: at(bands[0], "hi"), shade: SHADES[0] });
-  for (let i = 1; i < bands.length; i++) edges.push({ data: at(bands[i], "hi"), shade: SHADES[i] ?? 0.1 });
+  const edges: { data: number[]; band: number }[] = [];
+  for (let i = bands.length - 1; i >= 1; i--) edges.push({ data: at(bands[i - 1], "lo"), band: i });
+  edges.push({ data: at(bands[0], "hi"), band: 0 });
+  for (let i = 1; i < bands.length; i++) edges.push({ data: at(bands[i], "hi"), band: i });
   const base = at(widest, "lo");
   const slices = edges.map((e, i) => ({
     id: `band-${i}`,
     data: e.data.map((v, k) => v - (i === 0 ? base : edges[i - 1].data)[k]),
-    color: alpha(theme.palette.primary.main, e.shade),
+    color: shade(e.band),
   }));
   const shading = [{ id: "band-base", data: base, color: "transparent" }, ...slices]
     .map((s) => ({ ...s, stack: "bands", area: true, showMark: false, valueFormatter: hidden }));
@@ -182,7 +190,8 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
             series={[...tips, ...shading]}
             hideLegend
             sx={{
-              [`& .${lineClasses.line}[data-series^="tip-"], & .${lineClasses.line}[data-series^="band-"]`]: { display: "none" },
+              [`& .${lineClasses.line}[data-series^="band-"]`]: { display: "none" },
+              [`& .${lineClasses.line}[data-series^="tip-"]`]: { strokeWidth: 1, strokeOpacity: 0.7 },
               [`& .${lineClasses.mark}[data-series-id^="band-"], & .${lineClasses.highlight}[data-series-id^="band-"]`]: { display: "none" },
             }}
           >

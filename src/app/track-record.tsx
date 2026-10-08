@@ -51,9 +51,9 @@ export default function TrackRecord({ entries, server, lang, t }: {
             <TableHead>
               <TableRow>
                 <TableCell>{t.seasonCol}</TableCell>
-                <TableCell align="right">{t.forecast}</TableCell>
+                <TableCell align="right">{t.histForecast}</TableCell>
                 <TableCell align="right">{t.error}</TableCell>
-                <TableCell align="right">{t.final}</TableCell>
+                <TableCell align="right">{t.histFinal}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -84,7 +84,10 @@ export default function TrackRecord({ entries, server, lang, t }: {
             </TableBody>
           </Table>
         </TableContainer>
-        {legacy && <Typography variant="caption" color="text.secondary">{t.legacy}</Typography>}
+        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+          {t.histNote}{server === "jp" ? ` ${t.histNoteJp}` : ""}
+        </Typography>
+        {legacy && <Typography variant="caption" color="text.secondary" component="p">{t.legacy}</Typography>}
       </CardContent>
     </Card>
   );
