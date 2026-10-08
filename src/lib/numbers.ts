@@ -15,7 +15,7 @@ export function scoreToTenthB(input: string): number | null {
 
 /** Short axis label for a 0.1B value: "220" (亿/億/억) or "22B". */
 export function axisDamage(lang: Lang, value: number): string {
-  return lang === "en" ? `${(value / 10).toFixed(0)}B` : value.toFixed(0);
+  return lang === "en" || lang === "es" ? `${(value / 10).toFixed(0)}B` : value.toFixed(0);
 }
 
 export type Placement = { kind: "above" | "below"; percentile: number } | { kind: "at"; percentile: number };

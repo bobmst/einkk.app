@@ -1,6 +1,6 @@
 "use client";
-// One server's forecast: the 3% line with its range, the damage-by-rank curve,
-// and where the player's own damage would land on it.
+// One server's forecast: the 3% line with its nested ranges, the damage-by-rank
+// curve shaded the same way, and where the player's own damage lands on it.
 import { useState } from "react";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
@@ -15,29 +15,71 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
-import { LineChart } from "@mui/x-charts/LineChart";
+import { useDrawingArea, useXScale, useYScale } from "@mui/x-charts/hooks";
+import { LineChart, lineClasses } from "@mui/x-charts/LineChart";
 import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
 import { axisDamage, groupDigits, placement, scoreToTenthB } from "@/lib/numbers";
 import type { Prediction } from "@/lib/outbox";
+
+type Band = { level: number; lo: number; hi: number };
+
+/** The prediction's bands, narrowest first; a pre-0.2 document has just the one. */
+function bandsOf(p: Prediction): Band[] {
+  if (p.bands?.length) return p.bands;
+  return [{ level: p.band.level ?? 0.9, lo: p.band.lo, hi: p.band.hi }];
+}
+
+const pctLabel = (level: number) => `${Math.round(level * 1000) / 10}%`;
+// narrowest band darkest
+const SHADES = [0.5, 0.3, 0.16, 0.1];
 
 function rangeLabel(t: Text, level: number | null) {
   return level === null ? t.rangeUncertified : t.range(Math.round(level * 100));
 }
 
-/** The range as a bar: the band filled, the forecast marked. */
-function RangeBar({ lo, hi, value }: { lo: number; hi: number; value: number }) {
-  const pad = (hi - lo) * 0.35 || 1;
-  const min = lo - pad;
-  const span = hi + pad - min;
-  const at = (v: number) => `${((v - min) / span) * 100}%`;
+/** The nested ranges as one bar: darker = narrower = more likely, the forecast
+ *  as a line, the widest range's ends written under it. */
+function RangeBar({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
+  const theme = useTheme();
+  const bands = bandsOf(p);
+  const widest = bands[bands.length - 1];
+  const pad = (widest.hi - widest.lo) * 0.25 || 1;
+  const min = widest.lo - pad;
+  const span = widest.hi + pad - min;
+  const at = (v: number) => ((v - min) / span) * 100;
   return (
-    <Box sx={{ position: "relative", height: 14, my: 1.5, borderRadius: 7, bgcolor: "action.hover" }}>
-      <Box sx={{ position: "absolute", top: 0, bottom: 0, left: at(lo), width: `calc(${at(hi)} - ${at(lo)})`,
-                 borderRadius: 7, bgcolor: "primary.main", opacity: 0.3 }} />
-      <Box sx={{ position: "absolute", top: -3, bottom: -3, left: at(value), width: 4, ml: "-2px",
-                 borderRadius: 2, bgcolor: "primary.main" }} />
+    <Box sx={{ my: 1.5 }}>
+      <Box sx={{ position: "relative", height: 18, borderRadius: 1, bgcolor: "action.hover" }}>
+        {bands.map((b, i) => ({ b, i })).reverse().map(({ b, i }) => (
+          <Box key={b.level} sx={{
+            position: "absolute", top: 0, bottom: 0, left: `${at(b.lo)}%`, width: `${at(b.hi) - at(b.lo)}%`,
+            bgcolor: alpha(theme.palette.primary.main, SHADES[i] ?? 0.1), borderRadius: 1,
+          }} />
+        ))}
+        <Box sx={{ position: "absolute", top: -4, bottom: -4, left: `${at(p.prediction)}%`, width: 3, ml: "-1.5px",
+                   borderRadius: 1, bgcolor: "text.primary" }} />
+      </Box>
+      <Box sx={{ position: "relative", height: 18, mt: 0.5 }}>
+        {[widest.lo, widest.hi].map((v, i) => (
+          <Typography key={i} variant="caption" color="text.secondary" sx={{
+            position: "absolute", left: `${at(v)}%`, transform: "translateX(-50%)", whiteSpace: "nowrap",
+          }}>{damage(lang, v)}</Typography>
+        ))}
+      </Box>
+      <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mt: 0.5 }}>
+        {bands.map((b, i) => (
+          <Stack key={b.level} direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+            <Box sx={{ width: 12, height: 12, borderRadius: 0.5, bgcolor: alpha(theme.palette.primary.main, SHADES[i] ?? 0.1) }} />
+            <Typography variant="caption">{pctLabel(b.level)}: {damage(lang, b.lo)} – {damage(lang, b.hi)}</Typography>
+          </Stack>
+        ))}
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+          <Box sx={{ width: 3, height: 14, borderRadius: 1, bgcolor: "text.primary" }} />
+          <Typography variant="caption">{t.forecastLine}</Typography>
+        </Stack>
+      </Stack>
     </Box>
   );
 }
@@ -52,10 +94,7 @@ export function Forecast({ p, lang, t, now }: { p: Prediction; lang: Lang; t: Te
         <Typography sx={{ fontSize: { xs: "2.4rem", sm: "3rem" }, fontWeight: 700, lineHeight: 1.1 }}>
           {damage(lang, p.prediction)}
         </Typography>
-        <RangeBar lo={p.band.lo} hi={p.band.hi} value={p.prediction} />
-        <Typography variant="body2">
-          {rangeLabel(t, p.band.level)}: {damage(lang, p.band.lo)} – {damage(lang, p.band.hi)}
-        </Typography>
+        <RangeBar p={p} lang={lang} t={t} />
         <Typography variant="caption" color="text.secondary">
           {t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
         </Typography>
@@ -64,17 +103,64 @@ export function Forecast({ p, lang, t, now }: { p: Prediction; lang: Lang; t: Te
   );
 }
 
+/** The player's own damage on the curve: a dot, with short dashed drops to
+ *  both axes instead of lines across the whole chart. */
+function YouMarker({ pct, value, label, color }: { pct: number; value: number; label: string; color: string }) {
+  const x = useXScale<"log">();
+  const y = useYScale<"linear">();
+  const area = useDrawingArea();
+  const cx = x(pct);
+  const cy = y(value);
+  if (cx === undefined || cy === undefined || Number.isNaN(cx) || Number.isNaN(cy)) return null;
+  const bottom = area.top + area.height;
+  return (
+    <g pointerEvents="none">
+      <line x1={cx} x2={cx} y1={cy} y2={bottom} stroke={color} strokeDasharray="3 3" />
+      <line x1={area.left} x2={cx} y1={cy} y2={cy} stroke={color} strokeDasharray="3 3" />
+      <circle cx={cx} cy={cy} r={5.5} fill={color} stroke="white" strokeWidth={1.5} />
+      <text x={cx + 9} y={cy - 9} fill={color} fontSize={12} fontWeight={700}>{label}</text>
+    </g>
+  );
+}
+
 export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
   const theme = useTheme();
   const [mine, setMine] = useState("");
   const cells = [...(p.cells ?? [])].sort((a, b) => a.percentile - b.percentile);
   if (cells.length < 2) return null;
+
   const pcts = cells.map((c) => c.percentile);
-  const hasBand = cells.every((c) => c.lo !== undefined && c.hi !== undefined);
+  const bands = bandsOf(p);                                   // narrowest first
+  const widest = bands[bands.length - 1];
+  const at = (b: Band, side: "lo" | "hi") => cells.map((c) => (c.value * b[side]) / p.prediction);
+  const fmt = (v: number | null) => (v === null ? "" : damage(lang, v));
+  const hidden = () => null;                                  // kept out of the tooltip
   const value = scoreToTenthB(mine);
   const where = value ? placement(cells, value) : null;
-  const fmt = (v: number | null) => (v === null ? "" : damage(lang, v));
   const pctText = (x: number) => (x >= 1 ? x.toFixed(1) : x.toFixed(2)).replace(/\.?0+$/, "");
+
+  // Tooltip rows, top to bottom: widest ↑ … narrowest ↑, the forecast, narrowest ↓ … widest ↓.
+  const tips = [
+    ...[...bands].reverse().map((b) => ({ id: `tip-hi-${b.level}`, data: at(b, "hi"), label: `${pctLabel(b.level)} ↑` })),
+    { id: "mid", data: cells.map((c) => c.value), label: t.forecastLine },
+    ...bands.map((b) => ({ id: `tip-lo-${b.level}`, data: at(b, "lo"), label: `${pctLabel(b.level)} ↓` })),
+  ].map((s) => ({ ...s, showMark: false, valueFormatter: fmt,
+                  color: s.id === "mid" ? theme.palette.primary.main : alpha(theme.palette.primary.main, 0.6) }));
+
+  // Shading: stacked areas from the widest low edge up to the widest high edge,
+  // each slice coloured by the band it belongs to.
+  const edges: { data: number[]; shade: number }[] = [];
+  for (let i = bands.length - 1; i >= 1; i--) edges.push({ data: at(bands[i - 1], "lo"), shade: SHADES[i] ?? 0.1 });
+  edges.push({ data: at(bands[0], "hi"), shade: SHADES[0] });
+  for (let i = 1; i < bands.length; i++) edges.push({ data: at(bands[i], "hi"), shade: SHADES[i] ?? 0.1 });
+  const base = at(widest, "lo");
+  const slices = edges.map((e, i) => ({
+    id: `band-${i}`,
+    data: e.data.map((v, k) => v - (i === 0 ? base : edges[i - 1].data)[k]),
+    color: alpha(theme.palette.primary.main, e.shade),
+  }));
+  const shading = [{ id: "band-base", data: base, color: "transparent" }, ...slices]
+    .map((s) => ({ ...s, stack: "bands", area: true, showMark: false, valueFormatter: hidden }));
 
   return (
     <Card>
@@ -86,28 +172,27 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           <LineChart
             height={300}
             margin={{ left: 8, right: 16 }}
-            // evenly spaced ranks (0.5% … 10%) read better than a log axis here
-            xAxis={[{ data: pcts, scaleType: "point", label: t.topPct, valueFormatter: (v: number) => `${v}%` }]}
+            xAxis={[{ data: pcts, scaleType: "log", label: t.topPct, tickInterval: pcts,
+                      valueFormatter: (v: number) => `${v}%` }]}
             yAxis={[{ valueFormatter: (v: number) => axisDamage(lang, v), width: 48 }]}
-            series={[
-              ...(hasBand ? [
-                { id: "hi", data: cells.map((c) => c.hi ?? null), label: `${rangeLabel(t, p.band.level)} ↑`,
-                  showMark: false, color: theme.palette.primary.light, valueFormatter: fmt },
-                { id: "lo", data: cells.map((c) => c.lo ?? null), label: `${rangeLabel(t, p.band.level)} ↓`,
-                  showMark: false, color: theme.palette.primary.light, valueFormatter: fmt },
-              ] : []),
-              { id: "value", data: cells.map((c) => c.value), label: t.damage,
-                color: theme.palette.primary.main, valueFormatter: fmt },
-            ]}
+            series={[...tips, ...shading]}
             hideLegend
-            sx={{ '& path[data-series="lo"], & path[data-series="hi"]': { strokeDasharray: "5 4", strokeWidth: 1.5 } }}
+            sx={{
+              [`& .${lineClasses.line}[data-series^="tip-"], & .${lineClasses.line}[data-series^="band-"]`]: { display: "none" },
+              [`& .${lineClasses.mark}[data-series-id^="band-"], & .${lineClasses.highlight}[data-series-id^="band-"]`]: { display: "none" },
+            }}
           >
-            {value && <ChartsReferenceLine y={value} lineStyle={{ stroke: theme.palette.warning.main, strokeDasharray: "2 3" }} />}
             <ChartsReferenceLine x={3} lineStyle={{ stroke: theme.palette.divider }} />
+            {where && value && (
+              <YouMarker pct={where.percentile} value={value} label={t.you} color={theme.palette.warning.main} />
+            )}
           </LineChart>
         </Box>
+        <Typography variant="caption" color="text.secondary">
+          {t.bandsLegend(bands.map((b) => pctLabel(b.level)).join(" / "))}
+        </Typography>
 
-        <Stack spacing={1} sx={{ mt: 1 }}>
+        <Stack spacing={1} sx={{ mt: 2 }}>
           <Typography variant="subtitle2">{t.calcTitle}</Typography>
           <TextField
             size="small"
@@ -133,21 +218,19 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
             <TableRow>
               <TableCell>{t.tier}</TableCell>
               <TableCell align="right">{t.damage}</TableCell>
-              {hasBand && <TableCell align="right">{rangeLabel(t, p.band.level)}</TableCell>}
+              <TableCell align="right">{rangeLabel(t, widest.level)}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {cells.map((c) => (
+            {cells.map((c, k) => (
               <TableRow key={c.percentile} selected={c.percentile === 3}>
                 <TableCell>{c.percentile}%</TableCell>
                 <TableCell align="right" sx={{ fontWeight: c.percentile === 3 ? 700 : 400 }}>
                   {c.extrapolated ? "~" : ""}{damage(lang, c.value)}
                 </TableCell>
-                {hasBand && (
-                  <TableCell align="right" sx={{ color: "text.secondary" }}>
-                    {damage(lang, c.lo!)} – {damage(lang, c.hi!)}
-                  </TableCell>
-                )}
+                <TableCell align="right" sx={{ color: "text.secondary" }}>
+                  {damage(lang, at(widest, "lo")[k])} – {damage(lang, at(widest, "hi")[k])}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

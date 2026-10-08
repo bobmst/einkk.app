@@ -47,6 +47,7 @@ export interface Prediction {
   prediction: number;
   band: Band;
   cells?: Cell[];
+  bands?: { level: number; lo: number; hi: number }[];   // narrowest first (contract 0.2.0)
   inputs: { anchors: { day: number; value: number }[] };
 }
 

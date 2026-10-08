@@ -36,7 +36,7 @@ import TrackRecord from "./track-record";
 
 const REFRESH_MS = 60_000;
 const ISSUES = "https://github.com/bobmst/einkk.app/issues/new/choose";
-const HTML_LANG: Record<Lang, string> = { en: "en", ja: "ja", ko: "ko", zhs: "zh-Hans", zht: "zh-Hant" };
+const HTML_LANG: Record<Lang, string> = { en: "en", ja: "ja", ko: "ko", zhs: "zh-Hans", zht: "zh-Hant", es: "es" };
 
 interface Data {
   health: Health | null;

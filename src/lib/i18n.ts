@@ -1,15 +1,16 @@
 // Player-facing text in the five languages of the season survey (EN, 日本語,
-// 한국어, 简体中文, 繁體中文), worded like it. Damage reaches the page in 0.1B
-// (1e8): 億 / 억 / 亿 read it as is, English shows billions.
+// 한국어, 简体中文, 繁體中文), worded like it, plus Español. Damage reaches the
+// page in 0.1B (1e8): 億 / 억 / 亿 read it as is; English and Spanish show
+// billions with one more decimal, so all keep the same five digits.
 import type { Element, Season, Server } from "./outbox";
 
-export const LANGS = ["en", "ja", "ko", "zhs", "zht"] as const;
+export const LANGS = ["en", "ja", "ko", "zhs", "zht", "es"] as const;
 export type Lang = (typeof LANGS)[number];
 export const LANG_NAMES: Record<Lang, string> = {
-  en: "English", ja: "日本語", ko: "한국어", zhs: "简体中文", zht: "繁體中文",
+  en: "English", ja: "日本語", ko: "한국어", zhs: "简体中文", zht: "繁體中文", es: "Español",
 };
 export const LOCALES: Record<Lang, string> = {
-  en: "en-US", ja: "ja-JP", ko: "ko-KR", zhs: "zh-CN", zht: "zh-TW",
+  en: "en-US", ja: "ja-JP", ko: "ko-KR", zhs: "zh-CN", zht: "zh-TW", es: "es",
 };
 
 // the survey's order
@@ -21,6 +22,7 @@ const SERVER_NAMES: Record<Lang, Record<Server, string>> = {
   ko: { jp: "일본", kr: "한국", gb: "글로벌", na: "북미", sea: "동남아시아", tw: "대만" },
   zhs: { jp: "日服", kr: "韩服", gb: "国际服", na: "美服", sea: "东南亚服", tw: "港澳台服" },
   zht: { jp: "日服", kr: "韓服", gb: "國際服", na: "美服", sea: "東南亞服", tw: "港澳台服" },
+  es: { jp: "Japón", kr: "Corea", gb: "Global", na: "Norteamérica", sea: "Sudeste Asiático", tw: "Taiwán" },
 };
 
 const ELEMENTS: Record<Lang, Record<Element, string>> = {
@@ -29,6 +31,7 @@ const ELEMENTS: Record<Lang, Record<Element, string>> = {
   ko: { fire: "작열", water: "수냉", wind: "풍압", iron: "철갑", electronic: "전격" },
   zhs: { fire: "燃烧", water: "水冷", wind: "风压", iron: "铁甲", electronic: "电击" },
   zht: { fire: "燃燒", water: "水冷", wind: "風壓", iron: "鐵甲", electronic: "電擊" },
+  es: { fire: "Fuego", water: "Agua", wind: "Viento", iron: "Hierro", electronic: "Eléctrico" },
 };
 
 const en = {
@@ -51,6 +54,9 @@ const en = {
   forecastTitle: "Top 3% border at the end of the raid",
   range: (pct: number) => `${pct}% range`,
   rangeUncertified: "Range",
+  forecastLine: "Forecast",
+  you: "You",
+  bandsLegend: (levels: string) => `Shaded: ${levels} ranges · darker = more likely`,
   raidDay: (d: number) => `Raid day ${d} of 5`,
   updated: (ago: string) => `updated ${ago} ago`,
   noForecast: "No forecast for this server yet.",
@@ -134,6 +140,9 @@ const ja: Text = {
   forecastTitle: "終了時の上位 3% ボーダー",
   range: (pct) => `${pct}% 予測範囲`,
   rangeUncertified: "予測範囲",
+  forecastLine: "予測",
+  you: "あなた",
+  bandsLegend: (levels) => `網掛け：${levels} の予測範囲（濃いほど可能性が高い）`,
   raidDay: (d) => `${d}/5 日目`,
   updated: (ago) => `${ago}前に更新`,
   noForecast: "このサーバーの予測はまだありません。",
@@ -216,6 +225,9 @@ const ko: Text = {
   forecastTitle: "종료 시 상위 3% 커트라인",
   range: (pct) => `${pct}% 예측 범위`,
   rangeUncertified: "예측 범위",
+  forecastLine: "예측",
+  you: "나",
+  bandsLegend: (levels) => `음영: ${levels} 예측 범위 (진할수록 가능성 높음)`,
   raidDay: (d) => `${d}/5일차`,
   updated: (ago) => `${ago} 전 업데이트`,
   noForecast: "이 서버의 예측이 아직 없습니다.",
@@ -298,6 +310,9 @@ const zhs: Text = {
   forecastTitle: "收盘时前 3% 分数线",
   range: (pct) => `${pct}% 区间`,
   rangeUncertified: "区间",
+  forecastLine: "预测",
+  you: "你",
+  bandsLegend: (levels) => `阴影：${levels} 区间（越深越可能）`,
   raidDay: (d) => `第 ${d}/5 天`,
   updated: (ago) => `${ago}前更新`,
   noForecast: "这个服务器还没有预测。",
@@ -379,6 +394,9 @@ const zht: Text = {
   forecastTitle: "收盤時前 3% 分數線",
   range: (pct) => `${pct}% 區間`,
   rangeUncertified: "區間",
+  forecastLine: "預測",
+  you: "你",
+  bandsLegend: (levels) => `陰影：${levels} 區間（越深越可能）`,
   updated: (ago) => `${ago}前更新`,
   noForecast: "這個伺服器還沒有預測。",
   distTitle: "各檔位分數線",
@@ -438,14 +456,99 @@ const zht: Text = {
   language: "語言",
 };
 
-const TEXT: Record<Lang, Text> = { en, ja, ko, zhs, zht };
+const es: Text = {
+  ...en,
+  tagline: "Previsiones de cortes de NIKKE Solo Raid",
+  rehearsal: "Ensayo: una temporada simulada, no una previsión real",
+  loading: "Cargando…",
+  loadFailed: "No se pudieron cargar los datos. Se reintenta cada minuto.",
+  nothing: "Aún no hay nada publicado.",
+  season: (n) => `Temporada ${n}`,
+  seasonCol: "Temporada",
+  states: { upcoming: "Sin empezar", live: "En curso", measuring: "Terminada · corte final pendiente", closed: "Terminada" },
+  weakness: "Débil a",
+  starts: "Empieza",
+  ends: "Termina",
+  timeNote: "El mismo momento en todos los servidores, en tu hora local",
+  endsIn: (d) => `Termina en ${d}`,
+  startsIn: (d) => `Empieza en ${d}`,
+  survey: "Encuesta de fin de temporada",
+  yourServer: "Tu servidor",
+  forecastTitle: "Corte del top 3 % al final de la raid",
+  range: (pct) => `Rango del ${pct} %`,
+  rangeUncertified: "Rango",
+  forecastLine: "Previsión",
+  you: "Tú",
+  bandsLegend: (levels) => `Sombreado: rangos del ${levels} · más oscuro = más probable`,
+  raidDay: (d) => `Día ${d} de 5`,
+  updated: (ago) => `actualizado hace ${ago}`,
+  noForecast: "Aún no hay previsión para este servidor.",
+  distTitle: "Daño por posición",
+  topPct: "Top %",
+  damage: "Daño",
+  tier: "Posición",
+  estimated: "~ estimado fuera de los datos propios del servidor",
+  calcTitle: "¿Dónde queda mi daño?",
+  calcPlaceholder: "Tu daño, p. ej. 22,316,000,000",
+  calcResult: (p) => `Aprox. top ${p} %`,
+  calcAbove: (p) => `Por encima del corte del top ${p} %`,
+  calcBelow: (p) => `Por debajo del corte del top ${p} %`,
+  history: "Historial",
+  forecast: "Previsión",
+  error: "Error",
+  final: "Final",
+  hit: "Dentro del rango",
+  miss: "Fuera del rango",
+  pending: "Sin evaluar",
+  legacy: "† rango antiguo dentro de la muestra, sin nivel garantizado",
+  sources: { manual_collection: "recopilado", survey: "encuesta", reports: "reportes" },
+  report: "Reporta tu puntuación",
+  reportIntro: "Comparte tu daño y posición actuales tal como los muestra el juego.",
+  server: "Servidor",
+  damageLabel: "Daño",
+  damageHelp: "Escribe todos los dígitos tal como aparecen, p. ej. 27,635,537,449",
+  digitsCheck: (v) => `→ ${v} — comprueba el número de dígitos`,
+  roundWarn: "El número termina en muchos ceros. Escribe la puntuación exacta, no redondeada.",
+  rankDisplay: "Cómo se muestra tu posición",
+  rankDisplayHelp: "¿Qué muestra la etiqueta azul de la izquierda: un porcentaje (p. ej. 3.00 %) o un número (p. ej. 25; solo el top 200 ve un número)?",
+  pctLabel: "Posición en porcentaje",
+  pctHelp: "Solo el número, sin el signo %, tal como aparece: 3.00 % → 3.00",
+  pctLowWarn: "Menos del 0.1 % es muy raro. Si ves 8.47 %, escribe 8.47, no 0.0847.",
+  numLabel: "Posición numérica",
+  numHelp: "Tu número de posición tal como aparece, p. ej. 25",
+  readAt: "Cuándo lo viste",
+  next: "Siguiente",
+  back: "Atrás",
+  reviewTitle: "Revisa tus respuestas",
+  reviewNote: "Si todo está bien, pulsa Enviar. Si no, vuelve atrás y corrígelo.",
+  rank: "Posición",
+  submit: "Enviar",
+  sending: "Enviando…",
+  sent: "¡Gracias! Recibimos tu reporte.",
+  another: "Reportar otro",
+  reportClosed: "Los reportes se aceptan mientras la raid está en curso.",
+  reportUnavailable: "Ahora mismo no se pueden enviar reportes.",
+  errors: {
+    invalid_report: "Algunos valores no parecen correctos. Revisa la posición y el daño.",
+    turnstile_failed: "La verificación antibots falló. Inténtalo de nuevo.",
+    rate_limited: "Demasiados reportes desde esta conexión. Inténtalo en una hora.",
+    intake_not_configured: "Ahora mismo no se pueden enviar reportes.",
+    other: "No se pudo enviar. Inténtalo de nuevo.",
+  },
+  bossArt: "Arte del jefe: enikk.app",
+  feedback: "Reportar un problema",
+  theme: "Claro / oscuro",
+  language: "Idioma",
+};
+
+const TEXT: Record<Lang, Text> = { en, ja, ko, zhs, zht, es };
 export const text = (lang: Lang): Text => TEXT[lang];
 export const serverName = (lang: Lang, server: Server) => SERVER_NAMES[lang][server];
 export const elementName = (lang: Lang, element: Element) => ELEMENTS[lang][element];
 
-/** A 0.1B value as each language reads it: "225.35 亿", "225.35億", "22.54B". */
+/** A 0.1B value as each language reads it: "225.35 亿", "225.35億", "22.535B". */
 export function damage(lang: Lang, value: number): string {
-  if (lang === "en") return `${(value / 10).toFixed(2)}B`;
+  if (lang === "en" || lang === "es") return `${(value / 10).toFixed(3)}B`;
   const unit = { ja: "億", ko: "억", zhs: "亿", zht: "億" }[lang];
   return lang === "zhs" || lang === "ko" ? `${value.toFixed(2)} ${unit}` : `${value.toFixed(2)}${unit}`;
 }
@@ -457,7 +560,7 @@ export function duration(lang: Lang, ms: number): string {
   const h = Math.floor((minutes % 1440) / 60);
   const m = minutes % 60;
   const u = { en: ["d ", "h ", "m"], ja: ["日", "時間", "分"], ko: ["일 ", "시간 ", "분"],
-              zhs: ["天", "小时", "分"], zht: ["天", "小時", "分"] }[lang];
+              zhs: ["天", "小时", "分"], zht: ["天", "小時", "分"], es: ["d ", "h ", "min"] }[lang];
   return `${d ? d + u[0] : ""}${d || h ? h + u[1] : ""}${m}${u[2]}`.trim();
 }
 
@@ -491,6 +594,7 @@ function preferredLang(): Lang {
   if (browser.startsWith("ko")) return "ko";
   if (/^zh-(tw|hk|mo|hant)/.test(browser)) return "zht";
   if (browser.startsWith("zh")) return "zhs";
+  if (browser.startsWith("es")) return "es";
   return "en";
 }
 
@@ -511,7 +615,7 @@ export const langStore = {
 };
 
 // The server the player follows; until they pick one, the language's usual one.
-const DEFAULT_SERVER: Record<Lang, Server> = { en: "gb", ja: "jp", ko: "kr", zhs: "jp", zht: "tw" };
+const DEFAULT_SERVER: Record<Lang, Server> = { en: "gb", ja: "jp", ko: "kr", zhs: "jp", zht: "tw", es: "na" };
 let chosenServer: Server | null = null;
 const serverListeners = new Set<() => void>();
 export const serverStore = {
