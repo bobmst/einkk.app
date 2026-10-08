@@ -36,8 +36,31 @@
       "binding": "OUTBOX",
       "bucket_name": "einkk-outbox"
     }
-  ]
-  // Worker Previews get no bindings unless listed in a "previews" block, so a
-  // preview deployment can never touch the production inbox or outbox. Add
-  // einkk-inbox-dev / einkk-outbox-dev there once intake needs preview testing.
+  ],
+  // Worker Previews. Workers Builds runs `wrangler preview` for every branch
+  // except main, and that refuses to build unless each binding has a
+  // preview-safe counterpart here. Previews never touch production data: they
+  // get their own D1 and R2, plus Turnstile's always-pass test site key. Their
+  // secrets (the matching test TURNSTILE_SECRET and a separate RATE_KEY_SALT)
+  // live on the shared Preview base config, set with
+  // `wrangler preview base-config secret put <NAME>`.
+  "previews": {
+    "vars": {
+      "TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+    },
+    "d1_databases": [
+      {
+        "binding": "INBOX",
+        "database_name": "einkk-inbox-dev",
+        "database_id": "1504f2c3-34cb-4be7-9d6e-c2bba9cc811f",
+        "migrations_dir": "migrations"
+      }
+    ],
+    "r2_buckets": [
+      {
+        "binding": "OUTBOX",
+        "bucket_name": "einkk-outbox-dev"
+      }
+    ]
+  }
 }
