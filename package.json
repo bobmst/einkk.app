@@ -9,23 +9,30 @@
     "lint": "eslint",
     "cf-typegen": "wrangler types",
     "typecheck": "next typegen && wrangler types && tsc --noEmit && tsc --noEmit -p worker",
-    "test": "vitest run"
+    "test": "vitest run",
+    "boss-image": "node scripts/boss-image.mjs"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.4.0",
+    "@mui/material": "^9.4.0",
+    "@mui/material-nextjs": "^9.4.0",
+    "@mui/x-charts": "^9.15.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "ajv": "^8.20.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
-    "tailwindcss": "^4",
+    "sharp": "^0.35.5",
     "typescript": "^5",
     "vitest": "^5.0.3",
     "wrangler": "^4.148.0"

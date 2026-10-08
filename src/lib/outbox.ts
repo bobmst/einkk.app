@@ -32,6 +32,8 @@ export interface Band {
 export interface Cell {
   percentile: number;
   value: number;
+  lo?: number;
+  hi?: number;
   extrapolated?: boolean;
 }
 

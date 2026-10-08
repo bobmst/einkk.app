@@ -1,17 +1,32 @@
 "use client";
-// In-raid report form (contracts/report.schema.json; worker/reports.ts). Numbers
-// only: the player picks the server, gives the rank as the game shows it (a
-// percentage, or a number in the top 200) and the damage, sees it echoed back
-// formatted, and passes Turnstile. The Worker checks everything again.
+// In-raid report form, laid out like the season survey on Tally: server, the
+// whole damage score as the game shows it (grouped by thousands and echoed
+// back in 亿/B to catch a wrong digit count), the rank as a percentage or a
+// top-200 number with the same reference images, then a review page and
+// Turnstile before it is sent. The Worker checks everything again
+// (contracts/report.schema.json, damage in 0.1B).
 import { useEffect, useRef, useState } from "react";
-import { damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
-import { SERVERS, type Health, type Season, type Server } from "@/lib/outbox";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import CardContent from "@mui/material/CardContent";
+import MenuItem from "@mui/material/MenuItem";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import { SERVER_ORDER, damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
+import { groupDigits, scoreToTenthB } from "@/lib/numbers";
+import type { Health, Season, Server } from "@/lib/outbox";
 
 const TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+const MIN_SCORE = 10_000_000;          // the survey's bounds
+const MAX_SCORE = 999_999_999_999;
 
 interface Turnstile {
   render: (el: HTMLElement, opts: Record<string, unknown>) => string;
-  reset: (id: string) => void;
+  remove: (id: string) => void;
 }
 declare global {
   interface Window {
@@ -37,154 +52,206 @@ function loadTurnstile(): Promise<Turnstile> {
 function localNow(): string {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);            // what <input type="datetime-local"> takes
+  return d.toISOString().slice(0, 16);                // <input type="datetime-local">
 }
 
-type Status = { kind: "idle" | "sending" | "sent" } | { kind: "error"; message: string };
+type Step = "form" | "review" | "sent";
 
-export default function ReportForm({ season, health, lang, t }: {
-  season: Season;
-  health: Health | null;
-  lang: Lang;
-  t: Text;
+export default function ReportForm({ season, health, server: followed, lang, t }: {
+  season: Season; health: Health | null; server: Server; lang: Lang; t: Text;
 }) {
-  const [server, setServer] = useState<Server>("jp");
-  const [mode, setMode] = useState<"pc" | "n">("pc");
-  const [rank, setRank] = useState("");
-  const [value, setValue] = useState("");
+  const [step, setStep] = useState<Step>("form");
+  const [server, setServer] = useState<Server>(followed);
+  const [score, setScore] = useState("");
+  const [mode, setMode] = useState<"pc" | "n" | null>(null);
+  const [pct, setPct] = useState("");
+  const [num, setNum] = useState("");
   const [readAt, setReadAt] = useState(localNow);
   const [token, setToken] = useState<string | null>(null);
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);         // a new Turnstile widget per try
   const box = useRef<HTMLDivElement>(null);
-  const widget = useRef<string | null>(null);
 
   const open = season.state === "live" && Boolean(health?.intake && health.turnstile_site_key);
 
+  // Turnstile only on the review page, fresh each time it opens
   useEffect(() => {
-    if (!open || !box.current || widget.current) return;
+    if (step !== "review" || !box.current) return;
+    let id: string | null = null;
     let cancelled = false;
-    loadTurnstile()
-      .then((ts) => {
-        if (cancelled || !box.current || widget.current) return;
-        widget.current = ts.render(box.current, {
-          sitekey: health?.turnstile_site_key,
-          callback: (tok: string) => setToken(tok),
-          "expired-callback": () => setToken(null),
-          "error-callback": () => setToken(null),
-        });
-      })
-      .catch(() => setStatus({ kind: "error", message: t.reportUnavailable }));
+    loadTurnstile().then((ts) => {
+      if (cancelled || !box.current) return;
+      id = ts.render(box.current, {
+        sitekey: health?.turnstile_site_key,
+        callback: (tok: string) => setToken(tok),
+        "expired-callback": () => setToken(null),
+        "error-callback": () => setToken(null),
+      });
+    }, () => setError(t.reportUnavailable));
     return () => {
       cancelled = true;
+      setToken(null);
+      if (id) window.turnstile?.remove(id);
     };
-  }, [open, health?.turnstile_site_key, t.reportUnavailable]);
+  }, [step, attempt, health?.turnstile_site_key, t.reportUnavailable]);
 
-  const rankNumber = Number(rank);
-  const damageNumber = Number(value);
-  const rankOk = rank !== "" && (mode === "pc"
-    ? rankNumber > 0 && rankNumber <= 100
-    : Number.isInteger(rankNumber) && rankNumber >= 1 && rankNumber <= 200);
-  const damageOk = value !== "" && damageNumber > 0 && damageNumber <= 100000;
-  const ready = rankOk && damageOk && readAt !== "" && token !== null && status.kind !== "sending";
+  const digits = score.replace(/\D/g, "");
+  const scoreNumber = Number(digits);
+  const scoreOk = digits !== "" && scoreNumber >= MIN_SCORE && scoreNumber <= MAX_SCORE;
+  const tenthB = scoreToTenthB(score);
+  const pctNumber = Number(pct);
+  const numNumber = Number(num);
+  const rankOk = mode === "pc" ? pct !== "" && pctNumber >= 0.01 && pctNumber <= 100
+    : mode === "n" ? num !== "" && Number.isInteger(numNumber) && numNumber >= 1 && numNumber <= 200 : false;
+  const rankText = mode === "pc" ? `${pct}%` : `#${num}`;
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!ready) return;
-    setStatus({ kind: "sending" });
-    const body = {
-      server,
-      season: season.season,
-      ...(mode === "pc" ? { rank_pc: rankNumber } : { rank_n: rankNumber }),
-      damage: damageNumber,
-      read_at: new Date(readAt).toISOString(),
-      turnstile_token: token,
-    };
+  async function submit() {
+    if (!token || !tenthB) return;
+    setSending(true);
+    setError(null);
     try {
       const response = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          server,
+          season: season.season,
+          ...(mode === "pc" ? { rank_pc: pctNumber } : { rank_n: numNumber }),
+          damage: tenthB,
+          read_at: new Date(readAt).toISOString(),
+          turnstile_token: token,
+        }),
       });
       if (response.status === 201) {
-        setStatus({ kind: "sent" });
-        setRank("");
-        setValue("");
+        setStep("sent");
       } else {
         const code = ((await response.json().catch(() => ({}))) as { error?: string }).error;
-        const errors = t.errors as Record<string, string>;
-        setStatus({ kind: "error", message: (code && errors[code]) || t.errors.other });
+        setError((code && t.errors[code]) || t.errors.other);
+        setAttempt((n) => n + 1);                        // tokens are single-use
       }
     } catch {
-      setStatus({ kind: "error", message: t.errors.other });
+      setError(t.errors.other);
+      setAttempt((n) => n + 1);
     }
-    setToken(null);                                  // a token is single-use
-    if (widget.current) window.turnstile?.reset(widget.current);
+    setSending(false);
   }
 
-  const field = "rounded border border-zinc-300 bg-transparent px-2 py-1.5 dark:border-zinc-700";
+  function another() {
+    setScore("");
+    setPct("");
+    setNum("");
+    setMode(null);
+    setReadAt(localNow());
+    setError(null);
+    setStep("form");
+  }
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-      <h2 className="text-lg font-semibold">{t.report}</h2>
-      {!open ? (
-        <p className="text-sm text-zinc-500">
-          {season.state === "live" ? t.reportUnavailable : t.reportClosed}
-        </p>
-      ) : (
-        <form onSubmit={submit} className="flex flex-col gap-3 text-sm">
-          <p className="text-zinc-500">{t.reportHelp}</p>
-          <label className="flex flex-col gap-1">
-            {t.server}
-            <select className={field} value={server} onChange={(e) => setServer(e.target.value as Server)}>
-              {SERVERS.map((s) => (
-                <option key={s} value={s}>{serverName(lang, s)}</option>
-              ))}
-            </select>
-          </label>
-          <fieldset className="flex flex-wrap items-center gap-3">
-            <legend className="mb-1">{t.rankBy}</legend>
-            <label className="flex items-center gap-1">
-              <input type="radio" name="mode" checked={mode === "pc"} onChange={() => setMode("pc")} />
-              {t.percent}
-            </label>
-            <label className="flex items-center gap-1">
-              <input type="radio" name="mode" checked={mode === "n"} onChange={() => setMode("n")} />
-              {t.number}
-            </label>
-          </fieldset>
-          <label className="flex flex-col gap-1">
-            {t.rank} {mode === "pc" ? "(%)" : "(#)"}
-            <input className={field} inputMode="decimal" value={rank}
-                   onChange={(e) => setRank(e.target.value.trim())}
-                   placeholder={mode === "pc" ? "2.75" : "120"} />
-          </label>
-          <label className="flex flex-col gap-1">
-            {t.damage}
-            <input className={field} inputMode="decimal" value={value}
-                   onChange={(e) => setValue(e.target.value.trim())} placeholder="223.16" />
-          </label>
-          <label className="flex flex-col gap-1">
-            {t.readAt}
-            <input className={field} type="datetime-local" value={readAt}
-                   onChange={(e) => setReadAt(e.target.value)} />
-          </label>
-          {rankOk && damageOk && (
-            <p className="rounded bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
-              {t.confirm}: <strong>{serverName(lang, server)}</strong> ·{" "}
-              <strong>{mode === "pc" ? `${rankNumber}%` : `#${rankNumber}`}</strong> ·{" "}
-              <strong>{fmt(lang, damageNumber)}</strong>
-              {lang === "en" && ` (${damageNumber} × 100M)`}
-            </p>
-          )}
-          <div ref={box} />
-          <button type="submit" disabled={!ready}
-                  className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900">
-            {status.kind === "sending" ? t.sending : t.send}
-          </button>
-          {status.kind === "sent" && <p className="text-emerald-600">{t.sent}</p>}
-          {status.kind === "error" && <p className="text-red-600">{status.message}</p>}
-        </form>
-      )}
-    </section>
+    <Card>
+      <CardContent>
+        <Typography variant="h2" sx={{ mb: 0.5 }}>{t.report}</Typography>
+        {!open ? (
+          <Typography variant="body2" color="text.secondary">
+            {season.state === "live" ? t.reportUnavailable : t.reportClosed}
+          </Typography>
+        ) : step === "sent" ? (
+          <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
+            <Alert severity="success">{t.sent}</Alert>
+            <Button variant="outlined" onClick={another}>{t.another}</Button>
+          </Stack>
+        ) : step === "review" ? (
+          <Stack spacing={2}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t.reviewTitle}</Typography>
+            <Box component="dl" sx={{ m: 0, display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 2, rowGap: 0.5 }}>
+              <Typography component="dt" color="text.secondary">{t.server}</Typography>
+              <Typography component="dd" sx={{ m: 0 }}>{serverName(lang, server)}</Typography>
+              <Typography component="dt" color="text.secondary">{t.damageLabel}</Typography>
+              <Typography component="dd" sx={{ m: 0 }}>{score} ({tenthB ? fmt(lang, tenthB) : ""})</Typography>
+              <Typography component="dt" color="text.secondary">{t.rank}</Typography>
+              <Typography component="dd" sx={{ m: 0 }}>{rankText}</Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary">{t.reviewNote}</Typography>
+            <div ref={box} />
+            {error && <Alert severity="error">{error}</Alert>}
+            <Stack direction="row" spacing={1}>
+              <Button onClick={() => setStep("form")}>{t.back}</Button>
+              <Button variant="contained" disabled={!token || sending} onClick={submit}>
+                {sending ? t.sending : t.submit}
+              </Button>
+            </Stack>
+          </Stack>
+        ) : (
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">{t.reportIntro}</Typography>
+            <TextField select size="small" label={t.server} value={server}
+                       onChange={(e) => setServer(e.target.value as Server)}>
+              {SERVER_ORDER.map((s) => <MenuItem key={s} value={s}>{serverName(lang, s)}</MenuItem>)}
+            </TextField>
+
+            <Stack spacing={1}>
+              <Typography variant="subtitle2">{t.damageLabel}</Typography>
+              <Typography variant="body2" color="text.secondary">{t.damageHelp}</Typography>
+              <Box component="img" src="/survey/survey_dmg.webp" alt="" sx={{ width: "100%", maxWidth: 480, borderRadius: 1 }} />
+              <TextField size="small" value={score} placeholder="23,353,143,363"
+                         onChange={(e) => setScore(groupDigits(e.target.value))}
+                         slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                         error={digits !== "" && !scoreOk} />
+              {tenthB && <Typography variant="body2" color="primary">{t.digitsCheck(fmt(lang, tenthB))}</Typography>}
+              {digits.endsWith("000") && <Alert severity="warning">{t.roundWarn}</Alert>}
+            </Stack>
+
+            <Stack spacing={1}>
+              <Typography variant="subtitle2">{t.rankDisplay}</Typography>
+              <Typography variant="body2" color="text.secondary">{t.rankDisplayHelp}</Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                {([["pc", "%  —  0.83%", "/survey/survey_percent.webp"], ["n", "#  —  200", "/survey/survey_rank.webp"]] as const)
+                  .map(([value, label, image]) => (
+                    <Card key={value} sx={{ flex: 1, borderColor: mode === value ? "primary.main" : undefined, borderWidth: mode === value ? 2 : 1 }}>
+                      <CardActionArea onClick={() => setMode(value)} sx={{ p: 1 }}>
+                        <Box component="img" src={image} alt="" sx={{ width: "100%", borderRadius: 1 }} />
+                        <Typography sx={{ mt: 0.5, fontWeight: 600 }}>{label}</Typography>
+                      </CardActionArea>
+                    </Card>
+                  ))}
+              </Stack>
+            </Stack>
+
+            {mode === "pc" && (
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">{t.pctLabel}</Typography>
+                <Typography variant="body2" color="text.secondary">{t.pctHelp}</Typography>
+                <TextField size="small" value={pct} placeholder="3.00"
+                           onChange={(e) => setPct(e.target.value.replace(/[^\d.]/g, ""))}
+                           slotProps={{ htmlInput: { inputMode: "decimal" } }}
+                           error={pct !== "" && !rankOk} />
+                {pct !== "" && pctNumber > 0 && pctNumber < 0.1 && <Alert severity="warning">{t.pctLowWarn}</Alert>}
+              </Stack>
+            )}
+            {mode === "n" && (
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">{t.numLabel}</Typography>
+                <Typography variant="body2" color="text.secondary">{t.numHelp}</Typography>
+                <TextField size="small" value={num} placeholder="25"
+                           onChange={(e) => setNum(e.target.value.replace(/\D/g, ""))}
+                           slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                           error={num !== "" && !rankOk} />
+              </Stack>
+            )}
+
+            <TextField size="small" type="datetime-local" label={t.readAt} value={readAt}
+                       onChange={(e) => setReadAt(e.target.value)}
+                       slotProps={{ inputLabel: { shrink: true } }} />
+            {error && <Alert severity="error">{error}</Alert>}
+            <Box>
+              <Button variant="contained" disabled={!scoreOk || !rankOk || !readAt}
+                      onClick={() => { setError(null); setStep("review"); }}>
+                {t.next}
+              </Button>
+            </Box>
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
   );
 }

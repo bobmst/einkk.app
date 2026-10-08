@@ -1,15 +1,14 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata, Viewport } from "next";
+import { Roboto } from "next/font/google";
+import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
+import Providers from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const roboto = Roboto({
+  weight: ["400", "500", "700"],
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-roboto",
 });
 
 export const metadata: Metadata = {
@@ -18,16 +17,20 @@ export const metadata: Metadata = {
     template: "%s | einkk.app",
   },
   description:
-    "Unofficial per-server, per-percentile forecasts of the NIKKE Solo Raid ranking borders, with honest uncertainty.",
+    "Per-server forecasts of the NIKKE Solo Raid ranking borders, with honest ranges, updated during the raid.",
 };
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={roboto.variable} suppressHydrationWarning>
+      <body>
+        <InitColorSchemeScript attribute="class" />
+        <AppRouterCacheProvider>
+          <Providers>{children}</Providers>
+        </AppRouterCacheProvider>
+      </body>
     </html>
   );
 }

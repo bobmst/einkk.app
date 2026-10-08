@@ -1,247 +1,530 @@
-// Player-facing text: English, 中文, 日本語 (AGENTS.md). Damage is in 0.1B (1e8),
-// which is 亿 / 億 in Chinese and Japanese.
+// Player-facing text in the five languages of the season survey (EN, 日本語,
+// 한국어, 简体中文, 繁體中文), worded like it. Damage reaches the page in 0.1B
+// (1e8): 億 / 억 / 亿 read it as is, English shows billions.
 import type { Element, Season, Server } from "./outbox";
 
-export const LANGS = ["en", "zh", "ja"] as const;
+export const LANGS = ["en", "ja", "ko", "zhs", "zht"] as const;
 export type Lang = (typeof LANGS)[number];
-export const LANG_NAMES: Record<Lang, string> = { en: "EN", zh: "中文", ja: "日本語" };
+export const LANG_NAMES: Record<Lang, string> = {
+  en: "English", ja: "日本語", ko: "한국어", zhs: "简体中文", zht: "繁體中文",
+};
+export const LOCALES: Record<Lang, string> = {
+  en: "en-US", ja: "ja-JP", ko: "ko-KR", zhs: "zh-CN", zht: "zh-TW",
+};
+
+// the survey's order
+export const SERVER_ORDER: Server[] = ["jp", "kr", "gb", "na", "sea", "tw"];
 
 const SERVER_NAMES: Record<Lang, Record<Server, string>> = {
-  en: { jp: "Japan", kr: "Korea", na: "North America", sea: "Southeast Asia", tw: "TW/HK", gb: "Global" },
-  zh: { jp: "日服", kr: "韩服", na: "美服", sea: "东南亚服", tw: "港澳台服", gb: "国际服" },
-  ja: { jp: "日本", kr: "韓国", na: "北米", sea: "東南アジア", tw: "台湾・香港", gb: "グローバル" },
+  en: { jp: "Japan", kr: "Korea", gb: "Global", na: "North America", sea: "Southeast Asia", tw: "Taiwan" },
+  ja: { jp: "日本", kr: "韓国", gb: "グローバル", na: "北米", sea: "東南アジア", tw: "台湾" },
+  ko: { jp: "일본", kr: "한국", gb: "글로벌", na: "북미", sea: "동남아시아", tw: "대만" },
+  zhs: { jp: "日服", kr: "韩服", gb: "国际服", na: "美服", sea: "东南亚服", tw: "港澳台服" },
+  zht: { jp: "日服", kr: "韓服", gb: "國際服", na: "美服", sea: "東南亞服", tw: "港澳台服" },
 };
 
 const ELEMENTS: Record<Lang, Record<Element, string>> = {
   en: { fire: "Fire", water: "Water", wind: "Wind", iron: "Iron", electronic: "Electric" },
-  zh: { fire: "燃烧", water: "水冷", wind: "风压", iron: "铁甲", electronic: "电击" },
   ja: { fire: "灼熱", water: "水冷", wind: "風圧", iron: "鉄甲", electronic: "電撃" },
+  ko: { fire: "작열", water: "수냉", wind: "풍압", iron: "철갑", electronic: "전격" },
+  zhs: { fire: "燃烧", water: "水冷", wind: "风压", iron: "铁甲", electronic: "电击" },
+  zht: { fire: "燃燒", water: "水冷", wind: "風壓", iron: "鐵甲", electronic: "電擊" },
 };
 
-const STATES: Record<Lang, Record<Season["state"], string>> = {
-  en: { upcoming: "Not started", live: "Live", measuring: "Ended · measuring the final border", closed: "Ended" },
-  zh: { upcoming: "未开始", live: "进行中", measuring: "已结束 · 统计最终分数线", closed: "已结束" },
-  ja: { upcoming: "開催前", live: "開催中", measuring: "終了 · 最終ボーダー集計中", closed: "終了" },
+const en = {
+  tagline: "NIKKE Solo Raid border forecasts",
+  rehearsal: "Rehearsal: a mock season, not a real forecast",
+  loading: "Loading…",
+  loadFailed: "Couldn't load the latest data. Retrying every minute.",
+  nothing: "Nothing published yet.",
+  season: (n: number) => `Season ${n}`,
+  seasonCol: "Season",
+  states: { upcoming: "Not started", live: "Live", measuring: "Ended · final border pending", closed: "Ended" } as Record<Season["state"], string>,
+  weakness: "Weak to",
+  starts: "Starts",
+  ends: "Ends",
+  timeNote: "Same moment on every server, in your local time",
+  endsIn: (d: string) => `Ends in ${d}`,
+  startsIn: (d: string) => `Starts in ${d}`,
+  survey: "End-of-season survey",
+  yourServer: "Your server",
+  forecastTitle: "Top 3% border at the end of the raid",
+  range: (pct: number) => `${pct}% range`,
+  rangeUncertified: "Range",
+  raidDay: (d: number) => `Raid day ${d} of 5`,
+  updated: (ago: string) => `updated ${ago} ago`,
+  noForecast: "No forecast for this server yet.",
+  distTitle: "Damage by rank",
+  topPct: "Top %",
+  damage: "Damage",
+  tier: "Rank",
+  estimated: "~ estimated beyond this server's own data",
+  calcTitle: "Where does my damage land?",
+  calcPlaceholder: "Your damage, e.g. 22,316,000,000",
+  calcResult: (p: string) => `About top ${p}%`,
+  calcAbove: (p: string) => `Above the top ${p}% line`,
+  calcBelow: (p: string) => `Below the top ${p}% line`,
+  history: "Track record",
+  forecast: "Forecast",
+  error: "Error",
+  final: "Final",
+  hit: "Inside the range",
+  miss: "Outside the range",
+  pending: "Not graded yet",
+  legacy: "† old in-sample range, no certified level",
+  sources: { manual_collection: "collected", survey: "survey", reports: "reports" } as Record<string, string>,
+  report: "Report your score",
+  reportIntro: "Share your current damage and rank exactly as the game shows them.",
+  server: "Server",
+  damageLabel: "Damage",
+  damageHelp: "Enter every digit exactly as shown, e.g. 27,635,537,449",
+  digitsCheck: (v: string) => `→ ${v} — please double-check the number of digits`,
+  roundWarn: "The number ends in many zeros. Please enter the exact score, not a rounded one.",
+  rankDisplay: "Rank display",
+  rankDisplayHelp: "What does the blue badge on the left show — a percentage (e.g. 3.00%) or a rank number (e.g. 25; only the top 200 see a number)?",
+  pctLabel: "Percentage rank",
+  pctHelp: "Number only, without the % sign, exactly as shown: 3.00% → 3.00",
+  pctLowWarn: "Below 0.1% is very rare. If your screen shows e.g. 8.47%, enter 8.47 — not 0.0847.",
+  numLabel: "Numeric rank",
+  numHelp: "Your rank number exactly as shown, e.g. 25",
+  readAt: "When you read it",
+  next: "Next",
+  back: "Back",
+  reviewTitle: "Please check your answers",
+  reviewNote: "If everything is correct, press Submit. Otherwise go back and fix it.",
+  rank: "Rank",
+  submit: "Submit",
+  sending: "Sending…",
+  sent: "Thanks! Your report was received.",
+  another: "Report another",
+  reportClosed: "Reports open while the raid is live.",
+  reportUnavailable: "Reporting isn't available right now.",
+  errors: {
+    invalid_report: "Some values look wrong. Check the rank and the damage.",
+    turnstile_failed: "The anti-bot check failed. Try again.",
+    rate_limited: "Too many reports from this connection. Try again in an hour.",
+    intake_not_configured: "Reporting isn't available right now.",
+    other: "Couldn't send. Try again.",
+  } as Record<string, string>,
+  bossArt: "Boss art: enikk.app",
+  feedback: "Report a problem",
+  theme: "Light / dark",
+  language: "Language",
+};
+export type Text = typeof en;
+
+const ja: Text = {
+  ...en,
+  tagline: "NIKKE ソロレイド ボーダー予測",
+  rehearsal: "リハーサル：模擬シーズンで、実際の予測ではありません",
+  loading: "読み込み中…",
+  loadFailed: "最新データを読み込めません。1 分ごとに再試行します。",
+  nothing: "まだ公開されていません。",
+  season: (n) => `シーズン ${n}`,
+  seasonCol: "シーズン",
+  states: { upcoming: "開催前", live: "開催中", measuring: "終了・最終ボーダー集計中", closed: "終了" },
+  weakness: "弱点",
+  starts: "開始",
+  ends: "終了",
+  timeNote: "全サーバー共通の時刻（お使いの端末のタイムゾーン）",
+  endsIn: (d) => `終了まで ${d}`,
+  startsIn: (d) => `開始まで ${d}`,
+  survey: "シーズン終了アンケート",
+  yourServer: "サーバー",
+  forecastTitle: "終了時の上位 3% ボーダー",
+  range: (pct) => `${pct}% 予測範囲`,
+  rangeUncertified: "予測範囲",
+  raidDay: (d) => `${d}/5 日目`,
+  updated: (ago) => `${ago}前に更新`,
+  noForecast: "このサーバーの予測はまだありません。",
+  distTitle: "順位帯ごとのダメージ",
+  topPct: "上位 %",
+  damage: "ダメージ",
+  tier: "順位帯",
+  estimated: "~ このサーバーのデータ範囲外の推定値",
+  calcTitle: "自分のダメージはどの順位帯？",
+  calcPlaceholder: "ダメージ　例: 22,316,000,000",
+  calcResult: (p) => `およそ上位 ${p}%`,
+  calcAbove: (p) => `上位 ${p}% ラインより上`,
+  calcBelow: (p) => `上位 ${p}% ラインより下`,
+  history: "これまでの成績",
+  forecast: "予測",
+  error: "誤差",
+  final: "確定値",
+  hit: "範囲内",
+  miss: "範囲外",
+  pending: "未採点",
+  legacy: "† 旧方式の範囲（保証水準なし）",
+  sources: { manual_collection: "手動収集", survey: "アンケート", reports: "報告" },
+  report: "スコアを報告",
+  reportIntro: "現在のダメージと順位を、ゲーム内の表示どおりに入力してください。",
+  server: "サーバー",
+  damageLabel: "ダメージスコア",
+  damageHelp: "ダメージスコアを全桁そのまま入力してください。例：27,635,537,449",
+  digitsCheck: (v) => `→ ${v} — 桁数をご確認ください`,
+  roundWarn: "末尾が0ばかりです。四捨五入せず、正確な数字を入力してください。",
+  rankDisplay: "順位表示",
+  rankDisplayHelp: "左の青いラベルに表示されているのは？ 割合（例：3.00%）、または順位（例：25 — 上位200位のみ順位で表示）",
+  pctLabel: "上位%",
+  pctHelp: "%記号なしで、表示どおりの数字のみ：3.00% → 3.00",
+  pctLowWarn: "0.1%未満は非常にまれです。画面が 8.47% なら 0.0847 ではなく 8.47 と入力してください。",
+  numLabel: "順位",
+  numHelp: "表示どおりの順位の数字：例 25",
+  readAt: "確認した時刻",
+  next: "次へ",
+  back: "戻る",
+  reviewTitle: "入力内容をご確認ください",
+  reviewNote: "問題なければ送信してください。誤りがあれば戻って修正してください。",
+  rank: "順位",
+  submit: "送信",
+  sending: "送信中…",
+  sent: "ありがとうございます。受け付けました。",
+  another: "続けて報告",
+  reportClosed: "報告は開催中のみ受け付けます。",
+  reportUnavailable: "現在は報告できません。",
+  errors: {
+    invalid_report: "値が正しくないようです。順位とダメージを確認してください。",
+    turnstile_failed: "ボット確認に失敗しました。もう一度お試しください。",
+    rate_limited: "この接続からの報告が多すぎます。1 時間後にお試しください。",
+    intake_not_configured: "現在は報告できません。",
+    other: "送信できませんでした。もう一度お試しください。",
+  },
+  bossArt: "ボス画像：enikk.app",
+  feedback: "不具合の報告",
+  theme: "ライト / ダーク",
+  language: "言語",
 };
 
-const TEXT = {
-  en: {
-    tagline: "NIKKE Solo Raid border forecasts",
-    rehearsal: "REHEARSAL — mock season, not a real forecast",
-    loading: "Loading…",
-    loadFailed: "Couldn't load the latest data. Retrying every minute.",
-    nothing: "Nothing published yet.",
-    season: "Season",
-    weakness: "weak to",
-    schedule: "Same moment on every server, shown in your local time",
-    starts: "Starts",
-    ends: "Ends",
-    left: "left",
-    startsIn: "starts in",
-    survey: "End-of-season survey",
-    forecastTitle: "Top 3% border at raid close",
-    range: "range",
-    rangeUncertified: "range (no certified level)",
-    raidDay: (day: number) => `Raid day ${day} of 5`,
-    updated: (ago: string) => `updated ${ago} ago`,
-    servers: "Every server",
-    server: "Server",
-    border: "3% border",
-    percentiles: "Other percentiles",
-    extrapolated: "~ extrapolated beyond this server's data",
-    noForecast: "No forecast yet for this season.",
-    history: "Track record",
-    forecast: "Forecast",
-    error: "Error",
-    final: "Final",
-    hit: "inside the range",
-    miss: "outside the range",
-    pending: "not graded yet",
-    legacy: "old in-sample band",
-    sources: { manual_collection: "hand-collected", survey: "survey", reports: "player reports" },
-    report: "Report your score",
-    reportHelp: "Numbers only. They feed the live forecast after checks.",
-    rankBy: "Your rank is shown as",
-    percent: "a percentage",
-    number: "a number (top 200)",
-    rank: "Rank",
-    damage: "Damage (0.1B = 100M)",
-    readAt: "When you read it",
-    confirm: "You are sending",
-    send: "Send",
-    sending: "Sending…",
-    sent: "Thanks! Report received.",
-    reportClosed: "Reports open while the raid is live.",
-    reportUnavailable: "Reporting isn't available right now.",
-    errors: {
-      invalid_report: "Some values look wrong. Check the rank and the damage.",
-      turnstile_failed: "The anti-bot check failed. Try again.",
-      rate_limited: "Too many reports from this connection. Try again in an hour.",
-      intake_not_configured: "Reporting isn't available right now.",
-      other: "Couldn't send. Try again.",
-    },
-    footerIssue: "Report a problem",
-    disclaimer: "Unofficial fan project. Not affiliated with SHIFT UP, Level Infinite or enikk.app.",
+const ko: Text = {
+  ...en,
+  tagline: "NIKKE 솔로 레이드 커트라인 예측",
+  rehearsal: "리허설: 모의 시즌이며 실제 예측이 아닙니다",
+  loading: "불러오는 중…",
+  loadFailed: "최신 데이터를 불러오지 못했습니다. 1분마다 다시 시도합니다.",
+  nothing: "아직 공개된 내용이 없습니다.",
+  season: (n) => `시즌 ${n}`,
+  seasonCol: "시즌",
+  states: { upcoming: "시작 전", live: "진행 중", measuring: "종료 · 최종 커트라인 집계 중", closed: "종료" },
+  weakness: "약점",
+  starts: "시작",
+  ends: "종료",
+  timeNote: "모든 서버 공통 시각 (사용 중인 기기의 시간대)",
+  endsIn: (d) => `종료까지 ${d}`,
+  startsIn: (d) => `시작까지 ${d}`,
+  survey: "시즌 종료 설문",
+  yourServer: "서버",
+  forecastTitle: "종료 시 상위 3% 커트라인",
+  range: (pct) => `${pct}% 예측 범위`,
+  rangeUncertified: "예측 범위",
+  raidDay: (d) => `${d}/5일차`,
+  updated: (ago) => `${ago} 전 업데이트`,
+  noForecast: "이 서버의 예측이 아직 없습니다.",
+  distTitle: "순위 구간별 데미지",
+  topPct: "상위 %",
+  damage: "데미지",
+  tier: "구간",
+  estimated: "~ 이 서버 데이터 범위 밖의 추정값",
+  calcTitle: "내 데미지는 어느 구간일까?",
+  calcPlaceholder: "데미지 예: 22,316,000,000",
+  calcResult: (p) => `약 상위 ${p}%`,
+  calcAbove: (p) => `상위 ${p}% 라인보다 위`,
+  calcBelow: (p) => `상위 ${p}% 라인보다 아래`,
+  history: "지난 성적",
+  forecast: "예측",
+  error: "오차",
+  final: "최종값",
+  hit: "범위 안",
+  miss: "범위 밖",
+  pending: "채점 전",
+  legacy: "† 이전 방식의 범위 (보증 수준 없음)",
+  sources: { manual_collection: "수동 수집", survey: "설문", reports: "제보" },
+  report: "점수 제보",
+  reportIntro: "현재 데미지와 순위를 게임에 표시된 그대로 입력해 주세요.",
+  server: "서버",
+  damageLabel: "데미지 점수",
+  damageHelp: "데미지 점수를 모든 자릿수 그대로 입력해 주세요. 예: 27,635,537,449",
+  digitsCheck: (v) => `→ ${v} — 자릿수를 확인해 주세요`,
+  roundWarn: "끝자리가 0이 많습니다. 반올림하지 말고 정확한 숫자를 입력해 주세요.",
+  rankDisplay: "순위 표시",
+  rankDisplayHelp: "왼쪽 파란색 라벨에 무엇이 표시되어 있나요? 퍼센트(예: 3.00%) 또는 순위(예: 25 — 상위 200위만 순위로 표시)",
+  pctLabel: "랭킹 %",
+  pctHelp: "% 기호 없이 표시된 숫자만: 3.00% → 3.00",
+  pctLowWarn: "0.1% 미만은 매우 드뭅니다. 화면에 8.47%로 표시되면 0.0847이 아니라 8.47을 입력해 주세요.",
+  numLabel: "순위",
+  numHelp: "표시된 순위 숫자: 예 25",
+  readAt: "확인한 시각",
+  next: "다음",
+  back: "뒤로",
+  reviewTitle: "입력 내용을 확인해 주세요",
+  reviewNote: "맞으면 제출을 눌러 주세요. 틀린 부분이 있으면 뒤로 가서 수정해 주세요.",
+  rank: "순위",
+  submit: "제출",
+  sending: "제출 중…",
+  sent: "감사합니다! 접수되었습니다.",
+  another: "계속 제보",
+  reportClosed: "제보는 레이드 진행 중에만 받습니다.",
+  reportUnavailable: "지금은 제보할 수 없습니다.",
+  errors: {
+    invalid_report: "값이 올바르지 않은 것 같습니다. 순위와 데미지를 확인해 주세요.",
+    turnstile_failed: "봇 확인에 실패했습니다. 다시 시도해 주세요.",
+    rate_limited: "이 연결에서 제보가 너무 많습니다. 1시간 후에 다시 시도해 주세요.",
+    intake_not_configured: "지금은 제보할 수 없습니다.",
+    other: "제출하지 못했습니다. 다시 시도해 주세요.",
   },
-  zh: {
-    tagline: "NIKKE 个人突袭分数线预测",
-    rehearsal: "演练 — 模拟赛季，不是真实预测",
-    loading: "加载中…",
-    loadFailed: "暂时读不到最新数据，每分钟自动重试。",
-    nothing: "还没有发布任何内容。",
-    season: "赛季",
-    weakness: "弱点",
-    schedule: "所有服务器同一时刻，按你的本地时区显示",
-    starts: "开始",
-    ends: "结束",
-    left: "后结束",
-    startsIn: "后开始",
-    survey: "赛季结束问卷",
-    forecastTitle: "收盘时前 3% 分数线",
-    range: "区间",
-    rangeUncertified: "区间（无保证水平）",
-    raidDay: (day: number) => `第 ${day}/5 天`,
-    updated: (ago: string) => `${ago}前更新`,
-    servers: "各服务器",
-    server: "服务器",
-    border: "3% 线",
-    percentiles: "其他档位",
-    extrapolated: "~ 超出该服数据范围的外推值",
-    noForecast: "本季还没有预测。",
-    history: "历史战绩",
-    forecast: "预测",
-    error: "误差",
-    final: "终值",
-    hit: "落在区间内",
-    miss: "落在区间外",
-    pending: "尚未评分",
-    legacy: "旧版样本内区间",
-    sources: { manual_collection: "手工收集", survey: "问卷", reports: "玩家回报" },
-    report: "回报你的分数",
-    reportHelp: "只填数字。经过检查后用于实时预测。",
-    rankBy: "游戏里你的排名显示为",
-    percent: "百分比",
-    number: "名次（前 200）",
-    rank: "排名",
-    damage: "伤害（亿）",
-    readAt: "查看时间",
-    confirm: "你要提交的是",
-    send: "提交",
-    sending: "提交中…",
-    sent: "谢谢！已收到。",
-    reportClosed: "赛中才开放回报。",
-    reportUnavailable: "暂时无法回报。",
-    errors: {
-      invalid_report: "有数值不对，请检查排名和伤害。",
-      turnstile_failed: "人机验证没有通过，请重试。",
-      rate_limited: "这个网络提交太多了，请一小时后再试。",
-      intake_not_configured: "暂时无法回报。",
-      other: "提交失败，请重试。",
-    },
-    footerIssue: "反馈问题",
-    disclaimer: "非官方粉丝项目，与 SHIFT UP、Level Infinite 及 enikk.app 无关。",
-  },
-  ja: {
-    tagline: "NIKKE ソロレイド ボーダー予測",
-    rehearsal: "リハーサル — 模擬シーズンで、実際の予測ではありません",
-    loading: "読み込み中…",
-    loadFailed: "最新データを読み込めません。1 分ごとに再試行します。",
-    nothing: "まだ公開されていません。",
-    season: "シーズン",
-    weakness: "弱点",
-    schedule: "全サーバー共通の時刻（お使いの端末のタイムゾーンで表示）",
-    starts: "開始",
-    ends: "終了",
-    left: "で終了",
-    startsIn: "で開始",
-    survey: "シーズン終了アンケート",
-    forecastTitle: "終了時の上位 3% ボーダー",
-    range: "予測範囲",
-    rangeUncertified: "予測範囲（保証水準なし）",
-    raidDay: (day: number) => `${day}/5 日目`,
-    updated: (ago: string) => `${ago}前に更新`,
-    servers: "全サーバー",
-    server: "サーバー",
-    border: "3% ボーダー",
-    percentiles: "他の順位帯",
-    extrapolated: "~ このサーバーのデータ範囲外の外挿値",
-    noForecast: "今シーズンの予測はまだありません。",
-    history: "これまでの成績",
-    forecast: "予測",
-    error: "誤差",
-    final: "確定値",
-    hit: "範囲内",
-    miss: "範囲外",
-    pending: "未採点",
-    legacy: "旧方式の範囲",
-    sources: { manual_collection: "手動収集", survey: "アンケート", reports: "プレイヤー報告" },
-    report: "スコアを報告",
-    reportHelp: "数字のみ。チェック後にリアルタイム予測に使われます。",
-    rankBy: "ゲーム内の順位表示",
-    percent: "パーセント",
-    number: "順位（上位 200 位）",
-    rank: "順位",
-    damage: "ダメージ（億）",
-    readAt: "確認した時刻",
-    confirm: "送信内容",
-    send: "送信",
-    sending: "送信中…",
-    sent: "ありがとうございます。受け付けました。",
-    reportClosed: "報告は開催中のみ受け付けます。",
-    reportUnavailable: "現在は報告できません。",
-    errors: {
-      invalid_report: "値が正しくないようです。順位とダメージを確認してください。",
-      turnstile_failed: "ボット確認に失敗しました。もう一度お試しください。",
-      rate_limited: "この接続からの報告が多すぎます。1 時間後にお試しください。",
-      intake_not_configured: "現在は報告できません。",
-      other: "送信できませんでした。もう一度お試しください。",
-    },
-    footerIssue: "不具合の報告",
-    disclaimer: "非公式のファンプロジェクトです。SHIFT UP、Level Infinite、enikk.app とは関係ありません。",
-  },
-} as const;
+  bossArt: "보스 이미지: enikk.app",
+  feedback: "문제 신고",
+  theme: "라이트 / 다크",
+  language: "언어",
+};
 
-export type Text = (typeof TEXT)[Lang];
+const zhs: Text = {
+  ...en,
+  tagline: "NIKKE 个人突袭分数线预测",
+  rehearsal: "演练：模拟赛季，不是真实预测",
+  loading: "加载中…",
+  loadFailed: "暂时读不到最新数据，每分钟自动重试。",
+  nothing: "还没有发布任何内容。",
+  season: (n) => `第 ${n} 季`,
+  seasonCol: "赛季",
+  states: { upcoming: "未开始", live: "进行中", measuring: "已结束 · 统计最终分数线", closed: "已结束" },
+  weakness: "弱点",
+  starts: "开始",
+  ends: "结束",
+  timeNote: "所有服务器同一时刻，按你的本地时区显示",
+  endsIn: (d) => `${d}后结束`,
+  startsIn: (d) => `${d}后开始`,
+  survey: "赛季结束问卷",
+  yourServer: "服务器",
+  forecastTitle: "收盘时前 3% 分数线",
+  range: (pct) => `${pct}% 区间`,
+  rangeUncertified: "区间",
+  raidDay: (d) => `第 ${d}/5 天`,
+  updated: (ago) => `${ago}前更新`,
+  noForecast: "这个服务器还没有预测。",
+  distTitle: "各档位分数线",
+  topPct: "前 %",
+  damage: "伤害",
+  tier: "档位",
+  estimated: "~ 超出该服数据范围的估算值",
+  calcTitle: "我的伤害在哪一档？",
+  calcPlaceholder: "你的伤害，例如 22,316,000,000",
+  calcResult: (p) => `约前 ${p}%`,
+  calcAbove: (p) => `高于前 ${p}% 线`,
+  calcBelow: (p) => `低于前 ${p}% 线`,
+  history: "历史战绩",
+  forecast: "预测",
+  error: "误差",
+  final: "终值",
+  hit: "落在区间内",
+  miss: "落在区间外",
+  pending: "尚未评分",
+  legacy: "† 旧版样本内区间（无保证水平）",
+  sources: { manual_collection: "手工收集", survey: "问卷", reports: "回报" },
+  report: "回报分数",
+  reportIntro: "按游戏里显示的原样，填写你现在的伤害和排名。",
+  server: "服务器",
+  damageLabel: "伤害数值",
+  damageHelp: "请按画面完整填写全部数字，例如 27,635,537,449",
+  digitsCheck: (v) => `→ ${v} — 请核对位数`,
+  roundWarn: "末尾有很多 0。请按画面填写精确数字，不要取整。",
+  rankDisplay: "排名显示",
+  rankDisplayHelp: "左侧的蓝色标签显示的是百分比（如 3.00%），还是名次（如 25，只有前 200 名显示名次）？",
+  pctLabel: "排名百分比",
+  pctHelp: "只填数字，不带 %，按画面原样：3.00% → 3.00",
+  pctLowWarn: "低于 0.1% 非常少见。如果画面显示 8.47%，请填 8.47，而不是 0.0847。",
+  numLabel: "名次",
+  numHelp: "按画面填写名次数字，例如 25",
+  readAt: "查看时间",
+  next: "下一步",
+  back: "返回",
+  reviewTitle: "请确认填写内容",
+  reviewNote: "确认无误请点击提交；如有错误请返回修改。",
+  rank: "排名",
+  submit: "提交",
+  sending: "提交中…",
+  sent: "谢谢！已收到。",
+  another: "继续回报",
+  reportClosed: "赛中才开放回报。",
+  reportUnavailable: "暂时无法回报。",
+  errors: {
+    invalid_report: "有数值不对，请检查排名和伤害。",
+    turnstile_failed: "人机验证没有通过，请重试。",
+    rate_limited: "这个网络提交太多了，请一小时后再试。",
+    intake_not_configured: "暂时无法回报。",
+    other: "提交失败，请重试。",
+  },
+  bossArt: "Boss 图片：enikk.app",
+  feedback: "反馈问题",
+  theme: "浅色 / 深色",
+  language: "语言",
+};
 
+const zht: Text = {
+  ...zhs,
+  tagline: "NIKKE 個人突襲分數線預測",
+  seasonCol: "賽季",
+  rehearsal: "演練：模擬賽季，不是真實預測",
+  loading: "載入中…",
+  loadFailed: "暫時讀不到最新數據，每分鐘自動重試。",
+  nothing: "還沒有發布任何內容。",
+  states: { upcoming: "未開始", live: "進行中", measuring: "已結束 · 統計最終分數線", closed: "已結束" },
+  weakness: "弱點",
+  starts: "開始",
+  ends: "結束",
+  timeNote: "所有伺服器同一時刻，按你的本地時區顯示",
+  endsIn: (d) => `${d}後結束`,
+  startsIn: (d) => `${d}後開始`,
+  survey: "賽季結束問卷",
+  yourServer: "伺服器",
+  forecastTitle: "收盤時前 3% 分數線",
+  range: (pct) => `${pct}% 區間`,
+  rangeUncertified: "區間",
+  updated: (ago) => `${ago}前更新`,
+  noForecast: "這個伺服器還沒有預測。",
+  distTitle: "各檔位分數線",
+  damage: "傷害",
+  tier: "檔位",
+  estimated: "~ 超出該服數據範圍的估算值",
+  calcTitle: "我的傷害在哪一檔？",
+  calcPlaceholder: "你的傷害，例如 22,316,000,000",
+  calcResult: (p) => `約前 ${p}%`,
+  calcAbove: (p) => `高於前 ${p}% 線`,
+  calcBelow: (p) => `低於前 ${p}% 線`,
+  history: "歷史戰績",
+  forecast: "預測",
+  error: "誤差",
+  final: "終值",
+  hit: "落在區間內",
+  miss: "落在區間外",
+  pending: "尚未評分",
+  legacy: "† 舊版樣本內區間（無保證水準）",
+  sources: { manual_collection: "手工收集", survey: "問卷", reports: "回報" },
+  report: "回報分數",
+  reportIntro: "按遊戲裡顯示的原樣，填寫你現在的傷害和排名。",
+  server: "伺服器",
+  damageLabel: "傷害數值",
+  damageHelp: "請按畫面完整填寫全部數字，例如 27,635,537,449",
+  digitsCheck: (v) => `→ ${v} — 請核對位數`,
+  roundWarn: "末尾有很多 0。請按畫面填寫精確數字，不要取整。",
+  rankDisplay: "排名顯示",
+  rankDisplayHelp: "左側的藍色標籤顯示的是百分比（如 3.00%），還是名次（如 25，只有前 200 名顯示名次）？",
+  pctLabel: "排名百分比",
+  pctHelp: "只填數字，不帶 %，按畫面原樣：3.00% → 3.00",
+  pctLowWarn: "低於 0.1% 非常少見。如果畫面顯示 8.47%，請填 8.47，而不是 0.0847。",
+  numLabel: "名次",
+  numHelp: "按畫面填寫名次數字，例如 25",
+  readAt: "查看時間",
+  next: "下一步",
+  back: "返回",
+  reviewTitle: "請確認填寫內容",
+  reviewNote: "確認無誤請點擊提交；如有錯誤請返回修改。",
+  rank: "排名",
+  submit: "提交",
+  sending: "提交中…",
+  sent: "謝謝！已收到。",
+  another: "繼續回報",
+  reportClosed: "賽中才開放回報。",
+  reportUnavailable: "暫時無法回報。",
+  errors: {
+    invalid_report: "有數值不對，請檢查排名和傷害。",
+    turnstile_failed: "人機驗證沒有通過，請重試。",
+    rate_limited: "這個網路提交太多了，請一小時後再試。",
+    intake_not_configured: "暫時無法回報。",
+    other: "提交失敗，請重試。",
+  },
+  bossArt: "Boss 圖片：enikk.app",
+  feedback: "回報問題",
+  theme: "淺色 / 深色",
+  language: "語言",
+};
+
+const TEXT: Record<Lang, Text> = { en, ja, ko, zhs, zht };
 export const text = (lang: Lang): Text => TEXT[lang];
 export const serverName = (lang: Lang, server: Server) => SERVER_NAMES[lang][server];
 export const elementName = (lang: Lang, element: Element) => ELEMENTS[lang][element];
-export const stateName = (lang: Lang, state: Season["state"]) => STATES[lang][state];
 
-/** 0.1B units as each language reads them: "244.78 亿", "244.78億", "24.48B". */
+/** A 0.1B value as each language reads it: "225.35 亿", "225.35億", "22.54B". */
 export function damage(lang: Lang, value: number): string {
-  if (lang === "zh") return `${value.toFixed(2)} 亿`;
-  if (lang === "ja") return `${value.toFixed(2)}億`;
-  return `${(value / 10).toFixed(2)}B`;
+  if (lang === "en") return `${(value / 10).toFixed(2)}B`;
+  const unit = { ja: "億", ko: "억", zhs: "亿", zht: "億" }[lang];
+  return lang === "zhs" || lang === "ko" ? `${value.toFixed(2)} ${unit}` : `${value.toFixed(2)}${unit}`;
 }
 
-// The chosen language as an external store (React's useSyncExternalStore): the
-// static export renders English, and the browser switches to the saved or
-// preferred language right after hydration, without a mismatch.
-let chosen: Lang | null = null;
-const listeners = new Set<() => void>();
+/** "2d 3h 5m" in each language. */
+export function duration(lang: Lang, ms: number): string {
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  const d = Math.floor(minutes / 1440);
+  const h = Math.floor((minutes % 1440) / 60);
+  const m = minutes % 60;
+  const u = { en: ["d ", "h ", "m"], ja: ["日", "時間", "分"], ko: ["일 ", "시간 ", "분"],
+              zhs: ["天", "小时", "分"], zht: ["天", "小時", "分"] }[lang];
+  return `${d ? d + u[0] : ""}${d || h ? h + u[1] : ""}${m}${u[2]}`.trim();
+}
 
-function preferred(): Lang {
+/** A date-time in the viewer's own time zone, with the zone named. */
+export function when(lang: Lang, iso: string): string {
+  return new Date(iso).toLocaleString(LOCALES[lang], {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+  });
+}
+
+// Choices the browser remembers, as external stores (React's
+// useSyncExternalStore): the static export renders with the server snapshot
+// and the browser switches right after hydration, without a mismatch.
+function stored<T extends string>(key: string, allowed: readonly string[]): T | null {
   try {
-    const saved = localStorage.getItem("lang");
-    if (saved && (LANGS as readonly string[]).includes(saved)) return saved as Lang;
+    const saved = localStorage.getItem(key);
+    if (saved && allowed.includes(saved)) return saved as T;
   } catch {}
-  const browser = typeof navigator === "undefined" ? "" : navigator.language.toLowerCase();
-  return browser.startsWith("zh") ? "zh" : browser.startsWith("ja") ? "ja" : "en";
+  return null;
 }
 
+function remember(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {}
+}
+
+function preferredLang(): Lang {
+  const browser = typeof navigator === "undefined" ? "" : navigator.language.toLowerCase();
+  if (browser.startsWith("ja")) return "ja";
+  if (browser.startsWith("ko")) return "ko";
+  if (/^zh-(tw|hk|mo|hant)/.test(browser)) return "zht";
+  if (browser.startsWith("zh")) return "zhs";
+  return "en";
+}
+
+let chosenLang: Lang | null = null;
+const langListeners = new Set<() => void>();
 export const langStore = {
   subscribe(listener: () => void) {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
+    langListeners.add(listener);
+    return () => langListeners.delete(listener);
   },
-  get: (): Lang => chosen ?? preferred(),
+  get: (): Lang => chosenLang ?? stored<Lang>("lang", LANGS) ?? preferredLang(),
   server: (): Lang => "en",
   set(lang: Lang) {
-    chosen = lang;
-    try {
-      localStorage.setItem("lang", lang);
-    } catch {}
-    listeners.forEach((listener) => listener());
+    chosenLang = lang;
+    remember("lang", lang);
+    langListeners.forEach((listener) => listener());
   },
+};
+
+// The server the player follows; until they pick one, the language's usual one.
+const DEFAULT_SERVER: Record<Lang, Server> = { en: "gb", ja: "jp", ko: "kr", zhs: "jp", zht: "tw" };
+let chosenServer: Server | null = null;
+const serverListeners = new Set<() => void>();
+export const serverStore = {
+  subscribe(listener: () => void) {
+    serverListeners.add(listener);
+    return () => serverListeners.delete(listener);
+  },
+  get: (): Server | null => chosenServer ?? stored<Server>("server", SERVER_ORDER),
+  server: (): Server | null => null,
+  set(server: Server) {
+    chosenServer = server;
+    remember("server", server);
+    serverListeners.forEach((listener) => listener());
+  },
+  fallback: (lang: Lang): Server => DEFAULT_SERVER[lang],
 };
