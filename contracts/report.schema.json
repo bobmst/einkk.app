@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/report.schema.json",
+  "title": "In-raid player report (draft 0.1.0)",
+  "description": "One player report as the site stores it in the inbox; the private engine reads it. Numbers only: no images, no OCR. The site fills in id, submitted_at and client; the player supplies the rest and confirms the damage shown back formatted (e.g. \"223.16 亿\") before sending. Damage is in 0.1B (1e8) units.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "server",
+    "season",
+    "damage",
+    "read_at",
+    "submitted_at",
+    "client"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "rank_pc"
+      ]
+    },
+    {
+      "required": [
+        "rank_n"
+      ]
+    }
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "id": {
+      "description": "Set by the site (UUID v4), so the engine can de-duplicate pulls and point DQ results at one report.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "server": {
+      "enum": [
+        "jp",
+        "kr",
+        "na",
+        "sea",
+        "tw",
+        "gb"
+      ]
+    },
+    "season": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "rank_pc": {
+      "description": "The rank as a percentage, as the game shows it (up to 2 decimals; more is a DQ flag, not a schema error). Exactly one of rank_pc and rank_n is present.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 100
+    },
+    "rank_n": {
+      "description": "The numeric rank. The game shows a number only to its top 200, so anything else arrives as rank_pc.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200
+    },
+    "damage": {
+      "description": "In 0.1B (1e8) units. The upper bound is a units guard: a raw in-game score (> 1e6) typed without conversion fails here instead of reaching the engine.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 100000
+    },
+    "read_at": {
+      "description": "When the player read the value in game, as they entered it.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "submitted_at": {
+      "description": "Set by the site when it accepted the report.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "client": {
+      "description": "Anti-abuse summary. Never an IP address or an account.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turnstile",
+        "rate_key"
+      ],
+      "properties": {
+        "turnstile": {
+          "description": "Whether the Turnstile check passed.",
+          "type": "boolean"
+        },
+        "rate_key": {
+          "description": "SHA-256 (hex) of the rate-limit key, salted on the site so it can't be reversed to an address.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

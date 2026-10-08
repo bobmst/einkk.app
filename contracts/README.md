@@ -6,7 +6,19 @@ engine. This directory is the single source of truth for both sides.
 | Schema | Written by | Read by | Version |
 |---|---|---|---|
 | `prediction.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
-| `report.schema.json` (planned) | site (inbox) | engine | — |
+| `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
+
+`report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
+only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_at` and `client`;
+`client` carries a salted hash for rate limiting and never an IP address or account.
+
+## Examples and checks
+
+`examples/<schema name>/` holds `valid-*.json` and `invalid-*.json` documents; each invalid one
+breaks exactly one rule. `npm test` (also run in CI) checks two things:
+- every schema compiles as draft 2020-12 under Ajv's strict mode;
+- every example passes (`valid-*`) or fails (`invalid-*`) under `@cfworker/json-schema`, the
+  validator the Worker uses at runtime.
 
 ## Rules
 
