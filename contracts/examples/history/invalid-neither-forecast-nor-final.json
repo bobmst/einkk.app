@@ -17,19 +17,7 @@
     },
     {
       "season": 41,
-      "server": "jp",
-      "model_version": "router-v2.3",
-      "forecast": 226.25,
-      "band": {
-        "lo": 217.32,
-        "hi": 235.18,
-        "level": null,
-        "method": "conformal_walk_forward"
-      },
-      "grading": {
-        "error_pct": 1.38,
-        "hit": true
-      }
+      "server": "jp"
     },
     {
       "season": 41,

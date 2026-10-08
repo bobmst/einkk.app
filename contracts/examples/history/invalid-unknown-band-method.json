@@ -32,6 +32,15 @@
       }
     },
     {
+      "season": 41,
+      "server": "gb",
+      "final": {
+        "value": 241.8,
+        "source": "survey",
+        "n": 10
+      }
+    },
+    {
       "season": 40,
       "server": "jp",
       "model_version": "router-v2.3",
@@ -45,6 +54,14 @@
       "grading": {
         "error_pct": 1.94,
         "hit": true
+      }
+    },
+    {
+      "season": 30,
+      "server": "tw",
+      "final": {
+        "value": 98.4,
+        "source": "manual_collection"
       }
     }
   ]

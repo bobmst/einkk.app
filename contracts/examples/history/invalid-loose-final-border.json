@@ -23,13 +23,14 @@
       "band": {
         "lo": 217.32,
         "hi": 235.18,
-        "level": null,
+        "level": 0.9,
         "method": "conformal_walk_forward"
       },
       "grading": {
         "error_pct": 1.38,
         "hit": true
-      }
+      },
+      "final_border": 223.17
     },
     {
       "season": 41,

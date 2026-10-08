@@ -30,7 +30,19 @@
         "error_pct": 1.38,
         "hit": true
       },
-      "final_border": 223.17
+      "final": {
+        "value": 223.17,
+        "source": "x_post"
+      }
+    },
+    {
+      "season": 41,
+      "server": "gb",
+      "final": {
+        "value": 241.8,
+        "source": "survey",
+        "n": 10
+      }
     },
     {
       "season": 40,
@@ -46,6 +58,14 @@
       "grading": {
         "error_pct": 1.94,
         "hit": true
+      }
+    },
+    {
+      "season": 30,
+      "server": "tw",
+      "final": {
+        "value": 98.4,
+        "source": "manual_collection"
       }
     }
   ]

@@ -19,11 +19,17 @@ measuring → closed) and the Tally survey, which is `null` until the form exist
 to the survey only after the raid has ended and while the survey window is open. The schema
 accepts only `https://tally.so/` URLs, because the site renders this value as a link.
 
-`history.schema.json` is our track record. For each season and server it holds the forecast of
-record, its band and its grading (`error_pct`, `hit`; `null` until graded). It contains only our own
-data. In particular it has no final border: until we measure the final border from our own reports,
-the history publishes only the error and the hit. Legacy bands carry `method: t_in_sample_legacy`
-and `level: null`, because they never certified the level they were labelled with.
+`history.schema.json` is our track record. Each season and server entry holds one or both of:
+- **the forecast of record**, with its band and grading (`error_pct`, `hit`; `null` until graded);
+- **the final 3% line, when we measured it ourselves**. The `source` is `manual_collection` (the
+  maintainer's own collection from community posts, S14–S34), `survey` (our end-of-season survey)
+  or `reports` (in-raid reports to this site). `n` gives the sample size, which is required for
+  survey and reports values.
+
+Only our own data enters it. If the final line is known only from a third party's compiled values,
+as for JP today, the entry carries the grading but no final value. Legacy bands carry
+`method: t_in_sample_legacy` and `level: null`, because they never certified the level they were
+labelled with.
 
 ## Examples and checks
 

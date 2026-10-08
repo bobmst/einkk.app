@@ -23,7 +23,7 @@
       "band": {
         "lo": 217.32,
         "hi": 235.18,
-        "level": null,
+        "level": 0.9,
         "method": "conformal_walk_forward"
       },
       "grading": {
