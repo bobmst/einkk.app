@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/prediction.schema.json",
-  "title": "Solo Raid border prediction (draft 0.1.0)",
+  "title": "Solo Raid border prediction (draft 0.2.0)",
   "description": "One published update of the predicted end-of-raid border for one server. The private engine writes it to the outbox and this site reads it. Values are in 0.1B (1e8 damage). Owned by this repository; the engine pins a tagged version.",
   "type": "object",
   "additionalProperties": false,
@@ -23,7 +23,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "run_id": {
       "type": "string",
@@ -172,6 +172,33 @@
           },
           "extrapolated": {
             "type": "boolean"
+          }
+        }
+      }
+    },
+    "bands": {
+      "description": "The same walk-forward band at several levels, narrowest first, each labelled with the level it actually certifies (a level the sample can't reach is capped). band is the widest of these. The page shades them nested; a cell's range at any level is its value scaled by that band's lo/prediction and hi/prediction.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "level",
+          "lo",
+          "hi"
+        ],
+        "properties": {
+          "level": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "exclusiveMaximum": 1
+          },
+          "lo": {
+            "type": "number"
+          },
+          "hi": {
+            "type": "number"
           }
         }
       }

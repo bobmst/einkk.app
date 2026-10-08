@@ -5,7 +5,7 @@ engine. This directory is the single source of truth for both sides.
 
 | Schema | Written by | Read by | Version |
 |---|---|---|---|
-| `prediction.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
+| `prediction.schema.json` | engine (outbox) | site | 0.2.0 (draft): adds the optional nested `bands` |
 | `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
 | `history.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
