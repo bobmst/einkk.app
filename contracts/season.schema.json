@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/season.schema.json",
+  "title": "Current season (draft 0.1.0)",
+  "description": "The season the site shows: boss, schedule, raid state and the end-of-season survey. The private engine writes it to the outbox whenever any of these change; the site renders the countdown and the state from it. All times are UTC.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "issued_at",
+    "season",
+    "boss",
+    "starts_at",
+    "ends_at",
+    "state",
+    "survey"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "issued_at": {
+      "$ref": "#/$defs/utc"
+    },
+    "season": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "boss": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "element"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "element": {
+          "$ref": "#/$defs/element"
+        },
+        "weakness": {
+          "$ref": "#/$defs/element"
+        }
+      }
+    },
+    "starts_at": {
+      "$ref": "#/$defs/utc"
+    },
+    "ends_at": {
+      "$ref": "#/$defs/utc"
+    },
+    "state": {
+      "description": "upcoming: before starts_at. live: the raid is running. measuring: the raid has ended and the final border is still being measured and graded. closed: graded and final.",
+      "enum": [
+        "upcoming",
+        "live",
+        "measuring",
+        "closed"
+      ]
+    },
+    "survey": {
+      "description": "The end-of-season survey, which stays on Tally. null until the season's form exists. The site links to it only after the raid has ended, and only between opens_at and closes_at.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "opens_at",
+            "closes_at"
+          ],
+          "properties": {
+            "url": {
+              "description": "Must be a Tally form: the site renders it as a link, so nothing else is accepted.",
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://tally\\.so/"
+            },
+            "opens_at": {
+              "$ref": "#/$defs/utc"
+            },
+            "closes_at": {
+              "$ref": "#/$defs/utc"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "utc": {
+      "description": "ISO 8601 in UTC, with a Z suffix.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "element": {
+      "enum": [
+        "fire",
+        "water",
+        "wind",
+        "iron",
+        "electronic"
+      ]
+    }
+  }
+}
