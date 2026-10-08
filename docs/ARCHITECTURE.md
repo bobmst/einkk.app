@@ -58,6 +58,7 @@ site ── writes ──> inbox: validated, rate-limited player reports ── 
 | Inbox | Cloudflare D1 |
 | Outbox | Cloudflare R2 |
 | Domain | `einkk.app` (planned); `einkk-app.<account>.workers.dev` until then |
+| Previews | Every branch except `main` gets a Worker Preview (`wrangler preview`) bound to `einkk-inbox-dev` and `einkk-outbox-dev`, never the production inbox or outbox. Turnstile runs on its always-pass test keys there, and the preview secrets sit on the shared Preview base config. |
 
 A static export keeps the site independent of server-side Next.js features. Next.js 16 is not yet officially
 supported by the Workers adapters, and partial prerendering (`cacheComponents`) cannot be used in export mode.
