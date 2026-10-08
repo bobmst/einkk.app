@@ -142,7 +142,11 @@ function duration(lang: Lang, ms: number): string {
 
 function when(lang: Lang, iso: string): string {
   const locale = { en: "en-US", zh: "zh-CN", ja: "ja-JP" }[lang];
-  return new Date(iso).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
+  // the viewer's own time zone, named, since players read this from every region
+  return new Date(iso).toLocaleString(locale, {
+    year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    timeZoneName: "short",
+  });
 }
 
 function SeasonCard({ season, lang, t, now }: { season: Season; lang: Lang; t: Text; now: number }) {
@@ -164,6 +168,7 @@ function SeasonCard({ season, lang, t, now }: { season: Season; lang: Lang; t: T
         {elementName(lang, season.boss.element)}
         {season.boss.weakness && ` · ${t.weakness} ${elementName(lang, season.boss.weakness)}`}
       </p>
+      <p className="text-xs text-zinc-500">{t.schedule}</p>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         {t.starts} {when(lang, season.starts_at)} · {t.ends} {when(lang, season.ends_at)}
         {season.state === "live" && ` · ${duration(lang, ends - now)} ${t.left}`}
@@ -193,8 +198,7 @@ function Forecast({ jp, lang, t, now }: { jp: Prediction; lang: Lang; t: Text; n
         {bandLabel(t, jp.band.level)}: {damage(lang, jp.band.lo)} – {damage(lang, jp.band.hi)}
       </p>
       <p className="text-sm text-zinc-500">
-        {t.raidDay(jp.state.raid_day, jp.state.known_days)} ·{" "}
-        {t.updated(duration(lang, now - Date.parse(jp.issued_at)))} · {t.revision} {jp.revision}
+        {t.raidDay(jp.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(jp.issued_at)))}
       </p>
     </section>
   );
