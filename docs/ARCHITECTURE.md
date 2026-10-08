@@ -45,9 +45,25 @@ site ── writes ──> inbox: validated, rate-limited player reports ── 
 | Contract | Direction | Status |
 |---|---|---|
 | `prediction.schema.json` | engine → site | 0.1.0 (draft) |
-| `season.schema.json` | engine → site | planned: season, boss, element, dates, state, survey link and window |
-| `history.schema.json` | engine → site | planned: our past forecasts, bands and grading |
-| `report.schema.json` | site → engine | planned: server, season, rank (percentage or number), damage, timestamps |
+| `season.schema.json` | engine → site | 0.1.0 (draft) |
+| `history.schema.json` | engine → site | 0.1.0 (draft) |
+| `report.schema.json` | site → engine | 0.1.0 (draft) |
+
+## API
+
+All API routes are served by the Worker under `/api/*` (`worker/`). Responses are JSON, and errors look like
+`{"error": "<code>", ...}`.
+
+| Route | What it does |
+|---|---|
+| `GET /api/health` | Reports which bindings exist and whether intake is configured. Never returns secrets. |
+| `POST /api/reports` | Accepts one in-raid report. The body holds the player fields of `report.schema.json` plus `turnstile_token`. The Worker sets `id`, `submitted_at` and `client`. Responses: `201 {"id"}`, or `400` (`bad_json`, `unknown_fields`, `invalid_report`), `403` (`cross_origin`, `turnstile_failed`), `413`, `415`, `429` (`rate_limited`), `503` (`intake_not_configured`). |
+| `GET /api/outbox/<key>.json` | Serves a document the engine published to R2, e.g. `season.json`. Keys are lowercase paths. Responses are cached for 30 seconds and carry an ETag, so a matching `If-None-Match` gets a `304`. |
+
+- **Order of the intake checks:** request shape first, then the contract, then the Turnstile call, then the rate limit, then the insert. Nothing is stored unless every step passes.
+- **Rate limiting:** at most 10 reports per hour per key. The key is SHA-256(`RATE_KEY_SALT`, UTC date, client address). Because the date is in the key, reports can't be linked across days, and the address is never stored.
+- **Inbox schema:** the D1 table lives in `migrations/`. Apply new migrations with `npx wrangler d1 migrations apply einkk-inbox --remote`.
+- **Secrets:** the Worker needs `TURNSTILE_SECRET` and `RATE_KEY_SALT`, set as Worker secrets (Production only).
 
 ## Hosting (free tiers)
 

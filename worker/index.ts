@@ -4,17 +4,35 @@
 // script; only /api/* reaches it (run_worker_first in wrangler.jsonc), so page
 // views never count against the Worker request quota.
 //
-// For now it answers a health check. Report intake (POST /api/reports, needs
-// contracts/report.schema.json) and the outbox read API come next.
+//   GET  /api/health          bindings and intake configuration, no secrets
+//   POST /api/reports         in-raid player report -> D1 inbox (reports.ts)
+//   GET  /api/outbox/<key>    published engine JSON from R2 (outbox.ts)
+import type { WorkerEnv } from "./env";
+import { error } from "./http";
+import { handleOutbox } from "./outbox";
+import { handleReport } from "./reports";
+
+const OUTBOX_PREFIX = "/api/outbox/";
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
+  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
+    const { pathname } = new URL(request.url);
 
-    if (url.pathname === "/api/health") {
-      return Response.json({ ok: true, inbox: Boolean(env.INBOX), outbox: Boolean(env.OUTBOX) });
+    if (pathname === "/api/health") {
+      return Response.json(
+        {
+          ok: true,
+          inbox: Boolean(env.INBOX),
+          outbox: Boolean(env.OUTBOX),
+          intake: Boolean(env.TURNSTILE_SECRET && env.RATE_KEY_SALT),
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
-
-    return Response.json({ error: "not_found" }, { status: 404 });
+    if (pathname === "/api/reports") return handleReport(request, env);
+    if (pathname.startsWith(OUTBOX_PREFIX)) {
+      return handleOutbox(request, env, pathname.slice(OUTBOX_PREFIX.length));
+    }
+    return error(404, "not_found");
   },
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<WorkerEnv>;
