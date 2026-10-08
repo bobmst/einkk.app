@@ -86,8 +86,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           <LineChart
             height={300}
             margin={{ left: 8, right: 16 }}
-            // a point scale, not "log": MUI X Charts spent ~1 s per pointer move
-            // locating the hovered point on a log axis, which froze the page
+            // evenly spaced ranks (0.5% … 10%) read better than a log axis here
             xAxis={[{ data: pcts, scaleType: "point", label: t.topPct, valueFormatter: (v: number) => `${v}%` }]}
             yAxis={[{ valueFormatter: (v: number) => axisDamage(lang, v), width: 48 }]}
             series={[
