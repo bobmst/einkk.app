@@ -36,7 +36,7 @@ const pctLabel = (level: number) => `${Math.round(level * 1000) / 10}%`;
 const SHADES = [0.5, 0.3, 0.16, 0.1];
 
 function rangeLabel(t: Text, level: number | null) {
-  return level === null ? t.rangeUncertified : t.range(Math.round(level * 100));
+  return level === null ? t.rangeUncertified : t.range(Math.round(level * 1000) / 10);
 }
 
 /** The nested ranges as one bar: darker = narrower = more likely, the forecast
@@ -161,6 +161,10 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   }));
   const shading = [{ id: "band-base", data: base, color: "transparent" }, ...slices]
     .map((s) => ({ ...s, stack: "bands", area: true, showMark: false, valueFormatter: hidden }));
+  // the transparent base would pull the axis down to 0: frame the curve instead
+  const shown = [...base, ...at(widest, "hi"), ...(value ? [value] : [])];
+  const yMin = Math.min(...shown) * 0.92;
+  const yMax = Math.max(...shown) * 1.04;
 
   return (
     <Card>
@@ -174,7 +178,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
             margin={{ left: 8, right: 16 }}
             xAxis={[{ data: pcts, scaleType: "log", label: t.topPct, tickInterval: pcts,
                       valueFormatter: (v: number) => `${v}%` }]}
-            yAxis={[{ valueFormatter: (v: number) => axisDamage(lang, v), width: 48 }]}
+            yAxis={[{ min: yMin, max: yMax, valueFormatter: (v: number) => axisDamage(lang, v), width: 48 }]}
             series={[...tips, ...shading]}
             hideLegend
             sx={{
