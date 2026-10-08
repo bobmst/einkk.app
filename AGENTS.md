@@ -20,7 +20,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Show only our own data (forecasts, bands, grading). Never republish data compiled by third parties.
 - `contracts/` is the boundary with the engine. Change it only through a pull request, bump `schema_version`
   by semver (`contracts/README.md`), and keep every example valid.
-- Player-facing text is English, 中文 and 日本語, with 한국어 to come later. Damage is in 0.1B (1e8) units unless
-  a field says otherwise.
+- Player-facing text is in the season survey's five languages (English, 日本語, 한국어, 简体中文,
+  繁體中文) plus Español, all in `src/lib/i18n.ts`. Damage is in 0.1B (1e8) units unless a field says
+  otherwise; the page shows it as 亿/億/억, or as billions to three decimals in English and Spanish.
 - Issues use the templates in `.github/ISSUE_TEMPLATE/`. The triage labels are `needs-triage`, `needs-info`,
   `ready-for-agent`, `ready-for-human` and `wontfix`.
