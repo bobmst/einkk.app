@@ -85,7 +85,7 @@ export default function TrackRecord({ entries, server, lang, t }: {
           </Table>
         </TableContainer>
         <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
-          {t.histNote}{server === "jp" ? ` ${t.histNoteJp}` : ""}
+          {t.histNote}
         </Typography>
         {legacy && <Typography variant="caption" color="text.secondary" component="p">{t.legacy}</Typography>}
       </CardContent>
