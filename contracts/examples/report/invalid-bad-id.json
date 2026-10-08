@@ -1,0 +1,14 @@
+{
+  "schema_version": "0.1.0",
+  "id": "report-1",
+  "server": "jp",
+  "season": 42,
+  "rank_pc": 2.85,
+  "damage": 223.16,
+  "read_at": "2026-10-30T12:40:00+09:00",
+  "submitted_at": "2026-10-30T03:41:12Z",
+  "client": {
+    "turnstile": true,
+    "rate_key": "9b74c9897bac770ffc029102a200c5de4d1e8f0a6c2b5e3f4a1d7c9e2b6f8a01"
+  }
+}
