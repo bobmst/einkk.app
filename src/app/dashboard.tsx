@@ -193,8 +193,8 @@ function Forecast({ jp, lang, t, now }: { jp: Prediction; lang: Lang; t: Text; n
         {bandLabel(t, jp.band.level)}: {damage(lang, jp.band.lo)} – {damage(lang, jp.band.hi)}
       </p>
       <p className="text-sm text-zinc-500">
-        {t.raidDay(jp.state.raid_day, jp.state.known_days)} · {t.updated}{" "}
-        {duration(lang, now - Date.parse(jp.issued_at))} · {t.revision} {jp.revision}
+        {t.raidDay(jp.state.raid_day, jp.state.known_days)} ·{" "}
+        {t.updated(duration(lang, now - Date.parse(jp.issued_at)))} · {t.revision} {jp.revision}
       </p>
     </section>
   );
