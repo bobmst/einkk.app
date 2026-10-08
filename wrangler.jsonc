@@ -19,7 +19,10 @@
   "observability": { "enabled": true },
   "vars": {
     // Public by design: it is embedded in the page that shows the widget.
-    "TURNSTILE_SITE_KEY": "0x4AAAAAAFQsgJjxzq_7vl6M"
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFQsgJjxzq_7vl6M",
+    // what the page says it shows: production data, or (on previews) the engine's
+    // rehearsal of a mock season (see "previews" below)
+    "SITE_MODE": "production"
   },
   // Inbox: player reports (site -> engine). Not a secret; access needs the account.
   "d1_databases": [
@@ -45,9 +48,14 @@
   // secrets (the matching test TURNSTILE_SECRET and a separate RATE_KEY_SALT)
   // live on the shared Preview base config, set with
   // `wrangler preview base-config secret put <NAME>`.
+  // Previews are the rehearsal site: the engine's rehearsal mode
+  // (bobmst/solo_raid_predict, ops/rehearsal.py) publishes to einkk-outbox-dev
+  // and reads reports from einkk-inbox-dev, and SITE_MODE "rehearsal" makes the
+  // page say it shows mock data.
   "previews": {
     "vars": {
-      "TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+      "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+      "SITE_MODE": "rehearsal"
     },
     "d1_databases": [
       {
