@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.1.0",
+  "issued_at": "2026-10-31T04:20:00Z",
+  "entries": [
+    {
+      "season": 42,
+      "server": "jp",
+      "model_version": "router-v2.3",
+      "forecast": 231.4,
+      "band": {
+        "lo": 222.3,
+        "hi": 240.5,
+        "level": 0.9,
+        "method": "conformal_walk_forward"
+      },
+      "grading": null
+    },
+    {
+      "season": 41,
+      "server": "jp",
+      "model_version": "router-v2.3",
+      "forecast": 226.25,
+      "band": {
+        "lo": 217.32,
+        "hi": 235.18,
+        "level": 0.9,
+        "method": "conformal_walk_forward"
+      },
+      "grading": {
+        "error_pct": 1.38,
+        "hit": true
+      },
+      "final": {
+        "value": 223.17,
+        "source": "x_post"
+      }
+    },
+    {
+      "season": 41,
+      "server": "gb",
+      "final": {
+        "value": 241.8,
+        "source": "survey",
+        "n": 10
+      }
+    },
+    {
+      "season": 40,
+      "server": "jp",
+      "model_version": "router-v2.3",
+      "forecast": 238.1,
+      "band": {
+        "lo": 230.0,
+        "hi": 246.2,
+        "level": null,
+        "method": "t_in_sample_legacy"
+      },
+      "grading": {
+        "error_pct": 1.94,
+        "hit": true
+      }
+    },
+    {
+      "season": 30,
+      "server": "tw",
+      "final": {
+        "value": 98.4,
+        "source": "manual_collection"
+      }
+    }
+  ]
+}

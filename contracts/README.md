@@ -8,6 +8,7 @@ engine. This directory is the single source of truth for both sides.
 | `prediction.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
 | `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
+| `history.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
 
 `report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
 only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_at` and `client`;
@@ -17,6 +18,18 @@ only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_a
 measuring → closed) and the Tally survey, which is `null` until the form exists. The site links
 to the survey only after the raid has ended and while the survey window is open. The schema
 accepts only `https://tally.so/` URLs, because the site renders this value as a link.
+
+`history.schema.json` is our track record. Each season and server entry holds one or both of:
+- **the forecast of record**, with its band and grading (`error_pct`, `hit`; `null` until graded);
+- **the final 3% line, when we measured it ourselves**. The `source` is `manual_collection` (the
+  maintainer's own collection from community posts, S14–S34), `survey` (our end-of-season survey)
+  or `reports` (in-raid reports to this site). `n` gives the sample size, which is required for
+  survey and reports values.
+
+Only our own data enters it. If the final line is known only from a third party's compiled values,
+as for JP today, the entry carries the grading but no final value. Legacy bands carry
+`method: t_in_sample_legacy` and `level: null`, because they never certified the level they were
+labelled with.
 
 ## Examples and checks
 
