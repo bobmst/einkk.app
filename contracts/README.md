@@ -26,8 +26,8 @@ accepts only `https://tally.so/` URLs, because the site renders this value as a 
   or `reports` (in-raid reports to this site). `n` gives the sample size, which is required for
   survey and reports values.
 
-Only our own data enters it. If the final line is known only from a third party's compiled values,
-as for JP today, the entry carries the grading but no final value. Legacy bands carry
+JP's final line is the last official-day value from community posts, copied by hand, so it is
+`manual_collection` too. Nothing is taken from another site's compiled data. Legacy bands carry
 `method: t_in_sample_legacy` and `level: null`, because they never certified the level they were
 labelled with.
 

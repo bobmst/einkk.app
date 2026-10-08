@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/history.schema.json",
   "title": "Forecast track record (draft 0.1.0)",
-  "description": "Per season and server: our forecast and how it was graded, and/or the final 3% line where we measured it ourselves. Only our own data: a final value comes from the maintainer's own collection, our survey or our in-raid reports, never from a third party's compiled borders. Where the final border is known only from such a source (JP today), the entry carries the grading (signed error, band hit) but no final value. The private engine writes it to the outbox.",
+  "description": "Per season and server: our forecast and how it was graded, and/or the final 3% line. A final value comes from the maintainer's hand collection from community posts (JP's official-day lines included), our survey or our in-raid reports, never from another site's compiled data. The private engine writes it to the outbox.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -150,7 +150,7 @@
           ]
         },
         "final": {
-          "description": "The final 3% line as we measured it, in 0.1B.",
+          "description": "The final 3% line, in 0.1B.",
           "type": "object",
           "additionalProperties": false,
           "required": [
