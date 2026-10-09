@@ -2,7 +2,6 @@
 // A slice through the damage-by-rank chart at one tier: where that tier's final
 // line may land (a curve, most likely in the middle, the 9-in-10 range marked),
 // and, with the player's score entered, the chance it makes that tier.
-import { useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
@@ -14,11 +13,11 @@ import { damage, type Lang, type Text } from "@/lib/i18n";
 import type { Cell, Prediction } from "@/lib/outbox";
 import { cdf, chanceText, density, ratios } from "@/lib/slice";
 
-export default function Slice({ p, cells, score, lang, t }: {
-  p: Prediction; cells: Cell[]; score: number | null; lang: Lang; t: Text;
+export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
+  p: Prediction; cells: Cell[]; score: number | null; tier: number; onTier: (tier: number) => void;
+  lang: Lang; t: Text;
 }) {
   const theme = useTheme();
-  const [tier, setTier] = useState(cells.some((c) => c.percentile === 3) ? 3 : cells[0].percentile);
   const cell = cells.find((c) => c.percentile === tier) ?? cells[0];
   const xs = ratios(p);
   const widest = p.bands?.length ? p.bands[p.bands.length - 1] : p.band;
@@ -43,7 +42,7 @@ export default function Slice({ p, cells, score, lang, t }: {
           <Chip key={c.percentile} size="small" label={`${c.percentile}%`} clickable
                 color={c.percentile === tier ? "primary" : "default"}
                 variant={c.percentile === tier ? "filled" : "outlined"}
-                onClick={() => setTier(c.percentile)} />
+                onClick={() => onTier(c.percentile)} />
         ))}
       </Stack>
       <Box sx={{ mx: -1 }}>

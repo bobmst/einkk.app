@@ -23,6 +23,7 @@ import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
 import { axisDamage, groupDigits, placement, scoreToTenthB } from "@/lib/numbers";
 import type { Prediction } from "@/lib/outbox";
 import Slice from "./slice";
+import { tierFor } from "@/lib/slice";
 
 type Band = { level: number; lo: number; hi: number };
 
@@ -106,6 +107,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const theme = useTheme();
   const shade = useShade();
   const [mine, setMine] = useState("");
+  const [picked, setPicked] = useState<{ tier: number; score: number | null } | null>(null);
   const cells = [...(p.cells ?? [])].sort((a, b) => a.percentile - b.percentile);
   if (cells.length < 2) return null;
 
@@ -117,6 +119,8 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const hidden = () => null;                                  // kept out of the tooltip
   const value = scoreToTenthB(mine);
   const where = value ? placement(cells, value) : null;
+  // the tier follows the score until a chip is picked for that same score
+  const tier = picked && picked.score === value ? picked.tier : tierFor(cells, where);
   const pctText = (x: number) => (x >= 1 ? x.toFixed(1) : x.toFixed(2)).replace(/\.?0+$/, "");
 
   // Tooltip rows, top to bottom: widest ↑ … narrowest ↑, the forecast, narrowest ↓ … widest ↓.
@@ -199,7 +203,8 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           )}
         </Stack>
 
-        <Slice p={p} cells={cells} score={value} lang={lang} t={t} />
+        <Slice p={p} cells={cells} score={value} tier={tier} lang={lang} t={t}
+               onTier={(x) => setPicked({ tier: x, score: value })} />
 
         <Table size="small" sx={{ mt: 2 }}>
           <TableHead>
@@ -211,9 +216,9 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           </TableHead>
           <TableBody>
             {cells.map((c, k) => (
-              <TableRow key={c.percentile} selected={c.percentile === 3}>
+              <TableRow key={c.percentile} selected={c.percentile === tier}>
                 <TableCell>{c.percentile}%</TableCell>
-                <TableCell align="right" sx={{ fontWeight: c.percentile === 3 ? 700 : 400 }}>
+                <TableCell align="right" sx={{ fontWeight: c.percentile === tier ? 700 : 400 }}>
                   {c.extrapolated ? "~" : ""}{damage(lang, c.value)}
                 </TableCell>
                 <TableCell align="right" sx={{ color: "text.secondary" }}>

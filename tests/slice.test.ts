@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cdf, chanceText, density, ratios } from "../src/lib/slice";
+import { cdf, chanceText, density, ratios, tierFor } from "../src/lib/slice";
 import type { Prediction } from "../src/lib/outbox";
 
 const base = { prediction: 200, band: { lo: 184, hi: 216, level: 0.9, method: "conformal_walk_forward" } } as unknown as Prediction;
@@ -35,5 +35,17 @@ describe("tier slice", () => {
     expect(chanceText(0.004)).toBe("1%");
     expect(chanceText(0.996)).toBe("99%");
     expect(chanceText(0.7049)).toBe("70%");
+  });
+});
+
+describe("tierFor", () => {
+  const cells = [0.5, 0.7, 1, 2, 3, 5, 10].map((percentile) => ({ percentile, value: 100 / percentile }));
+  it("picks the tier the score sits in", () => {
+    expect(tierFor(cells, null)).toBe(3);
+    expect(tierFor(cells, { kind: "at", percentile: 0.89 })).toBe(1);
+    expect(tierFor(cells, { kind: "at", percentile: 2 })).toBe(2);
+    expect(tierFor(cells, { kind: "at", percentile: 3.4 })).toBe(5);
+    expect(tierFor(cells, { kind: "above", percentile: 0.5 })).toBe(0.5);
+    expect(tierFor(cells, { kind: "below", percentile: 10 })).toBe(10);
   });
 });

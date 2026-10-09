@@ -2,7 +2,8 @@
 // values, and the chance a given score clears it. Built from the forecast's own
 // walk-forward misses (prediction.residuals), taken both ways round, which is
 // how its bands are built too, so the curve, its 90% range and the bands agree.
-import type { Prediction } from "./outbox";
+import type { Placement } from "./numbers";
+import type { Cell, Prediction } from "./outbox";
 
 const SQRT2 = Math.SQRT2;
 
@@ -59,4 +60,15 @@ function normalQuantile(q: number): number {               // bisection on the c
 /** "about 70%" style: a whole percent, held within 1-99 so it never claims certainty. */
 export function chanceText(c: number): string {
   return `${Math.min(99, Math.max(1, Math.round(c * 100)))}%`;
+}
+
+/** The tier a score sits in: the smallest listed tier that contains it (top 0.89%
+ *  is in the top 1%), the top tier above the curve, the last below it; 3% (or the
+ *  first tier) with no score. */
+export function tierFor(cells: Cell[], where: Placement | null): number {
+  const pcts = cells.map((c) => c.percentile).sort((a, b) => a - b);
+  if (!where) return pcts.includes(3) ? 3 : pcts[0];
+  if (where.kind === "above") return pcts[0];
+  if (where.kind === "below") return pcts[pcts.length - 1];
+  return pcts.find((x) => x >= where.percentile - 1e-9) ?? pcts[pcts.length - 1];
 }
