@@ -22,7 +22,9 @@ export default function SeasonCard({ season, lang, t, now }: {
   const ends = Date.parse(season.ends_at) + 60_000;   // ends_at is the last minute
   const starts = Date.parse(season.starts_at);
   const survey = season.survey;
-  const surveyOpen = survey && now >= Date.parse(survey.opens_at) && now <= Date.parse(survey.closes_at);
+  // the contract only allows Tally links; the page checks too rather than trust the outbox
+  const surveyOpen = survey && survey.url.startsWith("https://tally.so/")
+    && now >= Date.parse(survey.opens_at) && now <= Date.parse(survey.closes_at);
 
   return (
     <Card sx={{ overflow: "hidden" }}>

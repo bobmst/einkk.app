@@ -59,7 +59,9 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
     return error(400, "invalid_report", { errors: errors.length ? errors : [{ at: "#", rule: "oneOf" }] });
   }
 
-  if (!(await turnstilePassed(env.TURNSTILE_SECRET, fields.turnstile_token, ip))) {
+  // previews run Cloudflare's always-pass test key, whose verdict names no real host
+  const host = env.SITE_MODE === "production" ? new URL(request.url).hostname : null;
+  if (!(await turnstilePassed(env.TURNSTILE_SECRET, fields.turnstile_token, ip, host))) {
     return error(403, "turnstile_failed");
   }
   if (await overLimit(env.INBOX, rateKey, now)) return error(429, "rate_limited");
@@ -81,7 +83,9 @@ export async function rateKeyFor(salt: string, ip: string, now: Date): Promise<s
   return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function turnstilePassed(secret: string, token: unknown, ip: string): Promise<boolean> {
+// A pass only counts if the token was issued on this site's own host (siteverify
+// reports where the widget ran), not on another page using the same site key.
+async function turnstilePassed(secret: string, token: unknown, ip: string, host: string | null): Promise<boolean> {
   if (typeof token !== "string" || !token || token.length > 2048) return false;
   const form = new FormData();
   form.append("secret", secret);
@@ -89,8 +93,8 @@ async function turnstilePassed(secret: string, token: unknown, ip: string): Prom
   if (ip) form.append("remoteip", ip);
   const response = await fetch(TURNSTILE_VERIFY, { method: "POST", body: form });
   if (!response.ok) return false;
-  const outcome = (await response.json()) as { success?: boolean };
-  return outcome.success === true;
+  const outcome = (await response.json()) as { success?: boolean; hostname?: string };
+  return outcome.success === true && (host === null || outcome.hostname === host);
 }
 
 async function overLimit(db: D1Database, rateKey: string, now: Date): Promise<boolean> {
