@@ -1,7 +1,7 @@
 "use client";
 // One server's forecast: the 3% line with its nested ranges, the damage-by-rank
 // curve shaded the same way, and where the player's own damage lands on it.
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -46,47 +46,41 @@ function rangeLabel(t: Text, level: number | null) {
   return level === null ? t.rangeUncertified : t.range(Math.round(level * 1000) / 10);
 }
 
-/** The nested ranges as one bar: darker = narrower = more likely, the forecast
- *  as a line, the widest range's ends written under it. */
+/** The nested ranges as a ladder, one row per level (narrowest on top), each
+ *  labelled with its level and its two ends, so nothing has to be matched up
+ *  through a legend or told apart by colour; the forecast is one line through
+ *  all the rows. */
 function RangeBar({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
   const shade = useShade();
   const bands = bandsOf(p);
   const widest = bands[bands.length - 1];
-  const pad = (widest.hi - widest.lo) * 0.25 || 1;
+  const pad = (widest.hi - widest.lo) * 0.6 || 1;            // room for the end labels
   const min = widest.lo - pad;
   const span = widest.hi + pad - min;
   const at = (v: number) => ((v - min) / span) * 100;
   return (
-    <Box sx={{ my: 1.5 }}>
-      <Box sx={{ position: "relative", height: 18, borderRadius: 1, bgcolor: "action.hover" }}>
-        {bands.map((b, i) => ({ b, i })).reverse().map(({ b, i }) => (
-          <Box key={b.level} sx={{
-            position: "absolute", top: 0, bottom: 0, left: `${at(b.lo)}%`, width: `${at(b.hi) - at(b.lo)}%`,
-            bgcolor: shade(i), borderRadius: 1,
-          }} />
-        ))}
-        <Box sx={{ position: "absolute", top: -4, bottom: -4, left: `${at(p.prediction)}%`, width: 3, ml: "-1.5px",
-                   borderRadius: 1, bgcolor: "text.primary" }} />
+    <Box sx={{ my: 1.5, display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 1, alignItems: "center" }}>
+      {bands.map((b, i) => (
+        <Fragment key={b.level}>
+          <Typography variant="caption" sx={{ fontWeight: 700, textAlign: "right" }}>{pctLabel(b.level)}</Typography>
+          <Box sx={{ position: "relative", height: 26 }}>
+            <Box sx={{ position: "absolute", top: 6, bottom: 6, left: `${at(b.lo)}%`,
+                       width: `${at(b.hi) - at(b.lo)}%`, bgcolor: shade(i), borderRadius: 1 }} />
+            <Typography variant="caption" sx={{ position: "absolute", top: 3, whiteSpace: "nowrap",
+                                                right: `calc(${100 - at(b.lo)}% + 6px)` }}>{damage(lang, b.lo)}</Typography>
+            <Typography variant="caption" sx={{ position: "absolute", top: 3, whiteSpace: "nowrap",
+                                                left: `calc(${at(b.hi)}% + 6px)` }}>{damage(lang, b.hi)}</Typography>
+            <Box sx={{ position: "absolute", top: i === 0 ? 2 : 0, bottom: i === bands.length - 1 ? 2 : 0,
+                       left: `${at(p.prediction)}%`, width: 2, ml: "-1px", bgcolor: "text.primary" }} />
+          </Box>
+        </Fragment>
+      ))}
+      <span />
+      <Box sx={{ position: "relative", height: 18 }}>
+        <Typography variant="caption" color="text.secondary" sx={{
+          position: "absolute", left: `${at(p.prediction)}%`, transform: "translateX(-50%)", whiteSpace: "nowrap",
+        }}>▲ {t.forecastLine}</Typography>
       </Box>
-      <Box sx={{ position: "relative", height: 18, mt: 0.5 }}>
-        {[widest.lo, widest.hi].map((v, i) => (
-          <Typography key={i} variant="caption" color="text.secondary" sx={{
-            position: "absolute", left: `${at(v)}%`, transform: "translateX(-50%)", whiteSpace: "nowrap",
-          }}>{damage(lang, v)}</Typography>
-        ))}
-      </Box>
-      <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center", mt: 0.5 }}>
-        {bands.map((b, i) => (
-          <Stack key={b.level} direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-            <Box sx={{ width: 12, height: 12, borderRadius: 0.5, bgcolor: shade(i) }} />
-            <Typography variant="caption">{pctLabel(b.level)}: {damage(lang, b.lo)} – {damage(lang, b.hi)}</Typography>
-          </Stack>
-        ))}
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-          <Box sx={{ width: 3, height: 14, borderRadius: 1, bgcolor: "text.primary" }} />
-          <Typography variant="caption">{t.forecastLine}</Typography>
-        </Stack>
-      </Stack>
     </Box>
   );
 }
@@ -111,8 +105,12 @@ export function Forecast({ p, lang, t, now }: { p: Prediction; lang: Lang; t: Te
 }
 
 /** The player's own damage on the curve: a dot, with short dashed drops to
- *  both axes instead of lines across the whole chart. */
-function YouMarker({ pct, value, label, color }: { pct: number; value: number; label: string; color: string }) {
+ *  both axes instead of lines across the whole chart. Off the curve (above its
+ *  top tier or below its last) there is no point to mark, so it is a level
+ *  line across the chart instead. */
+function YouMarker({ pct, value, label, color, onCurve }: {
+  pct: number; value: number; label: string; color: string; onCurve: boolean;
+}) {
   const x = useXScale<"log">();
   const y = useYScale<"linear">();
   const area = useDrawingArea();
@@ -120,6 +118,15 @@ function YouMarker({ pct, value, label, color }: { pct: number; value: number; l
   const cy = y(value);
   if (cx === undefined || cy === undefined || Number.isNaN(cx) || Number.isNaN(cy)) return null;
   const bottom = area.top + area.height;
+  if (!onCurve) {
+    const right = area.left + area.width;
+    return (
+      <g pointerEvents="none">
+        <line x1={area.left} x2={right} y1={cy} y2={cy} stroke={color} strokeDasharray="5 4" strokeWidth={1.5} />
+        <text x={right - 4} y={cy - 6} textAnchor="end" fill={color} fontSize={12} fontWeight={700}>{label}</text>
+      </g>
+    );
+  }
   return (
     <g pointerEvents="none">
       <line x1={cx} x2={cx} y1={cy} y2={bottom} stroke={color} strokeDasharray="3 3" />
@@ -197,7 +204,8 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           >
             <ChartsReferenceLine x={3} lineStyle={{ stroke: theme.palette.divider }} />
             {where && value && (
-              <YouMarker pct={where.percentile} value={value} label={t.you} color={theme.palette.warning.main} />
+              <YouMarker pct={where.percentile} value={value} label={t.you} color={theme.palette.warning.main}
+                         onCurve={where.kind === "at"} />
             )}
           </LineChart>
         </Box>

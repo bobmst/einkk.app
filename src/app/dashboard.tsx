@@ -124,6 +124,14 @@ export default function Dashboard() {
           </Select>
           <ThemeToggle label={t.theme} />
         </Toolbar>
+        {data?.season && (
+          <Container maxWidth="md" disableGutters>
+            <Tabs value={server} onChange={(_, s) => serverStore.set(s)} aria-label={t.yourServer}
+                  variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
+              {SERVER_ORDER.map((s) => <Tab key={s} value={s} label={serverName(lang, s)} />)}
+            </Tabs>
+          </Container>
+        )}
       </AppBar>
 
       <Container maxWidth="md" sx={{ py: 3 }}>
@@ -142,15 +150,6 @@ export default function Dashboard() {
             <>
               <SeasonCard key={data.season.season} season={data.season} lang={lang} t={t} now={now} />
 
-              <Box>
-                <Typography variant="overline" color="text.secondary">{t.yourServer}</Typography>
-                <Tabs value={server} onChange={(_, s) => serverStore.set(s)}
-                      variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile
-                      sx={{ borderBottom: 1, borderColor: "divider" }}>
-                  {SERVER_ORDER.map((s) => <Tab key={s} value={s} label={serverName(lang, s)} />)}
-                </Tabs>
-              </Box>
-
               {prediction ? (
                 <>
                   <Forecast p={prediction} lang={lang} t={t} now={now} />
@@ -165,8 +164,7 @@ export default function Dashboard() {
             </>
           )}
 
-          {data?.history && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
-            compare={data.health?.mode === "rehearsal"} />}
+          {data?.history && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t} />}
 
           <Stack direction="row" spacing={2} sx={{ justifyContent: "center", pt: 2, pb: 1 }}>
             <Link href="https://enikk.app" target="_blank" rel="noopener" variant="caption" color="text.secondary">
