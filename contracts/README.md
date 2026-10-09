@@ -5,10 +5,10 @@ engine. This directory is the single source of truth for both sides.
 
 | Schema | Written by | Read by | Version |
 |---|---|---|---|
-| `prediction.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
+| `prediction.schema.json` | engine (outbox) | site | 0.3.0 (draft): optional nested `bands` (0.2.0) and the `residuals` they come from (0.3.0) |
 | `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
-| `history.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
+| `history.schema.json` | engine (outbox) | site | 0.2.0 (draft): the band is optional; `hit: null` without one |
 
 `report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
 only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_at` and `client`;
@@ -20,14 +20,15 @@ to the survey only after the raid has ended and while the survey window is open.
 accepts only `https://tally.so/` URLs, because the site renders this value as a link.
 
 `history.schema.json` is our track record. Each season and server entry holds one or both of:
-- **the forecast of record**, with its band and grading (`error_pct`, `hit`; `null` until graded);
+- **the forecast of record**, with its band and grading (`error_pct`, `hit`; `null` until graded).
+  S15–S20 were posted without a range, so those entries have no band and grade with `hit: null`;
 - **the final 3% line, when we measured it ourselves**. The `source` is `manual_collection` (the
   maintainer's own collection from community posts, S14–S34), `survey` (our end-of-season survey)
   or `reports` (in-raid reports to this site). `n` gives the sample size, which is required for
   survey and reports values.
 
-Only our own data enters it. If the final line is known only from a third party's compiled values,
-as for JP today, the entry carries the grading but no final value. Legacy bands carry
+JP's final line is the last official-day value from community posts, copied by hand, so it is
+`manual_collection` too. Nothing is taken from another site's compiled data. Legacy bands carry
 `method: t_in_sample_legacy` and `level: null`, because they never certified the level they were
 labelled with.
 

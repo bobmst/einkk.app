@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/prediction.schema.json",
-  "title": "Solo Raid border prediction (draft 0.1.0)",
+  "title": "Solo Raid border prediction (draft 0.3.0)",
   "description": "One published update of the predicted end-of-raid border for one server. The private engine writes it to the outbox and this site reads it. Values are in 0.1B (1e8 damage). Owned by this repository; the engine pins a tagged version.",
   "type": "object",
   "additionalProperties": false,
@@ -23,7 +23,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.3.0"
     },
     "run_id": {
       "type": "string",
@@ -176,6 +176,33 @@
         }
       }
     },
+    "bands": {
+      "description": "The same walk-forward band at several levels, narrowest first, each labelled with the level it actually certifies (a level the sample can't reach is capped). band is the widest of these. The page shades them nested; a cell's range at any level is its value scaled by that band's lo/prediction and hi/prediction.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "level",
+          "lo",
+          "hi"
+        ],
+        "properties": {
+          "level": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "exclusiveMaximum": 1
+          },
+          "lo": {
+            "type": "number"
+          },
+          "hi": {
+            "type": "number"
+          }
+        }
+      }
+    },
     "provisional": {
       "description": "true while the latest finished day's official border is not confirmed yet and an estimate from reports stands in for it.",
       "type": "boolean"
@@ -254,6 +281,27 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "residuals": {
+      "description": "The walk-forward checks the bands come from: for each recent finished season, how far this route (or this server line) missed, signed (forecast - final) / final x 100. Few of them means the bands rest on little; the page can plot them as dots.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "season",
+          "error_pct"
+        ],
+        "properties": {
+          "season": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "error_pct": {
+            "type": "number"
           }
         }
       }

@@ -56,7 +56,7 @@ All API routes are served by the Worker under `/api/*` (`worker/`). Responses ar
 
 | Route | What it does |
 |---|---|
-| `GET /api/health` | Reports which bindings exist and whether intake is configured. Never returns secrets. |
+| `GET /api/health` | Reports which bindings exist, whether intake is configured, the site mode (`production` or `rehearsal`) and the public Turnstile site key the report form needs. Never returns secrets. |
 | `POST /api/reports` | Accepts one in-raid report. The body holds the player fields of `report.schema.json` plus `turnstile_token`. The Worker sets `id`, `submitted_at` and `client`. Responses: `201 {"id"}`, or `400` (`bad_json`, `unknown_fields`, `invalid_report`), `403` (`cross_origin`, `turnstile_failed`), `413`, `415`, `429` (`rate_limited`), `503` (`intake_not_configured`). |
 | `GET /api/outbox/<key>.json` | Serves a document the engine published to R2, e.g. `season.json`. Keys are lowercase paths. Responses are cached for 30 seconds and carry an ETag, so a matching `If-None-Match` gets a `304`. |
 
@@ -74,7 +74,7 @@ All API routes are served by the Worker under `/api/*` (`worker/`). Responses ar
 | Inbox | Cloudflare D1 |
 | Outbox | Cloudflare R2 |
 | Domain | `einkk.app` (planned); `einkk-app.<account>.workers.dev` until then |
-| Previews | Every branch except `main` gets a Worker Preview (`wrangler preview`) bound to `einkk-inbox-dev` and `einkk-outbox-dev`, never the production inbox or outbox. Turnstile runs on its always-pass test keys there, and the preview secrets sit on the shared Preview base config. |
+| Previews | Every branch except `main` gets a Worker Preview (`wrangler preview`) bound to `einkk-inbox-dev` and `einkk-outbox-dev`, never the production inbox or outbox. Turnstile runs on its always-pass test keys there, and the preview secrets sit on the shared Preview base config. Previews are also the rehearsal site: the engine's rehearsal mode publishes a mock season to `einkk-outbox-dev` and reads reports from `einkk-inbox-dev`, and `SITE_MODE=rehearsal` puts a banner on the page. |
 
 A static export keeps the site independent of server-side Next.js features. Next.js 16 is not yet officially
 supported by the Workers adapters, and partial prerendering (`cacheComponents`) cannot be used in export mode.

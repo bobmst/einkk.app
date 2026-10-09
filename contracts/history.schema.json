@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/history.schema.json",
-  "title": "Forecast track record (draft 0.1.0)",
-  "description": "Per season and server: our forecast and how it was graded, and/or the final 3% line where we measured it ourselves. Only our own data: a final value comes from the maintainer's own collection, our survey or our in-raid reports, never from a third party's compiled borders. Where the final border is known only from such a source (JP today), the entry carries the grading (signed error, band hit) but no final value. The private engine writes it to the outbox.",
+  "title": "Forecast track record (draft 0.2.0)",
+  "description": "Per season and server: our forecast and how it was graded, and/or the final 3% line. A final value comes from the maintainer's hand collection from community posts (JP's official-day lines included), our survey or our in-raid reports, never from another site's compiled data. The private engine writes it to the outbox.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,7 +12,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "issued_at": {
       "type": "string",
@@ -28,7 +28,7 @@
   },
   "$defs": {
     "entry": {
-      "description": "Needs a forecast (which then brings its band and grading), a final value, or both.",
+      "description": "Needs a forecast (which then brings its grading, and its band whenever one was published), a final value, or both.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -49,7 +49,6 @@
       ],
       "dependentRequired": {
         "forecast": [
-          "band",
           "grading"
         ]
       },
@@ -93,7 +92,7 @@
               "type": "number"
             },
             "level": {
-              "description": "The confidence level the method actually certifies. null for the legacy in-sample t-band, which was labelled 99.9% but certified no level.",
+              "description": "The confidence level the method actually certifies. null for the legacy bands: JP's in-sample t-band and every server's posted range up to S41, labelled 99% or 99.9% but certifying no level.",
               "type": [
                 "number",
                 "null"
@@ -142,15 +141,18 @@
                   "type": "number"
                 },
                 "hit": {
-                  "description": "Whether the final border fell inside the band.",
-                  "type": "boolean"
+                  "description": "Whether the final border fell inside the band; null when no band was published.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 }
               }
             }
           ]
         },
         "final": {
-          "description": "The final 3% line as we measured it, in 0.1B.",
+          "description": "The final 3% line, in 0.1B.",
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -192,7 +194,35 @@
             ]
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "description": "A hit/miss needs a band to judge it by. A forecast posted without a range (S15-S20) carries no band and grades with hit: null.",
+          "if": {
+            "required": [
+              "grading"
+            ],
+            "properties": {
+              "grading": {
+                "type": "object",
+                "required": [
+                  "hit"
+                ],
+                "properties": {
+                  "hit": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "band"
+            ]
+          }
+        }
+      ]
     }
   }
 }
