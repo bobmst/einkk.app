@@ -130,4 +130,10 @@ describe("rateKeyFor", () => {
     expect(response.status).toBe(403);
     expect(db.rows).toHaveLength(0);
   });
+
+  it("skips the host check on previews (Cloudflare's test key names no real host)", async () => {
+    env = { ...env, SITE_MODE: "rehearsal" } as WorkerEnv;
+    turnstile.mockImplementationOnce(async () => Response.json({ success: true, hostname: "example.com" }));
+    expect((await handleReport(post(valid), env, NOW)).status).toBe(201);
+  });
 });
