@@ -15,8 +15,8 @@ import { BarChart } from "@mui/x-charts/BarChart";
 import { damage, serverName, type Lang, type Text } from "@/lib/i18n";
 import type { HistoryEntry, Server } from "@/lib/outbox";
 
-const HIT = "#2e9d5b";
-const MISS = "#d64545";
+const HIT = "#009e73";                 // Okabe–Ito bluish green / vermillion: told apart under colour blindness
+const MISS = "#d55e00";
 const NONE = "#8a8f98";
 
 const signed = (v: number | null) => (v === null ? null : `${v > 0 ? "+" : ""}${v}%`);
