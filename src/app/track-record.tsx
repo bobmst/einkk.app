@@ -21,8 +21,8 @@ const NONE = "#8a8f98";
 
 const signed = (v: number | null) => (v === null ? null : `${v > 0 ? "+" : ""}${v}%`);
 
-export default function TrackRecord({ entries, server, lang, t }: {
-  entries: HistoryEntry[]; server: Server; lang: Lang; t: Text;
+export default function TrackRecord({ entries, server, lang, t, current }: {
+  entries: HistoryEntry[]; server: Server; lang: Lang; t: Text; current?: number;
 }) {
   const mine = entries.filter((e) => e.server === server);
   if (mine.length === 0) return null;
@@ -73,7 +73,7 @@ export default function TrackRecord({ entries, server, lang, t }: {
                   <TableCell align="right" sx={{ color: !e.grading || e.grading.hit === null ? "text.secondary" : e.grading.hit ? HIT : MISS }}>
                     {e.grading
                       ? `${e.grading.error_pct > 0 ? "+" : ""}${e.grading.error_pct.toFixed(2)}% ${e.grading.hit === null ? "·" : e.grading.hit ? "✓" : "✗"}`
-                      : e.forecast !== undefined ? t.pending : "—"}
+                      : e.forecast === undefined ? "—" : current !== undefined && e.season < current ? t.noFinal : t.pending}
                   </TableCell>
                   <TableCell align="right">
                     {e.final ? damage(lang, e.final.value) : "—"}

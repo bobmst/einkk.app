@@ -152,11 +152,13 @@ export default function Dashboard() {
 
               {prediction ? (
                 <>
-                  <Forecast p={prediction} lang={lang} t={t} now={now} />
+                  <Forecast p={prediction} lang={lang} t={t} now={now}
+                            ended={data.season.state === "measuring" || data.season.state === "closed"} />
                   <Distribution p={prediction} lang={lang} t={t} />
                 </>
               ) : (
-                <Typography color="text.secondary">{t.noForecast}</Typography>
+                <Typography color="text.secondary">{data.season.state === "upcoming" ? t.noForecastUpcoming
+                  : data.season.state === "live" ? t.noForecast : t.noForecastEnded}</Typography>
               )}
 
               <ReportForm key={server} season={data.season} health={data.health} server={server}
@@ -164,7 +166,8 @@ export default function Dashboard() {
             </>
           )}
 
-          {data?.history && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t} />}
+          {data?.history && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
+            current={data.season?.season} />}
 
           <Stack direction="row" spacing={2} sx={{ justifyContent: "center", pt: 2, pb: 1 }}>
             <Link href="https://enikk.app" target="_blank" rel="noopener" variant="caption" color="text.secondary">

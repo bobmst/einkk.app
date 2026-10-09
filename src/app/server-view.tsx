@@ -1,7 +1,7 @@
 "use client";
 // One server's forecast: the 3% line with its nested ranges, the damage-by-rank
 // curve shaded the same way, and where the player's own damage lands on it.
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -48,7 +48,9 @@ function rangeLabel(t: Text, level: number | null) {
   return level === null ? t.rangeUncertified : t.range(Math.round(level * 1000) / 10);
 }
 
-export function Forecast({ p, lang, t, now }: { p: Prediction; lang: Lang; t: Text; now: number }) {
+export function Forecast({ p, lang, t, now, ended = false }: {
+  p: Prediction; lang: Lang; t: Text; now: number; ended?: boolean;
+}) {
   return (
     <Card>
       <CardContent>
@@ -59,7 +61,7 @@ export function Forecast({ p, lang, t, now }: { p: Prediction; lang: Lang; t: Te
           {damage(lang, p.prediction)}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
+          {ended ? t.finalForecast : t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
         </Typography>
       </CardContent>
     </Card>
@@ -107,6 +109,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const theme = useTheme();
   const shade = useShade();
   const [mine, setMine] = useState("");
+  const typed = useDeferredValue(mine);                       // the charts catch up; typing never waits
   const [picked, setPicked] = useState<{ tier: number; score: number | null } | null>(null);
   const cells = [...(p.cells ?? [])].sort((a, b) => a.percentile - b.percentile);
   if (cells.length < 2) return null;
@@ -117,7 +120,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const at = (b: Band, side: "lo" | "hi") => cells.map((c) => (c.value * b[side]) / p.prediction);
   const fmt = (v: number | null) => (v === null ? "" : damage(lang, v));
   const hidden = () => null;                                  // kept out of the tooltip
-  const value = scoreToTenthB(mine);
+  const value = scoreToTenthB(typed);
   const where = value ? placement(cells, value) : null;
   // the tier follows the score until a chip is picked for that same score
   const tier = picked && picked.score === value ? picked.tier : tierFor(cells, where);

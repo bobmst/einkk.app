@@ -50,7 +50,7 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
           height={150}
           margin={{ left: 8, right: 16, top: 8, bottom: 4 }}
           xAxis={[{ data: values, scaleType: "linear", min: values[0], max: values[values.length - 1],
-                    valueFormatter: (v: number) => damage(lang, v), tickNumber: 5 }]}
+                    valueFormatter: (v: number) => damage(lang, v), tickNumber: 4, tickLabelMinGap: 12 }]}
           yAxis={[{ position: "none", min: 0 }]}
           series={[{ data: ys, area: true, showMark: false, color: alpha(theme.palette.primary.main, 0.35),
                      valueFormatter: () => null }]}
