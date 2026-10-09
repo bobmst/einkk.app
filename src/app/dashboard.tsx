@@ -31,7 +31,7 @@ import {
 } from "@/lib/outbox";
 import ReportForm from "./report-form";
 import SeasonCard from "./season-card";
-import { Distribution, Forecast } from "./server-view";
+import { Distribution, Forecast, Misses } from "./server-view";
 import TrackRecord from "./track-record";
 
 const REFRESH_MS = 60_000;
@@ -153,6 +153,7 @@ export default function Dashboard() {
               {prediction ? (
                 <>
                   <Forecast p={prediction} lang={lang} t={t} now={now} />
+                  <Misses p={prediction} lang={lang} t={t} />
                   <Distribution p={prediction} lang={lang} t={t} />
                 </>
               ) : (

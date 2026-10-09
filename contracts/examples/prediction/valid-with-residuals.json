@@ -27,9 +27,19 @@
   },
   "bands": [
     {
-      "level": 50,
+      "level": 0.5,
       "lo": 223.05,
       "hi": 229.45
+    },
+    {
+      "level": 0.75,
+      "lo": 220.8,
+      "hi": 231.7
+    },
+    {
+      "level": 0.9,
+      "lo": 217.32,
+      "hi": 235.18
     }
   ],
   "provisional": false,
@@ -64,5 +74,15 @@
     "reports_rejected_today": 0,
     "blocking": false,
     "notes": []
-  }
+  },
+  "residuals": [
+    {
+      "season": 41,
+      "error_pct": 1.38
+    },
+    {
+      "season": 40,
+      "error_pct": -2.9
+    }
+  ]
 }

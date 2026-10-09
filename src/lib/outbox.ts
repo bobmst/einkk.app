@@ -48,6 +48,7 @@ export interface Prediction {
   band: Band;
   cells?: Cell[];
   bands?: { level: number; lo: number; hi: number }[];   // narrowest first (contract 0.2.0)
+  residuals?: { season: number; error_pct: number }[];   // the misses the bands come from (contract 0.3.0)
   inputs: { anchors: { day: number; value: number }[] };
 }
 

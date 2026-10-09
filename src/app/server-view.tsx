@@ -14,6 +14,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { alpha, useColorScheme, useTheme } from "@mui/material/styles";
 import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
@@ -99,6 +100,68 @@ export function Forecast({ p, lang, t, now }: { p: Prediction; lang: Lang; t: Te
         <Typography variant="caption" color="text.secondary">
           {t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
         </Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** The walk-forward misses the bands are built from, as dots: each past
+ *  season's relative miss applied to this forecast. With few seasons the
+ *  ranges rest on few dots, and this shows it. */
+export function Misses({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
+  const shade = useShade();
+  const res = p.residuals ?? [];
+  if (res.length === 0) return null;
+  const bands = bandsOf(p);
+  const dots = res.map((r) => ({ season: r.season, err: r.error_pct, v: p.prediction * (1 - r.error_pct / 100) }))
+    .sort((a, b) => a.v - b.v);
+  const lo = Math.min(...dots.map((d) => d.v), bands[bands.length - 1].lo);
+  const hi = Math.max(...dots.map((d) => d.v), bands[bands.length - 1].hi);
+  const pad = (hi - lo) * 0.08 || 1;
+  const at = (v: number) => ((v - (lo - pad)) / (hi - lo + 2 * pad)) * 100;
+  // stack dots that would overlap (closer than 3% of the width)
+  const rows: number[] = [];
+  const placed = dots.map((d) => {
+    let r = 0;
+    while (rows[r] !== undefined && at(d.v) - rows[r] < 3) r++;
+    rows[r] = at(d.v);
+    return { ...d, row: r };
+  });
+  const dotRows = Math.max(...placed.map((d) => d.row)) + 1;
+  const sign = (e: number) => `${e > 0 ? "+" : ""}${e.toFixed(2)}%`;
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h2" sx={{ mb: 0.5 }}>{serverName(lang, p.server)} · {t.missTitle}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t.missIntro(res.length)}</Typography>
+        <Box sx={{ position: "relative", height: dotRows * 16 + 8, mx: 1 }}>
+          <Box sx={{ position: "absolute", top: 0, bottom: 0, left: `${at(p.prediction)}%`, width: 2, ml: "-1px",
+                     bgcolor: "text.primary" }} />
+          {placed.map((d) => (
+            <Tooltip key={d.season} title={`S${d.season}: ${sign(d.err)} → ${damage(lang, d.v)}`} arrow>
+              <Box sx={{ position: "absolute", bottom: 4 + d.row * 16, left: `${at(d.v)}%`, width: 12, height: 12,
+                         ml: "-6px", borderRadius: "50%", bgcolor: "primary.main", border: 2,
+                         borderColor: "background.paper", cursor: "default" }} />
+            </Tooltip>
+          ))}
+        </Box>
+        <Box sx={{ position: "relative", mx: 1, mt: 0.5 }}>
+          {bands.map((b, i) => (
+            <Box key={b.level} sx={{ position: "relative", height: 20 }}>
+              <Box sx={{ position: "absolute", top: 8, height: 4, left: `${at(b.lo)}%`, width: `${at(b.hi) - at(b.lo)}%`,
+                         bgcolor: shade(i), borderRadius: 1 }} />
+              <Typography variant="caption" sx={{ position: "absolute", top: 1, fontWeight: 700, whiteSpace: "nowrap",
+                                                  right: `calc(${100 - at(b.lo)}% + 6px)` }}>{pctLabel(b.level)}</Typography>
+            </Box>
+          ))}
+        </Box>
+        <Box sx={{ position: "relative", height: 20, mx: 1 }}>
+          {[lo, p.prediction, hi].map((v, i) => (
+            <Typography key={i} variant="caption" color={i === 1 ? "text.primary" : "text.secondary"} sx={{
+              position: "absolute", left: `${at(v)}%`, transform: "translateX(-50%)", whiteSpace: "nowrap",
+            }}>{i === 1 ? `▲ ${damage(lang, v)}` : damage(lang, v)}</Typography>
+          ))}
+        </Box>
       </CardContent>
     </Card>
   );
