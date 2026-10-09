@@ -56,9 +56,7 @@ function normalQuantile(q: number): number {               // bisection on the c
   return (lo + hi) / 2;
 }
 
-/** "about 70%" style: whole percent, never claiming certainty. */
+/** "about 70%" style: a whole percent, held within 1-99 so it never claims certainty. */
 export function chanceText(c: number): string {
-  if (c < 0.01) return "<1%";
-  if (c > 0.99) return ">99%";
-  return `${Math.round(c * 100)}%`;
+  return `${Math.min(99, Math.max(1, Math.round(c * 100)))}%`;
 }

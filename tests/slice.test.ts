@@ -32,8 +32,8 @@ describe("tier slice", () => {
   });
 
   it("never claims certainty", () => {
-    expect(chanceText(0.004)).toBe("<1%");
-    expect(chanceText(0.996)).toBe(">99%");
+    expect(chanceText(0.004)).toBe("1%");
+    expect(chanceText(0.996)).toBe("99%");
     expect(chanceText(0.7049)).toBe("70%");
   });
 });
