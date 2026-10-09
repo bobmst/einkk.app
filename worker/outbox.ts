@@ -19,6 +19,7 @@ export async function handleOutbox(request: Request, env: WorkerEnv, key: string
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": `public, max-age=${MAX_AGE_SECONDS}`,
     ETag: object.httpEtag,
+    "X-Content-Type-Options": "nosniff",
   };
   if (!("body" in object)) return new Response(null, { status: 304, headers });
   return new Response(request.method === "HEAD" ? null : object.body, { headers });

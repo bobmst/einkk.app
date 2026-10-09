@@ -29,7 +29,7 @@ export default {
           mode: env.SITE_MODE,
           turnstile_site_key: env.TURNSTILE_SITE_KEY,
         },
-        { headers: { "Cache-Control": "no-store" } },
+        { headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } },
       );
     }
     if (pathname === "/api/reports") return handleReport(request, env);

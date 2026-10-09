@@ -36,8 +36,8 @@ let turnstile: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   db = new FakeD1();
-  env = { INBOX: db, TURNSTILE_SECRET: "secret", RATE_KEY_SALT: "salt" } as unknown as WorkerEnv;
-  turnstile = vi.fn(async () => Response.json({ success: true }));
+  env = { INBOX: db, TURNSTILE_SECRET: "secret", RATE_KEY_SALT: "salt", SITE_MODE: "production" } as unknown as WorkerEnv;
+  turnstile = vi.fn(async () => Response.json({ success: true, hostname: "einkk.example" }));
   vi.stubGlobal("fetch", turnstile);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -122,5 +122,18 @@ describe("rateKeyFor", () => {
     expect(await rateKeyFor("salt", IP, new Date("2026-10-30T23:59:59Z"))).toBe(today);
     expect(await rateKeyFor("salt", IP, new Date("2026-10-31T00:00:00Z"))).not.toBe(today);
     expect(await rateKeyFor("other-salt", IP, NOW)).not.toBe(today);
+  });
+
+  it("rejects a Turnstile pass issued on another host", async () => {
+    turnstile.mockImplementationOnce(async () => Response.json({ success: true, hostname: "evil.example" }));
+    const response = await handleReport(post(valid), env, NOW);
+    expect(response.status).toBe(403);
+    expect(db.rows).toHaveLength(0);
+  });
+
+  it("skips the host check on previews (Cloudflare's test key names no real host)", async () => {
+    env = { ...env, SITE_MODE: "rehearsal" } as WorkerEnv;
+    turnstile.mockImplementationOnce(async () => Response.json({ success: true, hostname: "example.com" }));
+    expect((await handleReport(post(valid), env, NOW)).status).toBe(201);
   });
 });
