@@ -56,7 +56,7 @@ export interface HistoryEntry {
   server: Server;
   forecast?: number;
   band?: Band;
-  grading?: { error_pct: number; hit: boolean } | null;
+  grading?: { error_pct: number; hit: boolean | null } | null;   // hit null: no band posted (contract 0.2.0)
   final?: { value: number; source: "manual_collection" | "survey" | "reports"; n?: number };
 }
 

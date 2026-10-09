@@ -165,7 +165,8 @@ export default function Dashboard() {
             </>
           )}
 
-          {data?.history && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t} />}
+          {data?.history && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
+            compare={data.health?.mode === "rehearsal"} />}
 
           <Stack direction="row" spacing={2} sx={{ justifyContent: "center", pt: 2, pb: 1 }}>
             <Link href="https://enikk.app" target="_blank" rel="noopener" variant="caption" color="text.secondary">

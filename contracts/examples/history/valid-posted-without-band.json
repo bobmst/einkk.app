@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.2.0",
+  "issued_at": "2026-10-09T04:20:00Z",
+  "entries": [
+    {
+      "season": 17,
+      "server": "gb",
+      "forecast": 35.63,
+      "grading": {
+        "error_pct": -3.7,
+        "hit": null
+      },
+      "final": {
+        "value": 37,
+        "source": "manual_collection"
+      }
+    }
+  ]
+}
