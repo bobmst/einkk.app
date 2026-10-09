@@ -106,8 +106,9 @@ export function Forecast({ p, lang, t, now }: { p: Prediction; lang: Lang; t: Te
 
 /** The player's own damage on the curve: a dot, with short dashed drops to
  *  both axes instead of lines across the whole chart. Off the curve (above its
- *  top tier or below its last) there is no point to mark, so it is a level
- *  line across the chart instead. */
+ *  top tier or below its last) there is no point to mark: a level line instead,
+ *  pinned to the chart's top or bottom edge with an arrow when the score lies
+ *  beyond the axis, so a far-off score never squashes the curve. */
 function YouMarker({ pct, value, label, color, onCurve }: {
   pct: number; value: number; label: string; color: string; onCurve: boolean;
 }) {
@@ -120,10 +121,13 @@ function YouMarker({ pct, value, label, color, onCurve }: {
   const bottom = area.top + area.height;
   if (!onCurve) {
     const right = area.left + area.width;
+    const ly = Math.min(Math.max(cy, area.top), bottom);
+    const arrow = cy < area.top ? " ↑" : cy > bottom ? " ↓" : "";
     return (
       <g pointerEvents="none">
-        <line x1={area.left} x2={right} y1={cy} y2={cy} stroke={color} strokeDasharray="5 4" strokeWidth={1.5} />
-        <text x={right - 4} y={cy - 6} textAnchor="end" fill={color} fontSize={12} fontWeight={700}>{label}</text>
+        <line x1={area.left} x2={right} y1={ly} y2={ly} stroke={color} strokeDasharray="5 4" strokeWidth={1.5} />
+        <text x={right - 4} y={ly < area.top + 16 ? ly + 14 : ly - 6} textAnchor="end" fill={color}
+              fontSize={12} fontWeight={700}>{label}{arrow}</text>
       </g>
     );
   }
@@ -177,7 +181,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const shading = [{ id: "band-base", data: base, color: "transparent" }, ...slices]
     .map((s) => ({ ...s, stack: "bands", area: true, showMark: false, valueFormatter: hidden }));
   // the transparent base would pull the axis down to 0: frame the curve instead
-  const shown = [...base, ...at(widest, "hi"), ...(value ? [value] : [])];
+  const shown = [...base, ...at(widest, "hi")];              // the score never stretches the axis
   const yMin = Math.min(...shown) * 0.92;
   const yMax = Math.max(...shown) * 1.04;
 

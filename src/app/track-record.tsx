@@ -76,14 +76,7 @@ export default function TrackRecord({ entries, server, lang, t }: {
                       : e.forecast !== undefined ? t.pending : "—"}
                   </TableCell>
                   <TableCell align="right">
-                    {e.final ? (
-                      <>
-                        {damage(lang, e.final.value)}
-                        <Typography component="span" variant="caption" color="text.secondary">
-                          {" "}{t.sources[e.final.source]}{e.final.n ? ` n=${e.final.n}` : ""}
-                        </Typography>
-                      </>
-                    ) : "—"}
+                    {e.final ? damage(lang, e.final.value) : "—"}
                   </TableCell>
                 </TableRow>
               ))}
