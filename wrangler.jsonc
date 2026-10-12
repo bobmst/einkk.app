@@ -80,5 +80,36 @@
         "bucket_name": "einkk-outbox-dev"
       }
     ]
+  },
+  // UAT: the rehearsal site on a fixed address for testers, uat.einkk.app. A
+  // separate Worker (einkk-app-uat) with the same bindings as the previews, so
+  // it shows the engine's mock season and never touches production data. Deploy
+  // it from the rehearsal branch: `npm run build && npx wrangler deploy --env uat`.
+  // Its secrets (Turnstile's test TURNSTILE_SECRET and its own RATE_KEY_SALT) are
+  // set with `wrangler secret put <NAME> --env uat`.
+  "env": {
+    "uat": {
+      "routes": [{ "pattern": "uat.einkk.app", "custom_domain": true }],
+      "workers_dev": false,
+      "preview_urls": false,
+      "vars": {
+        "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+        "SITE_MODE": "rehearsal"
+      },
+      "d1_databases": [
+        {
+          "binding": "INBOX",
+          "database_name": "einkk-inbox-dev",
+          "database_id": "1504f2c3-34cb-4be7-9d6e-c2bba9cc811f",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "OUTBOX",
+          "bucket_name": "einkk-outbox-dev"
+        }
+      ]
+    }
   }
 }
