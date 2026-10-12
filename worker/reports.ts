@@ -4,10 +4,14 @@
 // Order matters: cheap local checks first, then the stored document is built
 // and validated against the contract, and only then do the Turnstile call and
 // the rate-limit query run. Nothing is stored unless every step passes.
+// Reports are taken only for the published season and only inside its ranked
+// window (season.json's starts_at..ends_at): the raid opens a couple of days
+// before ranked damage counts, and nothing from then is a reading of the line.
 import { Validator, type Schema } from "@cfworker/json-schema";
 import reportSchema from "../contracts/report.schema.json";
 import type { WorkerEnv } from "./env";
 import { error, json } from "./http";
+import { currentSeason, inRankedWindow } from "./season";
 
 const validator = new Validator(reportSchema as unknown as Schema, "2020-12", false);
 const SCHEMA_VERSION = reportSchema.properties.schema_version.const;
@@ -57,6 +61,11 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
       .slice(0, 5)
       .map((e) => ({ at: e.instanceLocation, rule: e.keyword }));
     return error(400, "invalid_report", { errors: errors.length ? errors : [{ at: "#", rule: "oneOf" }] });
+  }
+
+  const season = await currentSeason(env.OUTBOX);
+  if (!season || doc.season !== season.season || !inRankedWindow(season, now)) {
+    return error(403, "closed");
   }
 
   // previews run Cloudflare's always-pass test key, whose verdict names no real host

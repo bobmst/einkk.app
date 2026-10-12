@@ -30,13 +30,19 @@ class FakeD1 {
   }
 }
 
+// season.json as the engine publishes it: S42 ranked 10/26 05:00 to 10/31 04:59 JST
+const SEASON = { season: 42, starts_at: "2026-10-25T20:00:00Z", ends_at: "2026-10-30T19:59:00Z" };
+const fakeOutbox = (doc: unknown) => ({
+  get: async (key: string) => (key === "season.json" && doc ? { json: async () => doc } : null),
+});
+
 let db: FakeD1;
 let env: WorkerEnv;
 let turnstile: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   db = new FakeD1();
-  env = { INBOX: db, TURNSTILE_SECRET: "secret", RATE_KEY_SALT: "salt", SITE_MODE: "production" } as unknown as WorkerEnv;
+  env = { INBOX: db, OUTBOX: fakeOutbox(SEASON), TURNSTILE_SECRET: "secret", RATE_KEY_SALT: "salt", SITE_MODE: "production" } as unknown as WorkerEnv;
   turnstile = vi.fn(async () => Response.json({ success: true, hostname: "einkk.example" }));
   vi.stubGlobal("fetch", turnstile);
 });
@@ -95,6 +101,28 @@ describe("POST /api/reports", () => {
     expect((await handleReport(post(valid), env, NOW)).status).toBe(429);
     const nextHour = new Date(NOW.getTime() + 3_600_001);
     expect((await handleReport(post(valid), env, nextHour)).status).toBe(201);
+  });
+
+  it.each([
+    ["before ranked play starts", new Date("2026-10-25T19:59:59Z"), valid],
+    ["after the last minute", new Date("2026-10-30T20:00:00Z"), valid],
+    ["for another season", NOW, { ...valid, season: 41 }],
+  ])("refuses a report %s, before calling Turnstile", async (_name, at, body) => {
+    const response = await handleReport(post(body), env, at);
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "closed" });
+    expect(turnstile).not.toHaveBeenCalled();
+    expect(db.rows).toHaveLength(0);
+  });
+
+  it("takes a report in the ranked window's first and last minute", async () => {
+    expect((await handleReport(post(valid), env, new Date("2026-10-25T20:00:00Z"))).status).toBe(201);
+    expect((await handleReport(post(valid), env, new Date("2026-10-30T19:59:59Z"))).status).toBe(201);
+  });
+
+  it("refuses everything while no season is published", async () => {
+    env = { ...env, OUTBOX: fakeOutbox(null) } as unknown as WorkerEnv;
+    expect((await handleReport(post(valid), env, NOW)).status).toBe(403);
   });
 
   it("answers 503 while a secret is missing", async () => {
