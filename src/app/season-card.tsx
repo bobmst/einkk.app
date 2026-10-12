@@ -68,7 +68,7 @@ export default function SeasonCard({ season, lang, t, now }: {
                   sx={{ bgcolor: color, color: "#fff", fontWeight: 600 }} />
             {weakness && (
               <Chip size="small" variant="outlined"
-                    label={`${t.weakness} ${elementName(lang, weakness)}`}
+                    label={t.weakness(elementName(lang, weakness))}
                     sx={{ borderColor: ELEMENT_COLORS[weakness], color: ELEMENT_COLORS[weakness] }} />
             )}
           </Stack>
