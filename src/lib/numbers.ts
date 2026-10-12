@@ -1,10 +1,49 @@
 // Number helpers shared by the forecast view and the report form.
+import type { ChangeEvent } from "react";
 import type { Lang } from "./i18n";
 import type { Cell } from "./outbox";
 
 /** Digits only, then grouped by thousands: "27635537449" -> "27,635,537,449". */
 export function groupDigits(input: string): string {
   return input.replace(/\D/g, "").replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/**
+ * An edited damage box regrouped, and where its caret goes: after as many
+ * digits as it was after, so an edit mid-number doesn't throw the caret to the
+ * end. Deleting only a comma deletes the digit beside it instead (the comma
+ * would just come back).
+ */
+export function regroup(raw: string, caret: number, previous: string, inputType = ""):
+  { value: string; caret: number } {
+  let digits = raw.replace(/\D/g, "");
+  let before = raw.slice(0, caret).replace(/\D/g, "").length;
+  if (raw.length < previous.length && digits === previous.replace(/\D/g, "")) {
+    if (inputType === "deleteContentForward") {
+      digits = digits.slice(0, before) + digits.slice(before + 1);
+    } else if (before > 0) {
+      digits = digits.slice(0, before - 1) + digits.slice(before);
+      before -= 1;
+    }
+  }
+  const stripped = digits.replace(/^0+(?=\d)/, "");
+  before = Math.max(0, before - (digits.length - stripped.length));
+  const value = groupDigits(stripped);
+  let at = 0;
+  for (let seen = 0; at < value.length && seen < before; at++) if (/\d/.test(value[at])) seen++;
+  return { value, caret: at };
+}
+
+/** onChange for a damage box: regroups it in place, keeps the caret, returns the new value. */
+export function regroupField(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  previous: string): string {
+  const input = e.target;
+  const next = regroup(input.value, input.selectionStart ?? input.value.length, previous,
+    (e.nativeEvent as InputEvent).inputType);
+  // written now, React finds the box already showing its state and leaves the caret be
+  input.value = next.value;
+  input.setSelectionRange(next.caret, next.caret);
+  return next.value;
 }
 
 /** A whole in-game score ("27,635,537,449") as 0.1B units (276.355…), or null. */

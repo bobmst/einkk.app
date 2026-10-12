@@ -20,7 +20,7 @@ import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
 import { useDrawingArea, useXScale, useYScale } from "@mui/x-charts/hooks";
 import { LineChart, lineClasses } from "@mui/x-charts/LineChart";
 import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
-import { axisDamage, groupDigits, placement, scoreToTenthB } from "@/lib/numbers";
+import { axisDamage, placement, regroupField, scoreToTenthB } from "@/lib/numbers";
 import type { Prediction } from "@/lib/outbox";
 import Slice from "./slice";
 import { tierFor } from "@/lib/slice";
@@ -190,7 +190,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           <TextField
             size="small"
             value={mine}
-            onChange={(e) => setMine(groupDigits(e.target.value))}
+            onChange={(e) => setMine(regroupField(e, mine))}
             placeholder={t.calcPlaceholder}
             slotProps={{ htmlInput: { inputMode: "numeric" },
                          input: { endAdornment: value ? (
