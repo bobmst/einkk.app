@@ -34,7 +34,12 @@ import SeasonCard from "./season-card";
 import { Distribution, Forecast } from "./server-view";
 import TrackRecord from "./track-record";
 
-const REFRESH_MS = 60_000;
+// Every /api request runs the Worker, and the free plan allows 100k a day. The
+// engine republishes at most every 15-30 minutes during a raid and a few times a
+// day outside one, so a tab checks every 5 minutes while the raid is live, every
+// 30 otherwise, and not at all while it is hidden (it catches up when shown).
+const LIVE_REFRESH_MS = 5 * 60_000;
+const IDLE_REFRESH_MS = 30 * 60_000;
 const ISSUES = "https://github.com/bobmst/einkk.app/issues/new/choose";
 const HTML_LANG: Record<Lang, string> = { en: "en", ja: "ja", ko: "ko", zhs: "zh-Hans", zht: "zh-Hant", es: "es" };
 
@@ -45,9 +50,10 @@ interface Data {
   history: History | null;
 }
 
-async function load(): Promise<Data> {
+// health (site mode, Turnstile key) doesn't change while the page is open: fetched once
+async function load(known?: Health | null): Promise<Data> {
   const [h, season, history] = await Promise.all([
-    health(), outbox<Season>("season.json"), outbox<History>("history.json"),
+    known ?? health(), outbox<Season>("season.json"), outbox<History>("history.json"),
   ]);
   const predictions = season
     ? (await Promise.all(SERVERS.map((s) => outbox<Prediction>(`predictions/s${season.season}/${s}.json`))))
@@ -79,22 +85,37 @@ export default function Dashboard() {
 
   useEffect(() => {
     let alive = true;
-    const refresh = () =>
-      load().then(
+    let known: Health | null = null;
+    let every = LIVE_REFRESH_MS;
+    let last = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      clearTimeout(timer);
+      last = Date.now();
+      load(known).then(
         (fresh) => {
           if (!alive) return;
+          known = fresh.health;
+          every = fresh.season?.state === "live" ? LIVE_REFRESH_MS : IDLE_REFRESH_MS;
           setData(fresh);
           setFailed(false);
         },
         () => alive && setFailed(true),
-      );
+      ).finally(() => {
+        if (alive) timer = setTimeout(() => !document.hidden && refresh(), every);
+      });
+    };
+    const onShow = () => {
+      if (!document.hidden && Date.now() - last >= every) refresh();
+    };
     refresh();
-    const poll = setInterval(refresh, REFRESH_MS);
+    document.addEventListener("visibilitychange", onShow);
     const tick = setInterval(() => setNow(Date.now()), 30_000);
     return () => {
       alive = false;
-      clearInterval(poll);
+      clearTimeout(timer);
       clearInterval(tick);
+      document.removeEventListener("visibilitychange", onShow);
     };
   }, []);
 
