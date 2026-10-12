@@ -11,10 +11,14 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   // The site's own domain (its zone is on this Cloudflare account): deploying
-  // creates the DNS record and certificate. workers.dev stays up as a fallback.
+  // creates the DNS record and certificate.
   // The Turnstile widget must list every hostname the form runs on, since
   // production checks the pass was issued on the request's own host.
   "routes": [{ "pattern": "einkk.app", "custom_domain": true }],
+  // With routes set, wrangler turns workers.dev and preview URLs off unless they
+  // are asked for, and previews are the rehearsal site, so keep both on.
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": {
     "directory": "./out",
     "not_found_handling": "404-page",
