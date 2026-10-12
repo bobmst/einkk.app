@@ -17,7 +17,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { SERVER_ORDER, damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
-import { groupDigits, scoreToTenthB } from "@/lib/numbers";
+import { regroupField, scoreToTenthB } from "@/lib/numbers";
 import type { Health, Season, Server } from "@/lib/outbox";
 
 const TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -194,7 +194,7 @@ export default function ReportForm({ season, health, server: followed, lang, t }
               <Typography variant="body2" color="text.secondary">{t.damageHelp}</Typography>
               <Box component="img" src="/survey/survey_dmg.webp" alt="" sx={{ width: "100%", maxWidth: 480, borderRadius: 1 }} />
               <TextField size="small" value={score} placeholder="23,353,143,363"
-                         onChange={(e) => setScore(groupDigits(e.target.value))}
+                         onChange={(e) => setScore(regroupField(e, score))}
                          slotProps={{ htmlInput: { inputMode: "numeric" } }}
                          error={digits !== "" && !scoreOk} />
               {tenthB && <Typography variant="body2" color="primary">{t.digitsCheck(fmt(lang, tenthB))}</Typography>}
