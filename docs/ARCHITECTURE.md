@@ -73,7 +73,7 @@ All API routes are served by the Worker under `/api/*` (`worker/`). Responses ar
 | Report intake and read API | The same Worker, under `/api/*`. Intake does Turnstile, rate limiting and validation against `contracts/`. The read API serves the outbox. Being on the same origin means no CORS. |
 | Inbox | Cloudflare D1 |
 | Outbox | Cloudflare R2 |
-| Domain | `einkk.app` (planned); `einkk-app.<account>.workers.dev` until then |
+| Domain | `einkk.app`, a Workers custom domain (`routes` in `wrangler.jsonc`); `einkk-app.<account>.workers.dev` still answers. The Turnstile widget lists both hostnames. |
 | Previews | Every branch except `main` gets a Worker Preview (`wrangler preview`) bound to `einkk-inbox-dev` and `einkk-outbox-dev`, never the production inbox or outbox. Turnstile runs on its always-pass test keys there, and the preview secrets sit on the shared Preview base config. Previews are also the rehearsal site: the engine's rehearsal mode publishes a mock season to `einkk-outbox-dev` and reads reports from `einkk-inbox-dev`, and `SITE_MODE=rehearsal` puts a banner on the page. |
 
 A static export keeps the site independent of server-side Next.js features. Next.js 16 is not yet officially

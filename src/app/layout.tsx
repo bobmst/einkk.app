@@ -12,12 +12,21 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://einkk.app"),
   title: {
     default: "einkk.app — NIKKE Solo Raid border forecasts",
     template: "%s | einkk.app",
   },
   description:
     "Per-server forecasts of the NIKKE Solo Raid ranking borders, with honest ranges, updated during the raid.",
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "einkk.app",
+    title: "einkk.app — NIKKE Solo Raid border forecasts",
+    description: "Top 3% border forecasts for every NIKKE server, updated during the Solo Raid.",
+  },
+  twitter: { card: "summary" },
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };

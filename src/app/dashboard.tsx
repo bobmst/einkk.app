@@ -177,6 +177,9 @@ export default function Dashboard() {
               {t.feedback}
             </Link>
           </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center", pb: 2 }}>
+            {t.notice}
+          </Typography>
         </Stack>
       </Container>
     </>

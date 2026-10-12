@@ -10,6 +10,11 @@
   "name": "einkk-app",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
+  // The site's own domain (its zone is on this Cloudflare account): deploying
+  // creates the DNS record and certificate. workers.dev stays up as a fallback.
+  // The Turnstile widget must list every hostname the form runs on, since
+  // production checks the pass was issued on the request's own host.
+  "routes": [{ "pattern": "einkk.app", "custom_domain": true }],
   "assets": {
     "directory": "./out",
     "not_found_handling": "404-page",
