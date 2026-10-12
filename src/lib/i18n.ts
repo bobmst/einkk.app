@@ -129,6 +129,7 @@ const en = {
   } as Record<string, string>,
   bossArt: "Boss art: enikk.app",
   feedback: "Report a problem",
+  notice: "Unofficial fan site, not affiliated with SHIFT UP or Level Infinite. Reports keep only server, rank, damage and time; no account, no IP address.",
   theme: "Light / dark",
   language: "Language",
 };
@@ -230,6 +231,7 @@ const ja: Text = {
   },
   bossArt: "ボス画像：enikk.app",
   feedback: "不具合の報告",
+  notice: "非公式のファンサイトです。SHIFT UP・Level Infinite とは関係ありません。データ提供で保存するのはサーバー・順位・スコア・時刻のみで、アカウントや IP アドレスは保存しません。",
   theme: "ライト / ダーク",
   language: "言語",
 };
@@ -330,6 +332,7 @@ const ko: Text = {
   },
   bossArt: "보스 이미지: enikk.app",
   feedback: "문제 신고",
+  notice: "비공식 팬 사이트이며 SHIFT UP·Level Infinite와 관련이 없습니다. 제보에는 서버·순위·대미지·시각만 저장하며 계정이나 IP 주소는 저장하지 않습니다.",
   theme: "라이트 / 다크",
   language: "언어",
 };
@@ -430,6 +433,7 @@ const zhs: Text = {
   },
   bossArt: "Boss 图片：enikk.app",
   feedback: "反馈问题",
+  notice: "非官方粉丝网站，与 SHIFT UP、Level Infinite 无关。回报只保存服务器、排名、伤害和时间，不需要账号，也不保存 IP 地址。",
   theme: "浅色 / 深色",
   language: "语言",
 };
@@ -527,6 +531,7 @@ const zht: Text = {
   },
   bossArt: "Boss 圖片：enikk.app",
   feedback: "回報問題",
+  notice: "非官方粉絲網站，與 SHIFT UP、Level Infinite 無關。回報只保存伺服器、排名、傷害和時間，不需要帳號，也不保存 IP 位址。",
   theme: "淺色 / 深色",
   language: "語言",
 };
@@ -627,6 +632,7 @@ const es: Text = {
   },
   bossArt: "Arte del jefe: enikk.app",
   feedback: "Reportar un problema",
+  notice: "Sitio de fans no oficial, sin relación con SHIFT UP ni Level Infinite. Los reportes guardan solo servidor, posición, daño y hora; sin cuenta ni dirección IP.",
   theme: "Claro / oscuro",
   language: "Idioma",
 };
