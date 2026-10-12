@@ -65,7 +65,7 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
 
   const season = await currentSeason(env.OUTBOX);
   if (!season || doc.season !== season.season || !inRankedWindow(season, now)) {
-    return error(409, "raid_not_live");
+    return error(403, "closed");
   }
 
   // previews run Cloudflare's always-pass test key, whose verdict names no real host

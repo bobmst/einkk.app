@@ -109,8 +109,8 @@ describe("POST /api/reports", () => {
     ["for another season", NOW, { ...valid, season: 41 }],
   ])("refuses a report %s, before calling Turnstile", async (_name, at, body) => {
     const response = await handleReport(post(body), env, at);
-    expect(response.status).toBe(409);
-    expect(await response.json()).toEqual({ error: "raid_not_live" });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "closed" });
     expect(turnstile).not.toHaveBeenCalled();
     expect(db.rows).toHaveLength(0);
   });
@@ -122,7 +122,7 @@ describe("POST /api/reports", () => {
 
   it("refuses everything while no season is published", async () => {
     env = { ...env, OUTBOX: fakeOutbox(null) } as unknown as WorkerEnv;
-    expect((await handleReport(post(valid), env, NOW)).status).toBe(409);
+    expect((await handleReport(post(valid), env, NOW)).status).toBe(403);
   });
 
   it("answers 503 while a secret is missing", async () => {
