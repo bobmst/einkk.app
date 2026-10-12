@@ -74,6 +74,7 @@ All API routes are served by the Worker under `/api/*` (`worker/`). Responses ar
 | Inbox | Cloudflare D1 |
 | Outbox | Cloudflare R2 |
 | Domain | `einkk.app`, a Workers custom domain (`routes` in `wrangler.jsonc`); `einkk-app.<account>.workers.dev` still answers. The Turnstile widget lists both hostnames. |
+| UAT | `uat.einkk.app`, its own Worker (`einkk-app-uat`, `env.uat` in `wrangler.jsonc`) with the preview bindings and `SITE_MODE=rehearsal`: the rehearsal site on a fixed address for testers. Deployed by hand from the `rehearsal` branch with `wrangler deploy --env uat`. |
 | Previews | Every branch except `main` gets a Worker Preview (`wrangler preview`) bound to `einkk-inbox-dev` and `einkk-outbox-dev`, never the production inbox or outbox. Turnstile runs on its always-pass test keys there, and the preview secrets sit on the shared Preview base config. Previews are also the rehearsal site: the engine's rehearsal mode publishes a mock season to `einkk-outbox-dev` and reads reports from `einkk-inbox-dev`, and `SITE_MODE=rehearsal` puts a banner on the page. |
 
 A static export keeps the site independent of server-side Next.js features. Next.js 16 is not yet officially
