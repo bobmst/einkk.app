@@ -5,6 +5,12 @@
 // top-200 number with the same reference images, then a review page and
 // Turnstile before it is sent. The Worker checks everything again
 // (contracts/report.schema.json, damage in 0.1B).
+//
+// With `final`, the same form takes a closed season's final result instead
+// (/api/finals, contracts/final-report.schema.json): its own title, colour and
+// marker so nobody mistakes it for an in-raid report, no read time, and a
+// random browser id kept in localStorage, which the Worker hashes to count
+// distinct players.
 import { useEffect, useRef, useState } from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -12,6 +18,8 @@ import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardActionArea from "@mui/material/CardActionArea";
 import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Link from "@mui/material/Link";
 import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
@@ -57,8 +65,20 @@ function localNow(): string {
 
 type Step = "form" | "review" | "sent";
 
-export default function ReportForm({ season, health, server: followed, lang, t }: {
+const BROWSER_ID = "einkk.browser-id";
+
+function browserId(): string {
+  let id = localStorage.getItem(BROWSER_ID);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(BROWSER_ID, id);
+  }
+  return id;
+}
+
+export default function ReportForm({ season, health, server: followed, lang, t, final = false, surveyUrl }: {
   season: Season; health: Health | null; server: Server; lang: Lang; t: Text;
+  final?: boolean; surveyUrl?: string | null;
 }) {
   const [step, setStep] = useState<Step>("form");
   const [server, setServer] = useState<Server>(followed);
@@ -73,7 +93,7 @@ export default function ReportForm({ season, health, server: followed, lang, t }
   const [attempt, setAttempt] = useState(0);         // a new Turnstile widget per try
   const box = useRef<HTMLDivElement>(null);
 
-  const open = season.state === "live" && Boolean(health?.intake && health.turnstile_site_key);
+  const open = (final || season.state === "live") && Boolean(health?.intake && health.turnstile_site_key);
 
   // Turnstile only on the review page, fresh each time it opens
   useEffect(() => {
@@ -111,7 +131,7 @@ export default function ReportForm({ season, health, server: followed, lang, t }
     setSending(true);
     setError(null);
     try {
-      const response = await fetch("/api/reports", {
+      const response = await fetch(final ? "/api/finals" : "/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,7 +139,7 @@ export default function ReportForm({ season, health, server: followed, lang, t }
           season: season.season,
           ...(mode === "pc" ? { rank_pc: pctNumber } : { rank_n: numNumber }),
           damage: tenthB,
-          read_at: new Date(readAt).toISOString(),
+          ...(final ? { browser_id: browserId() } : { read_at: new Date(readAt).toISOString() }),
           turnstile_token: token,
         }),
       });
@@ -148,16 +168,17 @@ export default function ReportForm({ season, health, server: followed, lang, t }
   }
 
   return (
-    <Card>
+    <Card sx={final ? { borderColor: "secondary.main", borderWidth: 2, bgcolor: "action.hover" } : undefined}>
       <CardContent>
-        <Typography variant="h2" sx={{ mb: 0.5 }}>{t.report}</Typography>
+        {final && <Chip size="small" color="secondary" label={t.finalChip} sx={{ mb: 1 }} />}
+        <Typography variant="h2" sx={{ mb: 0.5 }}>{final ? t.finalTitle(season.season) : t.report}</Typography>
         {!open ? (
           <Typography variant="body2" color="text.secondary">
             {season.state === "live" ? t.reportUnavailable : t.reportClosed}
           </Typography>
         ) : step === "sent" ? (
           <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
-            <Alert severity="success">{t.sent}</Alert>
+            <Alert severity="success">{final ? t.finalSent : t.sent}</Alert>
             <Button variant="outlined" onClick={another}>{t.another}</Button>
           </Stack>
         ) : step === "review" ? (
@@ -183,7 +204,10 @@ export default function ReportForm({ season, health, server: followed, lang, t }
           </Stack>
         ) : (
           <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <Typography variant="body2" color="text.secondary">{t.reportIntro}</Typography>
+            <Typography variant="body2" color="text.secondary">{final ? t.finalIntro : t.reportIntro}</Typography>
+            {final && surveyUrl && (
+              <Link href={surveyUrl} target="_blank" rel="noopener" variant="body2">{t.finalOrSurvey}</Link>
+            )}
             <TextField select size="small" label={t.server} value={server}
                        onChange={(e) => setServer(e.target.value as Server)}>
               {SERVER_ORDER.map((s) => <MenuItem key={s} value={s}>{serverName(lang, s)}</MenuItem>)}
@@ -239,12 +263,14 @@ export default function ReportForm({ season, health, server: followed, lang, t }
               </Stack>
             )}
 
-            <TextField size="small" type="datetime-local" label={t.readAt} value={readAt}
-                       onChange={(e) => setReadAt(e.target.value)}
-                       slotProps={{ inputLabel: { shrink: true } }} />
+            {!final && (
+              <TextField size="small" type="datetime-local" label={t.readAt} value={readAt}
+                         onChange={(e) => setReadAt(e.target.value)}
+                         slotProps={{ inputLabel: { shrink: true } }} />
+            )}
             {error && <Alert severity="error">{error}</Alert>}
             <Box>
-              <Button variant="contained" disabled={!scoreOk || !rankOk || !readAt}
+              <Button variant="contained" disabled={!scoreOk || !rankOk || (!final && !readAt)}
                       onClick={() => { setError(null); setStep("review"); }}>
                 {t.next}
               </Button>

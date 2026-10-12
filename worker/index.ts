@@ -6,9 +6,11 @@
 //
 //   GET  /api/health          bindings and intake configuration, no secrets
 //   POST /api/reports         in-raid player report -> D1 inbox (reports.ts)
+//   POST /api/finals          post-raid final result -> D1 final_reports (finals.ts)
 //   GET  /api/outbox/<key>    published engine JSON from R2 (outbox.ts)
 import type { WorkerEnv } from "./env";
 import { error } from "./http";
+import { handleFinal } from "./finals";
 import { handleOutbox } from "./outbox";
 import { handleReport } from "./reports";
 
@@ -33,6 +35,7 @@ export default {
       );
     }
     if (pathname === "/api/reports") return handleReport(request, env);
+    if (pathname === "/api/finals") return handleFinal(request, env);
     if (pathname.startsWith(OUTBOX_PREFIX)) {
       return handleOutbox(request, env, pathname.slice(OUTBOX_PREFIX.length));
     }

@@ -7,12 +7,17 @@ engine. This directory is the single source of truth for both sides.
 |---|---|---|---|
 | `prediction.schema.json` | engine (outbox) | site | 0.3.0 (draft): optional nested `bands` (0.2.0) and the `residuals` they come from (0.3.0) |
 | `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
+| `final-report.schema.json` | site (inbox, `final_reports`) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
-| `history.schema.json` | engine (outbox) | site | 0.2.0 (draft): the band is optional; `hit: null` without one |
+| `history.schema.json` | engine (outbox) | site | 0.3.0 (draft): the band is optional, `hit: null` without one (0.2.0); `final.estimate` and the `survey_and_reports` source (0.3.0) |
 
 `report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
 only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_at` and `client`;
 `client` carries a salted hash for rate limiting and never an IP address or account.
+
+`final-report.schema.json` is one player's final result for a closed season, kept apart from the
+in-raid reports. It has no `read_at`, and its `client` carries two salted keys (address + season,
+and a random browser id) so the engine can count distinct players.
 
 `season.schema.json` is the season the site shows: boss, UTC schedule, `state` (upcoming → live →
 measuring → closed) and the Tally survey, which is `null` until the form exists. The site links
@@ -24,8 +29,9 @@ accepts only `https://tally.so/` URLs, because the site renders this value as a 
   S15–S20 were posted without a range, so those entries have no band and grade with `hit: null`;
 - **the final 3% line, when we measured it ourselves**. The `source` is `manual_collection` (the
   maintainer's own collection from community posts, S14–S34), `survey` (our end-of-season survey)
-  or `reports` (in-raid reports to this site). `n` gives the sample size, which is required for
-  survey and reports values.
+  `reports` (final results sent to this site after the raid) or `survey_and_reports`. `n` counts
+  distinct players and is required for those sources. `estimate: true` marks a line read off the
+  server's curve because no observation sat near 3%; forecasts are not graded against it.
 
 JP's final line is the last official-day value from community posts, copied by hand, so it is
 `manual_collection` too. Nothing is taken from another site's compiled data. Legacy bands carry

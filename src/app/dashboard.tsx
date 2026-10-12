@@ -27,7 +27,7 @@ import {
   LANG_NAMES, LANGS, SERVER_ORDER, langStore, serverName, serverStore, text, type Lang,
 } from "@/lib/i18n";
 import {
-  SERVERS, health, outbox, type Health, type History, type Prediction, type Season,
+  SERVERS, finalWindowOpen, health, outbox, type Health, type History, type Prediction, type Season,
 } from "@/lib/outbox";
 import ReportForm from "./report-form";
 import SeasonCard from "./season-card";
@@ -182,8 +182,15 @@ export default function Dashboard() {
                   : data.season.state === "live" ? t.noForecast : t.noForecastEnded}</Typography>
               )}
 
-              <ReportForm key={server} season={data.season} health={data.health} server={server}
-                          lang={lang} t={t} />
+              {/* one card at a time: in-raid reports up to the close, final results after it */}
+              {finalWindowOpen(data.season, now) ? (
+                <ReportForm key={`final-${server}`} final season={data.season} health={data.health} server={server}
+                            lang={lang} t={t} surveyUrl={data.season.survey?.url.startsWith("https://tally.so/")
+                              && now >= Date.parse(data.season.survey.opens_at) ? data.season.survey.url : null} />
+              ) : (data.season.state === "live" || data.season.state === "upcoming") && (
+                <ReportForm key={server} season={data.season} health={data.health} server={server}
+                            lang={lang} t={t} />
+              )}
             </>
           )}
 

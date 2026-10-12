@@ -1,0 +1,13 @@
+{
+  "schema_version": "0.1.0",
+  "id": "7c2e1f3a-4b5d-4e6f-8a9b-0c1d2e3f4a5b",
+  "server": "gb",
+  "season": 42,
+  "rank_pc": 2.97,
+  "damage": 251.3,
+  "submitted_at": "2026-10-23T11:02:40Z",
+  "client": {
+    "turnstile": true,
+    "season_key": "9b74c9897bac770ffc029102a200c5de4d1e8f0a6c2b5e3f4a1d7c9e2b6f8a01"
+  }
+}
