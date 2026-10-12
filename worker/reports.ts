@@ -25,25 +25,8 @@ const PLAYER_FIELDS = ["server", "season", "rank_pc", "rank_n", "damage", "read_
 const REQUEST_FIELDS = new Set<string>([...PLAYER_FIELDS, "turnstile_token"]);
 
 export async function handleReport(request: Request, env: WorkerEnv, now = new Date()): Promise<Response> {
-  if (request.method !== "POST") return error(405, "method_not_allowed");
-  const origin = request.headers.get("Origin");
-  if (origin && origin !== new URL(request.url).origin) return error(403, "cross_origin");
-  if (!(request.headers.get("Content-Type") ?? "").startsWith("application/json")) {
-    return error(415, "json_only");
-  }
-  const text = await request.text();
-  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) return error(413, "too_large");
-
-  let body: unknown;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    return error(400, "bad_json");
-  }
-  if (typeof body !== "object" || body === null || Array.isArray(body)) return error(400, "bad_json");
-  const fields = body as Record<string, unknown>;
-  const unknown = Object.keys(fields).filter((key) => !REQUEST_FIELDS.has(key));
-  if (unknown.length) return error(400, "unknown_fields", { fields: unknown });
+  const fields = await readFields(request, REQUEST_FIELDS);
+  if (fields instanceof Response) return fields;
 
   if (!env.TURNSTILE_SECRET || !env.RATE_KEY_SALT) return error(503, "intake_not_configured");
   const ip = request.headers.get("CF-Connecting-IP") ?? "";
@@ -54,14 +37,8 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
   doc.submitted_at = now.toISOString();
   doc.client = { turnstile: true, rate_key: rateKey };   // stored only if the check below passes
 
-  const check = validator.validate(doc);
-  if (!check.valid) {
-    const errors = check.errors
-      .filter((e) => e.instanceLocation !== "#")
-      .slice(0, 5)
-      .map((e) => ({ at: e.instanceLocation, rule: e.keyword }));
-    return error(400, "invalid_report", { errors: errors.length ? errors : [{ at: "#", rule: "oneOf" }] });
-  }
+  const invalid = contractErrors(validator, doc);
+  if (invalid) return invalid;
 
   const season = await currentSeason(env.OUTBOX);
   if (!season || doc.season !== season.season || !inRankedWindow(season, now)) {
@@ -83,18 +60,59 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
   return json({ id: doc.id }, 201);
 }
 
+/**
+ * The checks every intake makes before reading a body: POST, same origin, JSON,
+ * size, an object, and no field beyond the allowed ones. A Response is the refusal.
+ */
+export async function readFields(request: Request, allowed: Set<string>): Promise<Record<string, unknown> | Response> {
+  if (request.method !== "POST") return error(405, "method_not_allowed");
+  const origin = request.headers.get("Origin");
+  if (origin && origin !== new URL(request.url).origin) return error(403, "cross_origin");
+  if (!(request.headers.get("Content-Type") ?? "").startsWith("application/json")) {
+    return error(415, "json_only");
+  }
+  const text = await request.text();
+  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) return error(413, "too_large");
+
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return error(400, "bad_json");
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return error(400, "bad_json");
+  const fields = body as Record<string, unknown>;
+  const unknown = Object.keys(fields).filter((key) => !allowed.has(key));
+  if (unknown.length) return error(400, "unknown_fields", { fields: unknown });
+  return fields;
+}
+
+/** 400 invalid_report naming up to five broken rules, or null when the document passes. */
+export function contractErrors(validator: Validator, doc: Record<string, unknown>): Response | null {
+  const check = validator.validate(doc);
+  if (check.valid) return null;
+  const errors = check.errors
+    .filter((e) => e.instanceLocation !== "#")
+    .slice(0, 5)
+    .map((e) => ({ at: e.instanceLocation, rule: e.keyword }));
+  return error(400, "invalid_report", { errors: errors.length ? errors : [{ at: "#", rule: "oneOf" }] });
+}
+
+export async function sha256Hex(text: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 // SHA-256 of a secret salt, the UTC day and the client address. The day is in
 // the hash so one player's reports can't be linked across days; the address
 // itself is never stored.
 export async function rateKeyFor(salt: string, ip: string, now: Date): Promise<string> {
-  const data = new TextEncoder().encode(`${salt}:${now.toISOString().slice(0, 10)}:${ip}`);
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", data));
-  return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
+  return sha256Hex(`${salt}:${now.toISOString().slice(0, 10)}:${ip}`);
 }
 
 // A pass only counts if the token was issued on this site's own host (siteverify
 // reports where the widget ran), not on another page using the same site key.
-async function turnstilePassed(secret: string, token: unknown, ip: string, host: string | null): Promise<boolean> {
+export async function turnstilePassed(secret: string, token: unknown, ip: string, host: string | null): Promise<boolean> {
   if (typeof token !== "string" || !token || token.length > 2048) return false;
   const form = new FormData();
   form.append("secret", secret);

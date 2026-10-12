@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/final-report.schema.json",
+  "title": "Post-raid final result (draft 0.1.0)",
+  "description": "One player's final result for a season that has closed, as the site stores it in the inbox's final_reports table, apart from in-raid reports: in-raid reports tune the running season's forecast, final results are our own record of where each server's lines ended and feed later seasons' models. Numbers only. The site fills in id, submitted_at and client. Damage is in 0.1B (1e8) units.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "server",
+    "season",
+    "damage",
+    "submitted_at",
+    "client"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "rank_pc"
+      ]
+    },
+    {
+      "required": [
+        "rank_n"
+      ]
+    }
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "id": {
+      "description": "Set by the site (UUID v4), so the engine can de-duplicate pulls and point DQ results at one report.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "server": {
+      "enum": [
+        "jp",
+        "kr",
+        "na",
+        "sea",
+        "tw",
+        "gb"
+      ]
+    },
+    "season": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "rank_pc": {
+      "description": "The final rank as a percentage, as the game shows it. Exactly one of rank_pc and rank_n is present.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 100
+    },
+    "rank_n": {
+      "description": "The final numeric rank. The game shows a number only to its top 200.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200
+    },
+    "damage": {
+      "description": "In 0.1B (1e8) units. The upper bound is a units guard: a raw in-game score (> 1e6) typed without conversion fails here instead of reaching the engine.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 100000
+    },
+    "submitted_at": {
+      "description": "Set by the site when it accepted the report.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "client": {
+      "description": "Anti-abuse and player counting. Never an IP address, an account or the browser's own id.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turnstile",
+        "season_key",
+        "browser_key"
+      ],
+      "properties": {
+        "turnstile": {
+          "description": "Whether the Turnstile check passed.",
+          "type": "boolean"
+        },
+        "season_key": {
+          "description": "SHA-256 (hex) of the client address and the season, salted on the site: the same network gives the same key for the whole season and a different one the next.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "browser_key": {
+          "description": "SHA-256 (hex) of a random id the page keeps in the browser, salted on the site.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

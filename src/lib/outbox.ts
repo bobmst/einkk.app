@@ -22,6 +22,17 @@ export interface Season {
   survey: { url: string; opens_at: string; closes_at: string } | null;
 }
 
+// Final results are taken from the close through the survey window's end; before
+// the form exists, END 05:00 JST + 20 days at 23:59 JST (worker/season.ts).
+const FINAL_WINDOW_MS = (20 * 24 + 19) * 3_600_000 + 60_000;
+
+export function finalWindowOpen(season: Season, now: number): boolean {
+  if (season.state !== "measuring" && season.state !== "closed") return false;
+  const open = Date.parse(season.ends_at) + 60_000;
+  const close = season.survey ? Date.parse(season.survey.closes_at) + 60_000 : Date.parse(season.ends_at) + FINAL_WINDOW_MS;
+  return now >= open && now < close;
+}
+
 export interface Band {
   lo: number;
   hi: number;
@@ -58,7 +69,8 @@ export interface HistoryEntry {
   forecast?: number;
   band?: Band;
   grading?: { error_pct: number; hit: boolean | null } | null;   // hit null: no band posted (contract 0.2.0)
-  final?: { value: number; source: "manual_collection" | "survey" | "reports"; n?: number };
+  final?: { value: number; source: "manual_collection" | "survey" | "reports" | "survey_and_reports"; n?: number;
+    estimate?: boolean };   // estimate: read off the curve, no report near 3% (contract 0.3.0)
 }
 
 export interface History {

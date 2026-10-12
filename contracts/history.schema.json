@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/history.schema.json",
-  "title": "Forecast track record (draft 0.2.0)",
+  "title": "Forecast track record (draft 0.3.0)",
   "description": "Per season and server: our forecast and how it was graded, and/or the final 3% line. A final value comes from the maintainer's hand collection from community posts (JP's official-day lines included), our survey or our in-raid reports, never from another site's compiled data. The private engine writes it to the outbox.",
   "type": "object",
   "additionalProperties": false,
@@ -12,7 +12,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.2.0"
+      "const": "0.3.0"
     },
     "issued_at": {
       "type": "string",
@@ -165,17 +165,22 @@
               "exclusiveMinimum": 0
             },
             "source": {
-              "description": "manual_collection: collected by hand by the maintainer from community posts. survey: our end-of-season survey. reports: in-raid reports to this site.",
+              "description": "manual_collection: collected by hand by the maintainer from community posts. survey: our end-of-season survey. reports: final results players sent to this site after the raid closed. survey_and_reports: both of those.",
               "enum": [
                 "manual_collection",
                 "survey",
-                "reports"
+                "reports",
+                "survey_and_reports"
               ]
             },
             "n": {
-              "description": "How many observations the value rests on. Required for survey and reports, where it is often small.",
+              "description": "How many observations the value rests on: for survey and reports, distinct players (reports linked by a shared key, or with the same damage, count once). Required for those sources, where it is often small.",
               "type": "integer",
               "minimum": 1
+            },
+            "estimate": {
+              "description": "true when no observation sat near the 3% line itself, so the value is read off the server's curve from reports further away. A forecast is not graded against an estimate. Absent means measured.",
+              "type": "boolean"
             }
           },
           "if": {
@@ -183,7 +188,8 @@
               "source": {
                 "enum": [
                   "survey",
-                  "reports"
+                  "reports",
+                  "survey_and_reports"
                 ]
               }
             }

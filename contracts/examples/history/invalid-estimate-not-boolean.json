@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.3.0",
+  "issued_at": "2026-10-31T04:20:00Z",
+  "entries": [
+    {
+      "season": 43,
+      "server": "gb",
+      "model_version": "router-v2.3",
+      "forecast": 250.0,
+      "band": {
+        "lo": 238.0,
+        "hi": 262.0,
+        "level": 0.9,
+        "method": "conformal_walk_forward"
+      },
+      "grading": null,
+      "final": {
+        "value": 251.4,
+        "source": "survey_and_reports",
+        "n": 4,
+        "estimate": "yes"
+      }
+    }
+  ]
+}

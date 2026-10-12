@@ -76,7 +76,7 @@ export default function TrackRecord({ entries, server, lang, t, current }: {
                       : e.forecast === undefined ? "—" : current !== undefined && e.season < current ? t.noFinal : t.pending}
                   </TableCell>
                   <TableCell align="right">
-                    {e.final ? damage(lang, e.final.value) : "—"}
+                    {e.final ? `${e.final.estimate ? "≈ " : ""}${damage(lang, e.final.value)}` : "—"}
                   </TableCell>
                 </TableRow>
               ))}
@@ -86,6 +86,9 @@ export default function TrackRecord({ entries, server, lang, t, current }: {
         <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
           {t.histNote}
         </Typography>
+        {mine.some((e) => e.final?.estimate) && (
+          <Typography variant="caption" color="text.secondary" component="p">{t.histEstimate}</Typography>
+        )}
         {legacy && <Typography variant="caption" color="text.secondary" component="p">{t.legacy}</Typography>}
         {mine.some((e) => e.grading?.hit === null) && (
           <Typography variant="caption" color="text.secondary" component="p">· {t.noRange}</Typography>
