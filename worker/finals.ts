@@ -14,7 +14,7 @@ import { Validator, type Schema } from "@cfworker/json-schema";
 import finalSchema from "../contracts/final-report.schema.json";
 import type { WorkerEnv } from "./env";
 import { error, json } from "./http";
-import { contractErrors, readFields, sha256Hex, turnstilePassed } from "./reports";
+import { contractErrors, readFields, sha256Hex, turnstilePassed, utcSeconds } from "./reports";
 import { currentSeason, inFinalWindow } from "./season";
 
 const validator = new Validator(finalSchema as unknown as Schema, "2020-12", false);
@@ -41,7 +41,7 @@ export async function handleFinal(request: Request, env: WorkerEnv, now = new Da
 
   const doc: Record<string, unknown> = { schema_version: SCHEMA_VERSION, id: crypto.randomUUID() };
   for (const key of PLAYER_FIELDS) if (key in fields) doc[key] = fields[key];
-  doc.submitted_at = now.toISOString();
+  doc.submitted_at = utcSeconds(now);
   doc.client = { turnstile: true, season_key: seasonKey, browser_key: browserKey };
 
   const invalid = contractErrors(validator, doc);
@@ -68,7 +68,7 @@ export async function handleFinal(request: Request, env: WorkerEnv, now = new Da
 }
 
 async function overLimit(db: D1Database, seasonKey: string, now: Date): Promise<boolean> {
-  const since = new Date(now.getTime() - 3_600_000).toISOString();
+  const since = utcSeconds(new Date(now.getTime() - 3_600_000));
   const row = await db
     .prepare("SELECT COUNT(*) AS n FROM final_reports WHERE season_key = ? AND submitted_at > ?")
     .bind(seasonKey, since)
