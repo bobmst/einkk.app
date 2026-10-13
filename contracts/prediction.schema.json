@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/prediction.schema.json",
-  "title": "Solo Raid border prediction (draft 0.4.0)",
+  "title": "Solo Raid border prediction (draft 0.5.0)",
   "description": "One published update of the predicted end-of-raid border for one server. The private engine writes it to the outbox and this site reads it. Values are in 0.1B (1e8 damage). Owned by this repository; the engine pins a tagged version.",
   "type": "object",
   "additionalProperties": false,
@@ -23,7 +23,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.4.0"
+      "const": "0.5.0"
     },
     "run_id": {
       "type": "string",
@@ -307,48 +307,30 @@
       }
     },
     "shadow_nowcast": {
-      "description": "Reference only, never used by this forecast: on the mornings of raid days 2 and 3 (the previous day's official line is in, today's isn't), JP's closing line for today as estimated from today's player reports on every server, pooled with the model's own expectation. Absent outside those mornings. The same JP estimate appears in every server's document.",
+      "description": "Reference only, never used by this forecast: on the mornings of raid days 2 and 3 (the previous day's official line is in, today's isn't), this server's final 3% line as it would be if today's player reports on every server fed the forecast. Present only when at least one report was used. Replaces 0.4.0's day-line fields, which only the uat rehearsal published.",
       "type": "object",
       "additionalProperties": false,
       "required": [
         "day",
-        "estimate",
-        "lo",
-        "hi",
-        "model_expects",
+        "final",
         "reports_used",
         "servers"
       ],
       "properties": {
         "day": {
-          "description": "The raid day whose closing JP line is estimated.",
+          "description": "The raid day whose reports were used.",
           "type": "integer",
           "minimum": 1,
           "maximum": 4
         },
-        "estimate": {
-          "description": "0.1B.",
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "lo": {
-          "description": "estimate x exp(-sd), 0.1B.",
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "hi": {
-          "description": "estimate x exp(+sd), 0.1B.",
-          "type": "number",
-          "exclusiveMinimum": 0
-        },
-        "model_expects": {
-          "description": "The model's own guess of today's line before any report, 0.1B.",
+        "final": {
+          "description": "This server's final 3% line with the reports, 0.1B.",
           "type": "number",
           "exclusiveMinimum": 0
         },
         "reports_used": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 1
         },
         "servers": {
           "description": "Reports used per server.",
