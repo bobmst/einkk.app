@@ -88,6 +88,7 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
   const [pct, setPct] = useState("");
   const [num, setNum] = useState("");
   const [readAt, setReadAt] = useState(localNow);
+  const [timeSet, setTimeSet] = useState(false);       // until changed, "now" is when Next is pressed
   const [token, setToken] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +172,7 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
     setNum("");
     setMode(null);
     setReadAt(localNow());
+    setTimeSet(false);
     setError(null);
     setStep("form");
   }
@@ -272,15 +274,27 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
               </Stack>
             )}
 
-            {!final && (
+            {!final && (timeSet ? (
               <TextField size="small" type="datetime-local" label={t.readAt} value={readAt}
                          onChange={(e) => setReadAt(e.target.value)}
                          slotProps={{ inputLabel: { shrink: true } }} />
-            )}
+            ) : (
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: "baseline" }}>
+                <Typography variant="body2" color="text.secondary">{t.readAtNow(localNow().slice(11, 16))}</Typography>
+                <Link component="button" type="button" variant="body2"
+                      onClick={() => { setReadAt(localNow()); setTimeSet(true); }}>
+                  {t.readAtChange}
+                </Link>
+              </Stack>
+            ))}
             {error && <Alert severity="error">{error}</Alert>}
             <Box>
               <Button variant="contained" disabled={!scoreOk || !rankOk || (!final && !readAt)}
-                      onClick={() => { setError(null); setStep("review"); }}>
+                      onClick={() => {
+                        if (!final && !timeSet) setReadAt(localNow());
+                        setError(null);
+                        setStep("review");
+                      }}>
                 {t.next}
               </Button>
             </Box>
