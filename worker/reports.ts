@@ -18,6 +18,11 @@ const SCHEMA_VERSION = reportSchema.properties.schema_version.const;
 const TURNSTILE_VERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 export const MAX_BODY_BYTES = 4096;
+
+/** The engine's storage format for an instant (solo_raid_predict#58): UTC, seconds, Z. */
+export function utcSeconds(t: Date): string {
+  return t.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
 export const REPORTS_PER_HOUR = 10;
 
 // What a player may send. Everything else in the stored document is set here.
@@ -34,11 +39,12 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
 
   const doc: Record<string, unknown> = { schema_version: SCHEMA_VERSION, id: crypto.randomUUID() };
   for (const key of PLAYER_FIELDS) if (key in fields) doc[key] = fields[key];
-  doc.submitted_at = now.toISOString();
+  doc.submitted_at = utcSeconds(now);
   doc.client = { turnstile: true, rate_key: rateKey };   // stored only if the check below passes
 
   const invalid = contractErrors(validator, doc);
   if (invalid) return invalid;
+  doc.read_at = utcSeconds(new Date(doc.read_at as string));   // any zone the contract allows -> UTC
 
   const season = await currentSeason(env.OUTBOX);
   if (!season || doc.season !== season.season || !inRankedWindow(season, now)) {
@@ -125,7 +131,7 @@ export async function turnstilePassed(secret: string, token: unknown, ip: string
 }
 
 async function overLimit(db: D1Database, rateKey: string, now: Date): Promise<boolean> {
-  const since = new Date(now.getTime() - 3_600_000).toISOString();
+  const since = utcSeconds(new Date(now.getTime() - 3_600_000));
   const row = await db
     .prepare("SELECT COUNT(*) AS n FROM reports WHERE rate_key = ? AND submitted_at > ?")
     .bind(rateKey, since)

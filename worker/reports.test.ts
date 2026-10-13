@@ -66,7 +66,10 @@ describe("POST /api/reports", () => {
     expect(db.rows).toHaveLength(1);
     const doc = JSON.parse(db.rows[0].doc);
     expect(doc.id).toBe(id);
-    expect(doc.submitted_at).toBe(NOW.toISOString());
+    // UTC to the second, the engine's storage format; the read time too, whatever zone it came in
+    expect(doc.submitted_at).toBe("2026-10-30T03:41:12Z");
+    expect(doc.read_at).toBe("2026-10-30T03:40:00Z");
+    expect(db.rows[0].submitted_at).toBe("2026-10-30T03:41:12Z");
     expect(doc.client).toEqual({ turnstile: true, rate_key: await rateKeyFor("salt", IP, NOW) });
     expect(new Validator(reportSchema as unknown as Schema, "2020-12").validate(doc).valid).toBe(true);
     expect(db.rows[0].doc).not.toContain(IP);
