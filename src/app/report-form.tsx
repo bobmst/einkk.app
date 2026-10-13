@@ -25,8 +25,8 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { SERVER_ORDER, damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
-import { regroupField, scoreToTenthB } from "@/lib/numbers";
-import type { Health, Season, Server } from "@/lib/outbox";
+import { digitCheck, raidProgress, regroupField, scoreToTenthB } from "@/lib/numbers";
+import type { Health, Prediction, Season, Server } from "@/lib/outbox";
 
 const TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 const MIN_SCORE = 10_000_000;          // the survey's bounds
@@ -76,9 +76,10 @@ function browserId(): string {
   return id;
 }
 
-export default function ReportForm({ season, health, server: followed, lang, t, final = false, surveyUrl }: {
+export default function ReportForm({ season, health, server: followed, lang, t, final = false, surveyUrl,
+  predictions = [] }: {
   season: Season; health: Health | null; server: Server; lang: Lang; t: Text;
-  final?: boolean; surveyUrl?: string | null;
+  final?: boolean; surveyUrl?: string | null; predictions?: Prediction[];
 }) {
   const [step, setStep] = useState<Step>("form");
   const [server, setServer] = useState<Server>(followed);
@@ -125,6 +126,13 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
   const rankOk = mode === "pc" ? pct !== "" && pctNumber >= 0.01 && pctNumber <= 100
     : mode === "n" ? num !== "" && Number.isInteger(numNumber) && numNumber >= 1 && numNumber <= 200 : false;
   const rankText = mode === "pc" ? `${pct}%` : `#${num}`;
+
+  // a score a digit short or long for its rank, against the chosen server's curve
+  // and how far the raid has come (a numeric rank is a top-200 one: the top cell)
+  const forecast = predictions.find((p) => p.server === server);
+  const progress = final ? 1 : forecast ? raidProgress(forecast.state.raid_day, forecast.state.day_fraction ?? 0) : 0;
+  const digitWarning = forecast?.cells && tenthB && rankOk
+    ? digitCheck(forecast.cells, mode === "pc" ? pctNumber : 0, tenthB, progress) : null;
 
   async function submit() {
     if (!token || !tenthB) return;
@@ -192,6 +200,7 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
               <Typography component="dt" color="text.secondary">{t.rank}</Typography>
               <Typography component="dd" sx={{ m: 0 }}>{rankText}</Typography>
             </Box>
+            {digitWarning && <Alert severity="warning">{digitWarning === "low" ? t.digitsLow : t.digitsHigh}</Alert>}
             <Typography variant="body2" color="text.secondary">{t.reviewNote}</Typography>
             <div ref={box} />
             {error && <Alert severity="error">{error}</Alert>}

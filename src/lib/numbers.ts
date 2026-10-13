@@ -81,3 +81,47 @@ export function placement(cells: Cell[], value: number): Placement | null {
   }
   return null;
 }
+
+// Share of its final 3% line the line has reached by the end of each raid day
+// (n_k / n5, S41-like); in between, linear within the day.
+const PATH = [0, 0.33, 0.63, 0.75, 0.88, 1];
+
+/** How far the line has come, 0..1, at a raid day (1-5) and a share of that day; after the close 1. */
+export function raidProgress(day: number, fraction: number): number {
+  if (day < 1) return 0;
+  if (day > 5) return 1;
+  const f = Math.min(Math.max(fraction, 0), 1);
+  return PATH[day - 1] + (PATH[day] - PATH[day - 1]) * f;
+}
+
+/** The curve's value at a rank percentile, interpolated in log(percentile); the nearest cell beyond them. */
+export function valueAt(cells: Cell[], pc: number): number | null {
+  const sorted = [...cells].sort((a, b) => a.percentile - b.percentile);
+  if (sorted.length === 0) return null;
+  if (pc <= sorted[0].percentile) return sorted[0].value;
+  const last = sorted[sorted.length - 1];
+  if (pc >= last.percentile) return last.value;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    if (pc >= a.percentile && pc <= b.percentile) {
+      const t = (Math.log(pc) - Math.log(a.percentile)) / (Math.log(b.percentile) - Math.log(a.percentile));
+      return a.value + t * (b.value - a.value);
+    }
+  }
+  return null;
+}
+
+/**
+ * A damage that looks a digit short or a digit long for its rank: "low" under a
+ * third of where that rank's line should be by now (so day 1's small scores
+ * never trip it), "high" over four times that rank's final forecast. A wrong
+ * digit count is a factor of ten, so ordinary spread stays clear of both.
+ */
+export function digitCheck(cells: Cell[], pc: number, tenthB: number, progress: number): "low" | "high" | null {
+  const expected = valueAt(cells, pc);
+  if (!expected) return null;
+  if (tenthB > 4 * expected) return "high";
+  if (tenthB < (expected * progress) / 3) return "low";
+  return null;
+}
