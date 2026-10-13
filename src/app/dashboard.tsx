@@ -125,6 +125,13 @@ export default function Dashboard() {
 
   const t = text(lang);
   const prediction = data?.predictions.find((p) => p.server === server);
+  // From lg (1200px) the page splits in two: the season, the forecast and the report
+  // card on the left, the distribution beside them. Without a forecast there is no
+  // second column, so the page keeps its one-column width.
+  const wide = Boolean(data?.season && prediction);
+  const pageWidth = { md: 900, lg: wide ? 1240 : 900 };
+  const one = `"season" "forecast" "dist" "report" "hist"`;
+  const reportOpen = data?.season?.state === "live" && !finalWindowOpen(data.season, now);
 
   return (
     <>
@@ -146,7 +153,7 @@ export default function Dashboard() {
           <ThemeToggle label={t.theme} />
         </Toolbar>
         {data?.season && (
-          <Container maxWidth="md" disableGutters>
+          <Container maxWidth={false} disableGutters sx={{ maxWidth: pageWidth }}>
             <Tabs value={server} onChange={(_, s) => serverStore.set(s)} aria-label={t.yourServer}
                   variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
               {SERVER_ORDER.map((s) => <Tab key={s} value={s} label={serverName(lang, s)} />)}
@@ -155,7 +162,7 @@ export default function Dashboard() {
         )}
       </AppBar>
 
-      <Container maxWidth="md" sx={{ py: 3 }}>
+      <Container maxWidth={false} sx={{ py: 3, maxWidth: pageWidth }}>
         <Stack spacing={2.5}>
           {data?.health?.mode === "rehearsal" && <Alert severity="warning">{t.rehearsal}</Alert>}
           {failed && <Alert severity="error">{t.loadFailed}</Alert>}
@@ -168,35 +175,58 @@ export default function Dashboard() {
           {data && !data.season && <Typography color="text.secondary">{t.nothing}</Typography>}
 
           {data?.season && (
-            <>
-              <SeasonCard key={data.season.season} season={data.season} lang={lang} t={t} now={now} />
+            <Box sx={{
+              display: "grid", gap: 2.5, alignItems: "start",
+              gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: wide ? "minmax(0, 5fr) minmax(0, 7fr)" : "minmax(0, 1fr)" },
+              gridTemplateAreas: { xs: one, lg: wide ? `"season dist" "forecast dist" "report dist" "hist hist"` : one },
+              gridTemplateRows: { lg: wide ? "auto auto 1fr auto" : "none" },
+            }}>
+              <Box sx={{ gridArea: "season" }}>
+                <SeasonCard key={data.season.season} season={data.season} lang={lang} t={t} now={now} />
+              </Box>
 
               {prediction ? (
                 <>
-                  <Forecast p={prediction} lang={lang} t={t} now={now}
-                            ended={data.season.state === "measuring" || data.season.state === "closed"} />
-                  <Distribution p={prediction} lang={lang} t={t} />
+                  <Box sx={{ gridArea: "forecast" }}>
+                    <Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen}
+                              ended={data.season.state === "measuring" || data.season.state === "closed"} />
+                  </Box>
+                  <Box sx={{ gridArea: "dist" }}>
+                    <Distribution p={prediction} lang={lang} t={t} />
+                  </Box>
                 </>
               ) : (
-                <Typography color="text.secondary">{data.season.state === "upcoming" ? t.noForecastUpcoming
-                  : data.season.state === "live" ? t.noForecast : t.noForecastEnded}</Typography>
+                <Typography color="text.secondary" sx={{ gridArea: "forecast" }}>
+                  {data.season.state === "upcoming" ? t.noForecastUpcoming
+                    : data.season.state === "live" ? t.noForecast : t.noForecastEnded}
+                </Typography>
               )}
 
               {/* one card at a time: in-raid reports up to the close, final results after it */}
               {finalWindowOpen(data.season, now) ? (
-                <ReportForm key={`final-${server}`} final season={data.season} health={data.health} server={server}
-                            predictions={data.predictions}
-                            lang={lang} t={t} surveyUrl={data.season.survey?.url.startsWith("https://tally.so/")
-                              && now >= Date.parse(data.season.survey.opens_at) ? data.season.survey.url : null} />
+                <Box id="report" sx={{ gridArea: "report", scrollMarginTop: 128 }}>
+                  <ReportForm key={`final-${server}`} final season={data.season} health={data.health} server={server}
+                              predictions={data.predictions}
+                              lang={lang} t={t} surveyUrl={data.season.survey?.url.startsWith("https://tally.so/")
+                                && now >= Date.parse(data.season.survey.opens_at) ? data.season.survey.url : null} />
+                </Box>
               ) : (data.season.state === "live" || data.season.state === "upcoming") && (
-                <ReportForm key={server} season={data.season} health={data.health} server={server}
-                            lang={lang} t={t} predictions={data.predictions} />
+                <Box id="report" sx={{ gridArea: "report", scrollMarginTop: 128 }}>
+                  <ReportForm key={server} season={data.season} health={data.health} server={server}
+                              lang={lang} t={t} predictions={data.predictions} />
+                </Box>
               )}
-            </>
+
+              {data.history && (
+                <Box sx={{ gridArea: "hist" }}>
+                  <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
+                    current={data.season.season} />
+                </Box>
+              )}
+            </Box>
           )}
 
-          {data?.history && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
-            current={data.season?.season} />}
+          {data?.history && !data.season && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t} />}
 
           <Stack direction="row" spacing={2} sx={{ justifyContent: "center", pt: 2, pb: 1 }}>
             <Link href="https://enikk.app" target="_blank" rel="noopener" variant="caption" color="text.secondary">

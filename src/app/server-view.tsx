@@ -3,6 +3,7 @@
 // curve shaded the same way, and where the player's own damage lands on it.
 import { useDeferredValue, useState } from "react";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
@@ -16,6 +17,7 @@ import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { alpha, useColorScheme, useTheme } from "@mui/material/styles";
+import ArrowDownward from "@mui/icons-material/ArrowDownward";
 import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
 import { useDrawingArea, useXScale, useYScale } from "@mui/x-charts/hooks";
 import { LineChart, lineClasses } from "@mui/x-charts/LineChart";
@@ -48,8 +50,8 @@ function rangeLabel(t: Text, level: number | null) {
   return level === null ? t.rangeUncertified : t.range(Math.round(level * 1000) / 10);
 }
 
-export function Forecast({ p, lang, t, now, ended = false }: {
-  p: Prediction; lang: Lang; t: Text; now: number; ended?: boolean;
+export function Forecast({ p, lang, t, now, ended = false, report = false }: {
+  p: Prediction; lang: Lang; t: Text; now: number; ended?: boolean; report?: boolean;
 }) {
   return (
     <Card>
@@ -69,10 +71,17 @@ export function Forecast({ p, lang, t, now, ended = false }: {
               {t.shadowTitle}: ≈ {damage(lang, p.shadow_nowcast.final)}
             </Typography>
             <Typography variant="caption" color="text.secondary" component="p">
-              {t.shadowModel(damage(lang, p.prediction))} · {t.shadowReports(p.shadow_nowcast.reports_used)}
+              {t.shadowReports(p.shadow_nowcast.reports_used)}
             </Typography>
             <Typography variant="caption" color="text.secondary" component="p">{t.shadowNote}</Typography>
           </Box>
+        )}
+        {/* in one column the report card is a few screens down; in two it sits right below */}
+        {report && (
+          <Button variant="contained" href="#report" endIcon={<ArrowDownward />} fullWidth
+                  sx={{ mt: 1.5, minHeight: 44, display: { xs: "flex", lg: "none" } }}>
+            {t.report}
+          </Button>
         )}
       </CardContent>
     </Card>

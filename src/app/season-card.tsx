@@ -31,8 +31,8 @@ export default function SeasonCard({ season, lang, t, now }: {
       <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" } }}>
         <Box
           sx={{
-            width: { xs: "100%", sm: 240 },
-            minHeight: { xs: 200, sm: 240 },
+            width: { xs: "100%", sm: 240, lg: 160 },          // lg: the narrow left column
+            minHeight: { xs: 200, sm: 240, lg: 180 },
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
@@ -46,7 +46,7 @@ export default function SeasonCard({ season, lang, t, now }: {
               src={`/bosses/s${season.season}.webp`}
               alt={season.boss.name}
               onError={() => setArt(false)}
-              sx={{ maxWidth: "92%", maxHeight: { xs: 200, sm: 240 }, objectFit: "contain" }}
+              sx={{ maxWidth: "92%", maxHeight: { xs: 200, sm: 240, lg: 170 }, objectFit: "contain" }}
             />
           )}
         </Box>
