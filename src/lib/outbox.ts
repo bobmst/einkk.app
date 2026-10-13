@@ -54,7 +54,7 @@ export interface Prediction {
   season: number;
   server: Server;
   model_version: string;
-  state: { raid_day: number; hours_to_close: number; known_days: number; method: string };
+  state: { raid_day: number; day_fraction?: number; hours_to_close: number; known_days: number; method: string };
   prediction: number;
   band: Band;
   cells?: Cell[];

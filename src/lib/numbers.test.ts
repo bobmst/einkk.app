@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupDigits, regroup } from "./numbers";
+import { digitCheck, groupDigits, raidProgress, regroup, valueAt } from "./numbers";
 
 describe("regroup", () => {
   it("keeps the caret after the digit typed mid-number", () => {
@@ -38,5 +38,32 @@ describe("regroup", () => {
 
   it("agrees with groupDigits on the value", () => {
     expect(regroup("27635537449", 0, "").value).toBe(groupDigits("27635537449"));
+  });
+});
+
+describe("digitCheck", () => {
+  const cells = [
+    { percentile: 0.5, value: 300 }, { percentile: 1, value: 260 }, { percentile: 3, value: 220 },
+    { percentile: 10, value: 150 },
+  ];
+
+  it("flags a score a digit short once the line has grown, never early on day 1", () => {
+    const day2 = raidProgress(2, 0.25);
+    expect(digitCheck(cells, 2.33, 22.33, day2)).toBe("low");          // 2,233,445,566 for ~22B
+    expect(digitCheck(cells, 2.33, 223.3, day2)).toBeNull();
+    expect(digitCheck(cells, 3, 6, raidProgress(1, 0.1))).toBeNull();   // a first attempt on day 1
+    expect(digitCheck(cells, 3, 6, raidProgress(6, 0))).toBe("low");    // the same as a final result
+  });
+
+  it("flags a score a digit long", () => {
+    expect(digitCheck(cells, 3, 2200, 1)).toBe("high");
+    expect(digitCheck(cells, 0.2, 400, 1)).toBeNull();                  // a top player above the top cell
+  });
+
+  it("reads the curve between cells in log rank", () => {
+    expect(valueAt(cells, 3)).toBe(220);
+    expect(valueAt(cells, 0.1)).toBe(300);
+    expect(valueAt(cells, 2)!).toBeGreaterThan(220);
+    expect(valueAt(cells, 2)!).toBeLessThan(260);
   });
 });
