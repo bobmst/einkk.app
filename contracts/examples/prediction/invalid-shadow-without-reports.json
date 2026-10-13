@@ -7,10 +7,10 @@
   "server": "jp",
   "model_version": "router-v2.3",
   "state": {
-    "raid_day": 2,
+    "raid_day": 3,
     "day_fraction": 0,
     "hours_to_close": 24,
-    "known_days": 1,
+    "known_days": 2,
     "method": "router"
   },
   "target": {
@@ -76,7 +76,7 @@
     "notes": []
   },
   "shadow_nowcast": {
-    "day": 2,
+    "day": 3,
     "final": 222.86,
     "reports_used": 0,
     "servers": {

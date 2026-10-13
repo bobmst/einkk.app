@@ -307,7 +307,7 @@
       }
     },
     "shadow_nowcast": {
-      "description": "Reference only, never used by this forecast: on the mornings of raid days 2 and 3 (the previous day's official line is in, today's isn't), this server's final 3% line as it would be if today's player reports on every server fed the forecast. Present only when at least one report was used. Replaces 0.4.0's day-line fields, which only the uat rehearsal published.",
+      "description": "Reference only, never used by this forecast: on the morning of raid day 3 (n2 is in, n3 isn't), this server's final 3% line as it would be if today's player reports on every server stood in for n3. Present only when at least one report was used. On day 2 a known n2 doesn't improve the final in walk-forward tests, so nothing is shown then. Replaces 0.4.0's day-line fields, which only the uat rehearsal published.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -318,7 +318,7 @@
       ],
       "properties": {
         "day": {
-          "description": "The raid day whose reports were used.",
+          "description": "The raid day whose reports were used (3).",
           "type": "integer",
           "minimum": 1,
           "maximum": 4
