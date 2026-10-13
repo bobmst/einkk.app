@@ -63,13 +63,13 @@ export function Forecast({ p, lang, t, now, ended = false }: {
         <Typography variant="caption" color="text.secondary">
           {ended ? t.finalForecast : t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
         </Typography>
-        {p.shadow_nowcast && !ended && (
+        {p.shadow_nowcast && p.shadow_nowcast.reports_used > 0 && !ended && (
           <Box sx={{ mt: 1.5, p: 1.25, border: 1, borderColor: "divider", borderStyle: "dashed", borderRadius: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {t.shadowTitle(p.shadow_nowcast.day)}: ≈ {damage(lang, p.shadow_nowcast.estimate)}
+              {t.shadowTitle}: ≈ {damage(lang, p.shadow_nowcast.final)}
             </Typography>
             <Typography variant="caption" color="text.secondary" component="p">
-              {damage(lang, p.shadow_nowcast.lo)} – {damage(lang, p.shadow_nowcast.hi)} · {t.shadowModel(damage(lang, p.shadow_nowcast.model_expects))} · {t.shadowReports(p.shadow_nowcast.reports_used)}
+              {t.shadowModel(damage(lang, p.prediction))} · {t.shadowReports(p.shadow_nowcast.reports_used)}
             </Typography>
             <Typography variant="caption" color="text.secondary" component="p">{t.shadowNote}</Typography>
           </Box>

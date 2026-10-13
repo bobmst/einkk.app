@@ -61,9 +61,8 @@ export interface Prediction {
   bands?: { level: number; lo: number; hi: number }[];   // narrowest first (contract 0.2.0)
   residuals?: { season: number; error_pct: number }[];   // the misses the bands come from (contract 0.3.0)
   inputs: { anchors: { day: number; value: number }[] };
-  // reference only, never used by the forecast (contract 0.4.0)
-  shadow_nowcast?: { day: number; estimate: number; lo: number; hi: number; model_expects: number;
-    reports_used: number; servers: Partial<Record<Server, number>> };
+  // reference only, never used by the forecast: this server's final line with today's reports (contract 0.5.0)
+  shadow_nowcast?: { day: number; final: number; reports_used: number; servers: Partial<Record<Server, number>> };
 }
 
 export interface HistoryEntry {
