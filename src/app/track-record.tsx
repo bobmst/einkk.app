@@ -21,10 +21,13 @@ const NONE = "#8a8f98";
 
 const signed = (v: number | null) => (v === null ? null : `${v > 0 ? "+" : ""}${v}%`);
 
-export default function TrackRecord({ entries, server, lang, t, current }: {
-  entries: HistoryEntry[]; server: Server; lang: Lang; t: Text; current?: number;
+export default function TrackRecord({ entries, server, lang, t, current, measuring = false }: {
+  entries: HistoryEntry[]; server: Server; lang: Lang; t: Text; current?: number; measuring?: boolean;
 }) {
-  const mine = entries.filter((e) => e.server === server);
+  // after the close, the running season's forecast stays off the page until this server's
+  // measured 3% line is in (an estimate doesn't count): then it shows with its grading
+  const mine = entries.filter((e) => e.server === server
+    && !(measuring && e.season === current && !(e.final && !e.final.estimate)));
   if (mine.length === 0) return null;
   const graded = mine.filter((e) => e.grading).sort((a, b) => a.season - b.season);
   const unranged = graded.some((e) => e.grading!.hit === null);

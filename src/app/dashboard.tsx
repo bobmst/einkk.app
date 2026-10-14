@@ -186,22 +186,20 @@ export default function Dashboard() {
                 <SeasonCard key={data.season.season} season={data.season} lang={lang} t={t} now={now} />
               </Box>
 
-              {prediction ? (
+              {/* after the close the forecast and its table would only invite players to report
+                  their numbers back as final results: hidden until this season's own lines exist */}
+              {prediction && ended ? (
+                <Typography variant="body2" color="text.secondary" sx={{ gridArea: "forecast" }}>
+                  {t.distAfterClose}
+                </Typography>
+              ) : prediction ? (
                 <>
                   <Box sx={{ gridArea: "forecast" }}>
                     <Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen} ended={ended} />
                   </Box>
-                  {/* after the close the forecast table would only invite players to report its
-                      numbers back as their final results: hidden until a measured one exists */}
-                  {ended ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ gridArea: "dist" }}>
-                      {t.distAfterClose}
-                    </Typography>
-                  ) : (
-                    <Box sx={{ gridArea: "dist" }}>
-                      <Distribution p={prediction} lang={lang} t={t} />
-                    </Box>
-                  )}
+                  <Box sx={{ gridArea: "dist" }}>
+                    <Distribution p={prediction} lang={lang} t={t} />
+                  </Box>
                 </>
               ) : (
                 <Typography color="text.secondary" sx={{ gridArea: "forecast" }}>
@@ -228,7 +226,7 @@ export default function Dashboard() {
               {data.history && (
                 <Box sx={{ gridArea: "hist" }}>
                   <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
-                    current={data.season.season} />
+                    current={data.season.season} measuring={ended} />
                 </Box>
               )}
             </Box>
