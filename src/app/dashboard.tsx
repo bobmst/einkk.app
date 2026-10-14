@@ -125,10 +125,11 @@ export default function Dashboard() {
 
   const t = text(lang);
   const prediction = data?.predictions.find((p) => p.server === server);
+  const ended = data?.season?.state === "measuring" || data?.season?.state === "closed";
   // From lg (1200px) the page splits in two: the season, the forecast and the report
-  // card on the left, the distribution beside them. Without a forecast there is no
-  // second column, so the page keeps its one-column width.
-  const wide = Boolean(data?.season && prediction);
+  // card on the left, the distribution beside them. Without a forecast, or once the raid
+  // has closed (no distribution then), there is no second column.
+  const wide = Boolean(data?.season && prediction && !ended);
   const pageWidth = { md: 900, lg: wide ? 1240 : 900 };
   const one = `"season" "forecast" "dist" "report" "hist"`;
   const reportOpen = data?.season?.state === "live" && !finalWindowOpen(data.season, now);
@@ -188,12 +189,19 @@ export default function Dashboard() {
               {prediction ? (
                 <>
                   <Box sx={{ gridArea: "forecast" }}>
-                    <Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen}
-                              ended={data.season.state === "measuring" || data.season.state === "closed"} />
+                    <Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen} ended={ended} />
                   </Box>
-                  <Box sx={{ gridArea: "dist" }}>
-                    <Distribution p={prediction} lang={lang} t={t} />
-                  </Box>
+                  {/* after the close the forecast table would only invite players to report its
+                      numbers back as their final results: hidden until a measured one exists */}
+                  {ended ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ gridArea: "dist" }}>
+                      {t.distAfterClose}
+                    </Typography>
+                  ) : (
+                    <Box sx={{ gridArea: "dist" }}>
+                      <Distribution p={prediction} lang={lang} t={t} />
+                    </Box>
+                  )}
                 </>
               ) : (
                 <Typography color="text.secondary" sx={{ gridArea: "forecast" }}>
