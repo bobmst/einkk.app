@@ -3,7 +3,7 @@
 //
 // Order matters: cheap local checks first, then the stored document is built
 // and validated against the contract, and only then do the Turnstile call and
-// the rate-limit query run. Nothing is stored unless every step passes.
+// the rate-limited insert run. Nothing is stored unless every step passes.
 // Reports are taken only for the published season and only inside its ranked
 // window (season.json's starts_at..ends_at): the raid opens a couple of days
 // before ranked damage counts, and nothing from then is a reading of the line.
@@ -56,13 +56,15 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
   if (!(await turnstilePassed(env.TURNSTILE_SECRET, fields.turnstile_token, ip, host))) {
     return error(403, "turnstile_failed");
   }
-  if (await overLimit(env.INBOX, rateKey, now)) return error(429, "rate_limited");
-
-  await env.INBOX.prepare(
-    "INSERT INTO reports (id, submitted_at, season, server, rate_key, doc) VALUES (?, ?, ?, ?, ?, ?)",
+  // the limit is checked inside the INSERT, so parallel requests can't all slip under it
+  const inserted = await env.INBOX.prepare(
+    "INSERT INTO reports (id, submitted_at, season, server, rate_key, doc) SELECT ?, ?, ?, ?, ?, ? "
+      + "WHERE (SELECT COUNT(*) FROM reports WHERE rate_key = ? AND submitted_at > ?) < ?",
   )
-    .bind(doc.id, doc.submitted_at, doc.season, doc.server, rateKey, JSON.stringify(doc))
+    .bind(doc.id, doc.submitted_at, doc.season, doc.server, rateKey, JSON.stringify(doc),
+      rateKey, hourBefore(now), REPORTS_PER_HOUR)
     .run();
+  if (!inserted.meta.changes) return error(429, "rate_limited");
   return json({ id: doc.id }, 201);
 }
 
@@ -130,11 +132,7 @@ export async function turnstilePassed(secret: string, token: unknown, ip: string
   return outcome.success === true && (host === null || outcome.hostname === host);
 }
 
-async function overLimit(db: D1Database, rateKey: string, now: Date): Promise<boolean> {
-  const since = utcSeconds(new Date(now.getTime() - 3_600_000));
-  const row = await db
-    .prepare("SELECT COUNT(*) AS n FROM reports WHERE rate_key = ? AND submitted_at > ?")
-    .bind(rateKey, since)
-    .first<{ n: number }>();
-  return (row?.n ?? 0) >= REPORTS_PER_HOUR;
+/** The start of the rate-limit window: an hour before `now`, in the stored format. */
+export function hourBefore(now: Date): string {
+  return utcSeconds(new Date(now.getTime() - 3_600_000));
 }

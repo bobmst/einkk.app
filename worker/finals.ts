@@ -14,7 +14,7 @@ import { Validator, type Schema } from "@cfworker/json-schema";
 import finalSchema from "../contracts/final-report.schema.json";
 import type { WorkerEnv } from "./env";
 import { error, json } from "./http";
-import { contractErrors, readFields, sha256Hex, turnstilePassed, utcSeconds } from "./reports";
+import { contractErrors, hourBefore, readFields, sha256Hex, turnstilePassed, utcSeconds } from "./reports";
 import { currentSeason, inFinalWindow } from "./season";
 
 const validator = new Validator(finalSchema as unknown as Schema, "2020-12", false);
@@ -56,22 +56,15 @@ export async function handleFinal(request: Request, env: WorkerEnv, now = new Da
   if (!(await turnstilePassed(env.TURNSTILE_SECRET, fields.turnstile_token, ip, host))) {
     return error(403, "turnstile_failed");
   }
-  if (await overLimit(env.INBOX, seasonKey, now)) return error(429, "rate_limited");
-
-  await env.INBOX.prepare(
+  // the limit is checked inside the INSERT, so parallel requests can't all slip under it
+  const inserted = await env.INBOX.prepare(
     "INSERT INTO final_reports (id, submitted_at, season, server, season_key, browser_key, doc) "
-      + "VALUES (?, ?, ?, ?, ?, ?, ?)",
+      + "SELECT ?, ?, ?, ?, ?, ?, ? "
+      + "WHERE (SELECT COUNT(*) FROM final_reports WHERE season_key = ? AND submitted_at > ?) < ?",
   )
-    .bind(doc.id, doc.submitted_at, doc.season, doc.server, seasonKey, browserKey, JSON.stringify(doc))
+    .bind(doc.id, doc.submitted_at, doc.season, doc.server, seasonKey, browserKey, JSON.stringify(doc),
+      seasonKey, hourBefore(now), FINALS_PER_HOUR)
     .run();
+  if (!inserted.meta.changes) return error(429, "rate_limited");
   return json({ id: doc.id }, 201);
-}
-
-async function overLimit(db: D1Database, seasonKey: string, now: Date): Promise<boolean> {
-  const since = utcSeconds(new Date(now.getTime() - 3_600_000));
-  const row = await db
-    .prepare("SELECT COUNT(*) AS n FROM final_reports WHERE season_key = ? AND submitted_at > ?")
-    .bind(seasonKey, since)
-    .first<{ n: number }>();
-  return (row?.n ?? 0) >= FINALS_PER_HOUR;
 }

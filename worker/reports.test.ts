@@ -9,21 +9,22 @@ const IP = "203.0.113.7";
 
 interface Row { id: string; submitted_at: string; season: number; server: string; rate_key: string; doc: string }
 
-// The two statements reports.ts runs, against an in-memory table.
+// The one statement reports.ts runs, against an in-memory table: an INSERT that
+// only lands while the key has fewer than `limit` rows in the last hour.
 class FakeD1 {
   rows: Row[] = [];
   prepare(sql: string) {
     return {
       bind: (...args: unknown[]) => ({
         run: async () => {
-          const [id, submitted_at, season, server, rate_key, doc] = args as [string, string, number, string, string, string];
-          this.rows.push({ id, submitted_at, season, server, rate_key, doc });
-          return { success: true };
-        },
-        first: async () => {
+          expect(sql).toContain("INSERT INTO reports");
           expect(sql).toContain("COUNT(*)");
-          const [rateKey, since] = args as [string, string];
-          return { n: this.rows.filter((r) => r.rate_key === rateKey && r.submitted_at > since).length };
+          const [id, submitted_at, season, server, rate_key, doc, key, since, limit] =
+            args as [string, string, number, string, string, string, string, string, number];
+          const n = this.rows.filter((r) => r.rate_key === key && r.submitted_at > since).length;
+          if (n >= limit) return { success: true, meta: { changes: 0 } };
+          this.rows.push({ id, submitted_at, season, server, rate_key, doc });
+          return { success: true, meta: { changes: 1 } };
         },
       }),
     };

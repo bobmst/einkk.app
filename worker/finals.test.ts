@@ -22,14 +22,13 @@ class FakeD1 {
       bind: (...args: unknown[]) => ({
         run: async () => {
           expect(sql).toContain("INSERT INTO final_reports");
-          const [id, submitted_at, season, server, season_key, browser_key, doc] = args as [string, string, number, string, string, string, string];
-          this.rows.push({ id, submitted_at, season, server, season_key, browser_key, doc });
-          return { success: true };
-        },
-        first: async () => {
           expect(sql).toContain("FROM final_reports");
-          const [key, since] = args as [string, string];
-          return { n: this.rows.filter((r) => r.season_key === key && r.submitted_at > since).length };
+          const [id, submitted_at, season, server, season_key, browser_key, doc, key, since, limit] =
+            args as [string, string, number, string, string, string, string, string, string, number];
+          const n = this.rows.filter((r) => r.season_key === key && r.submitted_at > since).length;
+          if (n >= limit) return { success: true, meta: { changes: 0 } };
+          this.rows.push({ id, submitted_at, season, server, season_key, browser_key, doc });
+          return { success: true, meta: { changes: 1 } };
         },
       }),
     };

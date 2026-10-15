@@ -26,8 +26,20 @@ export interface Season {
 // the form exists, END 05:00 JST + 20 days at 23:59 JST (worker/season.ts).
 const FINAL_WINDOW_MS = (20 * 24 + 19) * 3_600_000 + 60_000;
 
+/**
+ * The season's state at `now`. The document is a snapshot from the engine's last
+ * run, which can lag the raid's open and close by up to a run interval, while the
+ * Worker takes reports by the clock; so the clock decides upcoming / live / ended,
+ * and after the close the document only tells measuring from closed.
+ */
+export function stateAt(season: Season, now: number): Season["state"] {
+  if (now < Date.parse(season.starts_at)) return "upcoming";
+  if (now < Date.parse(season.ends_at) + 60_000) return "live";
+  return season.state === "closed" ? "closed" : "measuring";
+}
+
+/** By the clock, like the Worker's inFinalWindow: from the close to the survey window's end. */
 export function finalWindowOpen(season: Season, now: number): boolean {
-  if (season.state !== "measuring" && season.state !== "closed") return false;
   const open = Date.parse(season.ends_at) + 60_000;
   const close = season.survey ? Date.parse(season.survey.closes_at) + 60_000 : Date.parse(season.ends_at) + FINAL_WINDOW_MS;
   return now >= open && now < close;
@@ -79,6 +91,11 @@ export interface History {
   issued_at: string;
   entries: HistoryEntry[];
 }
+
+/** A server's latest forecast for a season: absent from a map until fetched, null when none is published. */
+export type Predictions = Partial<Record<Server, Prediction | null>>;
+
+export const predictionKey = (season: number, server: Server) => `predictions/s${season}/${server}.json`;
 
 /** One outbox document, or null when it isn't published (404). */
 export async function outbox<T>(key: string): Promise<T | null> {

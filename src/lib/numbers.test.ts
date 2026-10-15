@@ -60,6 +60,11 @@ describe("digitCheck", () => {
     expect(digitCheck(cells, 0.2, 400, 1)).toBeNull();                  // a top player above the top cell
   });
 
+  it("leaves a rank past the last cell unchecked", () => {
+    expect(digitCheck(cells, 40, 30, 1)).toBeNull();                    // under a third of the 10% cell
+    expect(digitCheck(cells, 10, 30, 1)).toBe("low");                   // at the last cell it still counts
+  });
+
   it("reads the curve between cells in log rank", () => {
     expect(valueAt(cells, 3)).toBe(220);
     expect(valueAt(cells, 0.1)).toBe(300);
