@@ -1,5 +1,6 @@
 // The engine's outbox documents as the page reads them (contracts/*.schema.json),
 // fetched through the Worker's read API. Only the fields the page uses are typed.
+import { inFinalWindow, throughMinute } from "./windows";
 
 export const SERVERS = ["jp", "kr", "na", "sea", "tw", "gb"] as const;
 export type Server = (typeof SERVERS)[number];
@@ -22,15 +23,21 @@ export interface Season {
   survey: { url: string; opens_at: string; closes_at: string } | null;
 }
 
-// Final results are taken from the close through the survey window's end; before
-// the form exists, END 05:00 JST + 20 days at 23:59 JST (worker/season.ts).
-const FINAL_WINDOW_MS = (20 * 24 + 19) * 3_600_000 + 60_000;
+/**
+ * The season's state at `now`. The document is a snapshot from the engine's last
+ * run, which can lag the raid's open and close by up to a run interval, while the
+ * Worker takes reports by the clock; so the clock decides upcoming / live / ended,
+ * and after the close the document only tells measuring from closed.
+ */
+export function stateAt(season: Season, now: number): Season["state"] {
+  if (now < Date.parse(season.starts_at)) return "upcoming";
+  if (now < throughMinute(season.ends_at)) return "live";
+  return season.state === "closed" ? "closed" : "measuring";
+}
 
+/** The window the Worker takes final results in (src/lib/windows.ts), by the clock. */
 export function finalWindowOpen(season: Season, now: number): boolean {
-  if (season.state !== "measuring" && season.state !== "closed") return false;
-  const open = Date.parse(season.ends_at) + 60_000;
-  const close = season.survey ? Date.parse(season.survey.closes_at) + 60_000 : Date.parse(season.ends_at) + FINAL_WINDOW_MS;
-  return now >= open && now < close;
+  return inFinalWindow({ ...season, survey_closes_at: season.survey?.closes_at }, now);
 }
 
 export interface Band {
@@ -79,6 +86,11 @@ export interface History {
   issued_at: string;
   entries: HistoryEntry[];
 }
+
+/** A server's latest forecast for a season: absent from a map until fetched, null when none is published. */
+export type Predictions = Partial<Record<Server, Prediction | null>>;
+
+export const predictionKey = (season: number, server: Server) => `predictions/s${season}/${server}.json`;
 
 /** One outbox document, or null when it isn't published (404). */
 export async function outbox<T>(key: string): Promise<T | null> {

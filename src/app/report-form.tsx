@@ -26,7 +26,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { SERVER_ORDER, damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
 import { digitCheck, raidProgress, regroupField, scoreToTenthB } from "@/lib/numbers";
-import type { Health, Prediction, Season, Server } from "@/lib/outbox";
+import { outbox, predictionKey, type Health, type Prediction, type Predictions, type Season, type Server } from "@/lib/outbox";
 
 const TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 const MIN_SCORE = 10_000_000;          // the survey's bounds
@@ -42,19 +42,28 @@ declare global {
   }
 }
 
+// One load shared by every review page. A script tag's load/error fire only once,
+// so a later caller can't wait on the tag itself; a failed load drops both the tag
+// and the promise, and the next review page tries afresh.
+let turnstileLoad: Promise<Turnstile> | null = null;
+
 function loadTurnstile(): Promise<Turnstile> {
-  return new Promise((resolve, reject) => {
-    if (window.turnstile) return resolve(window.turnstile);
-    let script = document.querySelector<HTMLScriptElement>(`script[src="${TURNSTILE_SRC}"]`);
-    if (!script) {
-      script = document.createElement("script");
-      script.src = TURNSTILE_SRC;
-      script.async = true;
-      document.head.appendChild(script);
-    }
-    script.addEventListener("load", () => (window.turnstile ? resolve(window.turnstile) : reject()));
-    script.addEventListener("error", () => reject());
+  if (window.turnstile) return Promise.resolve(window.turnstile);
+  turnstileLoad ??= new Promise<Turnstile>((resolve, reject) => {
+    document.querySelectorAll(`script[src="${TURNSTILE_SRC}"]`).forEach((s) => s.remove());
+    const script = document.createElement("script");
+    script.src = TURNSTILE_SRC;
+    script.async = true;
+    const fail = () => {
+      script.remove();
+      turnstileLoad = null;
+      reject(new Error("turnstile script failed to load"));
+    };
+    script.addEventListener("load", () => (window.turnstile ? resolve(window.turnstile) : fail()));
+    script.addEventListener("error", fail);
+    document.head.appendChild(script);
   });
+  return turnstileLoad;
 }
 
 function localNow(): string {
@@ -77,9 +86,9 @@ function browserId(): string {
 }
 
 export default function ReportForm({ season, health, server: followed, lang, t, final = false, surveyUrl,
-  predictions = [] }: {
+  predictions = {} }: {
   season: Season; health: Health | null; server: Server; lang: Lang; t: Text;
-  final?: boolean; surveyUrl?: string | null; predictions?: Prediction[];
+  final?: boolean; surveyUrl?: string | null; predictions?: Predictions;
 }) {
   const [step, setStep] = useState<Step>("form");
   const [server, setServer] = useState<Server>(followed);
@@ -94,6 +103,7 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);         // a new Turnstile widget per try
   const box = useRef<HTMLDivElement>(null);
+  const [others, setOthers] = useState<Predictions>({});   // forecasts of servers the page doesn't follow
 
   const open = (final || season.state === "live") && Boolean(health?.intake && health.turnstile_site_key);
 
@@ -130,7 +140,18 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
 
   // a score a digit short or long for its rank, against the chosen server's curve
   // and how far the raid has come (a numeric rank is a top-200 one: the top cell)
-  const forecast = predictions.find((p) => p.server === server);
+  // the page fetches only the followed server's forecast; a report for another server fetches its own
+  const forecast = (server in predictions ? predictions[server] : others[server]) ?? undefined;
+  const fetchOther = server !== followed && !(server in predictions) && !(server in others);
+  useEffect(() => {
+    if (!fetchOther) return;
+    let alive = true;
+    outbox<Prediction>(predictionKey(season.season, server)).then(
+      (p) => alive && setOthers((o) => ({ ...o, [server]: p })),
+      () => alive && setOthers((o) => ({ ...o, [server]: null })),   // no digit check then, and no retry loop
+    );
+    return () => { alive = false; };
+  }, [fetchOther, season.season, server]);
   const progress = final ? 1 : forecast ? raidProgress(forecast.state.raid_day, forecast.state.day_fraction ?? 0) : 0;
   const digitWarning = forecast?.cells && tenthB && rankOk
     ? digitCheck(forecast.cells, mode === "pc" ? pctNumber : 0, tenthB, progress) : null;

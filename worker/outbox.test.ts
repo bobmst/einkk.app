@@ -5,13 +5,18 @@ import { handleOutbox, MAX_AGE_SECONDS } from "./outbox";
 const ETAG = '"abc123"';
 const SEASON = JSON.stringify({ schema_version: "0.1.0", season: 42 });
 
-// R2's get(): null when missing; metadata only when If-None-Match matches.
+const UPLOADED = new Date("2026-10-30T03:00:00Z");
+
+// R2's get(): null when missing; metadata only when a condition fails (If-None-Match
+// matches, or If-Match doesn't).
 const env = {
   OUTBOX: {
     get: async (key: string, options?: { onlyIf?: Headers }) => {
       if (key !== "season.json") return null;
-      if (options?.onlyIf?.get("If-None-Match") === ETAG) return { httpEtag: ETAG };
-      return { httpEtag: ETAG, body: SEASON };
+      const meta = { httpEtag: ETAG, uploaded: UPLOADED };
+      const ifMatch = options?.onlyIf?.get("If-Match");
+      if (options?.onlyIf?.get("If-None-Match") === ETAG || (ifMatch && ifMatch !== ETAG)) return meta;
+      return { ...meta, body: SEASON };
     },
   },
 } as unknown as WorkerEnv;
@@ -32,6 +37,11 @@ describe("GET /api/outbox/<key>", () => {
   it("answers 304 when the client already has this version", async () => {
     const response = await get("season.json", { headers: { "If-None-Match": ETAG } });
     expect(response.status).toBe(304);
+  });
+
+  it("answers 412, not 304, when an If-Match precondition fails", async () => {
+    expect((await get("season.json", { headers: { "If-Match": '"stale"' } })).status).toBe(412);
+    expect((await get("season.json", { headers: { "If-Match": ETAG } })).status).toBe(200);
   });
 
   it("answers 404 for a document that isn't published", async () => {

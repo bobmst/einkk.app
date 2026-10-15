@@ -9,21 +9,23 @@ const IP = "203.0.113.7";
 
 interface Row { id: string; submitted_at: string; season: number; server: string; rate_key: string; doc: string }
 
-// The two statements reports.ts runs, against an in-memory table.
+// The one statement reports.ts runs, against an in-memory table: an INSERT that
+// only lands while the key has fewer than `limit` rows in the last hour.
 class FakeD1 {
   rows: Row[] = [];
   prepare(sql: string) {
     return {
       bind: (...args: unknown[]) => ({
         run: async () => {
-          const [id, submitted_at, season, server, rate_key, doc] = args as [string, string, number, string, string, string];
-          this.rows.push({ id, submitted_at, season, server, rate_key, doc });
-          return { success: true };
-        },
-        first: async () => {
+          expect(sql).toContain("INSERT INTO reports");
           expect(sql).toContain("COUNT(*)");
-          const [rateKey, since] = args as [string, string];
-          return { n: this.rows.filter((r) => r.rate_key === rateKey && r.submitted_at > since).length };
+          const [id, submitted_at, season, server, rate_key, doc, key, earlierKey, since, limit] =
+            args as [string, string, number, string, string, string, string, string, string, number];
+          const n = this.rows.filter((r) => (r.rate_key === key || r.rate_key === earlierKey)
+            && r.submitted_at > since).length;
+          if (n >= limit) return { success: true, meta: { changes: 0 } };
+          this.rows.push({ id, submitted_at, season, server, rate_key, doc });
+          return { success: true, meta: { changes: 1 } };
         },
       }),
     };
@@ -104,6 +106,23 @@ describe("POST /api/reports", () => {
     expect((await handleReport(post(valid), env, NOW)).status).toBe(429);
     const nextHour = new Date(NOW.getTime() + 3_600_001);
     expect((await handleReport(post(valid), env, nextHour)).status).toBe(201);
+  });
+
+  it("keeps the hourly limit across UTC midnight, where the rate key changes", async () => {
+    const lateNight = new Date("2026-10-29T23:55:00Z");
+    for (let i = 0; i < REPORTS_PER_HOUR; i++) {
+      expect((await handleReport(post(valid), env, lateNight)).status).toBe(201);
+    }
+    expect((await handleReport(post(valid), env, new Date("2026-10-30T00:01:00Z"))).status).toBe(429);
+    expect((await handleReport(post(valid), env, new Date("2026-10-30T00:55:01Z"))).status).toBe(201);
+  });
+
+  it("refuses a read time the contract allows but JavaScript can't read", async () => {
+    // a leap second passes the format check (only at 23:59:60 UTC) but is NaN to Date
+    const response = await handleReport(post({ ...valid, read_at: "2026-10-29T23:59:60Z" }), env, NOW);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_report", errors: [{ at: "#/read_at", rule: "format" }] });
+    expect(db.rows).toHaveLength(0);
   });
 
   it.each([

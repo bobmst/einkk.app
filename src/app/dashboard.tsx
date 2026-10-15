@@ -3,7 +3,7 @@
 // /api/outbox (docs/ARCHITECTURE.md), so a new forecast needs no rebuild; it
 // polls each minute. Each player follows one server: its 3% line, its
 // damage-by-rank curve and its track record.
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Alert from "@mui/material/Alert";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
@@ -27,7 +27,8 @@ import {
   LANG_NAMES, LANGS, SERVER_ORDER, langStore, serverName, serverStore, text, type Lang,
 } from "@/lib/i18n";
 import {
-  SERVERS, finalWindowOpen, health, outbox, type Health, type History, type Prediction, type Season,
+  finalWindowOpen, health, outbox, predictionKey, stateAt,
+  type Health, type History, type Prediction, type Predictions, type Season, type Server,
 } from "@/lib/outbox";
 import ReportForm from "./report-form";
 import SeasonCard from "./season-card";
@@ -46,19 +47,19 @@ const HTML_LANG: Record<Lang, string> = { en: "en", ja: "ja", ko: "ko", zhs: "zh
 interface Data {
   health: Health | null;
   season: Season | null;
-  predictions: Prediction[];
+  predictions: Predictions;
   history: History | null;
 }
 
-// health (site mode, Turnstile key) doesn't change while the page is open: fetched once
-async function load(known?: Health | null): Promise<Data> {
+// health (site mode, Turnstile key) doesn't change while the page is open: fetched once.
+// Of the forecasts only the followed server's: the page shows one server, and each
+// document is a Worker request. Another server's is fetched when the player follows it.
+async function load(server: Server, known?: Health | null): Promise<Data> {
   const [h, season, history] = await Promise.all([
     known ?? health(), outbox<Season>("season.json"), outbox<History>("history.json"),
   ]);
-  const predictions = season
-    ? (await Promise.all(SERVERS.map((s) => outbox<Prediction>(`predictions/s${season.season}/${s}.json`))))
-        .filter((p): p is Prediction => p !== null)
-    : [];
+  const predictions: Predictions = season
+    ? { [server]: await outbox<Prediction>(predictionKey(season.season, server)) } : {};
   return { health: h, season, predictions, history };
 }
 
@@ -82,6 +83,12 @@ export default function Dashboard() {
   const [data, setData] = useState<Data | null>(null);
   const [failed, setFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const followed = useRef(server);                    // the refresh reads it, without restarting
+  const fetching = useRef(new Set<string>());
+  const [switchFailed, setSwitchFailed] = useState<string | null>(null);   // that forecast's key
+  useEffect(() => {
+    followed.current = server;
+  }, [server]);
 
   useEffect(() => {
     let alive = true;
@@ -92,11 +99,17 @@ export default function Dashboard() {
     const refresh = () => {
       clearTimeout(timer);
       last = Date.now();
-      load(known).then(
+      load(followed.current, known).then(
         (fresh) => {
           if (!alive) return;
           known = fresh.health;
-          every = fresh.season?.state === "live" ? LIVE_REFRESH_MS : IDLE_REFRESH_MS;
+          const at = Date.now();
+          const state = fresh.season ? stateAt(fresh.season, at) : null;
+          every = state === "live" ? LIVE_REFRESH_MS : IDLE_REFRESH_MS;
+          // a page open before the start switches to the live cadence at the start itself
+          if (fresh.season && state === "upcoming") {
+            every = Math.min(every, Date.parse(fresh.season.starts_at) - at + 5_000);
+          }
           setData(fresh);
           setFailed(false);
         },
@@ -119,20 +132,40 @@ export default function Dashboard() {
     };
   }, []);
 
+  // a newly followed server's forecast; each refresh then keeps only the followed one
+  const seasonNumber = data?.season?.season;
+  const missing = seasonNumber !== undefined && !(server in (data?.predictions ?? {}));
+  useEffect(() => {
+    if (!missing || seasonNumber === undefined) return;
+    const key = predictionKey(seasonNumber, server);
+    if (fetching.current.has(key)) return;
+    fetching.current.add(key);
+    outbox<Prediction>(key).then(
+      (p) => setData((prev) => prev && prev.season?.season === seasonNumber
+        ? { ...prev, predictions: { ...prev.predictions, [server]: p } } : prev),
+      () => setSwitchFailed(key),                 // shown in the forecast slot; the next refresh retries
+    ).finally(() => fetching.current.delete(key));
+  }, [missing, seasonNumber, server]);
+
   useEffect(() => {
     document.documentElement.lang = HTML_LANG[lang];
   }, [lang]);
 
   const t = text(lang);
-  const prediction = data?.predictions.find((p) => p.server === server);
-  const ended = data?.season?.state === "measuring" || data?.season?.state === "closed";
+  // the document's state lags the open and close by up to a run: the clock decides it
+  const published = data?.season;
+  const stateNow = published ? stateAt(published, now) : null;
+  const season = useMemo(() => (published && stateNow ? { ...published, state: stateNow } : null),
+    [published, stateNow]);
+  const prediction = data?.predictions[server];
+  const ended = season?.state === "measuring" || season?.state === "closed";
   // From lg (1200px) the page splits in two: the season, the forecast and the report
   // card on the left, the distribution beside them. Without a forecast, or once the raid
   // has closed (no distribution then), there is no second column.
-  const wide = Boolean(data?.season && prediction && !ended);
+  const wide = Boolean(season && prediction && !ended);
   const pageWidth = { md: 900, lg: wide ? 1240 : 900 };
   const one = `"season" "forecast" "dist" "report" "hist"`;
-  const reportOpen = data?.season?.state === "live" && !finalWindowOpen(data.season, now);
+  const reportOpen = season?.state === "live" && !finalWindowOpen(season, now);
 
   return (
     <>
@@ -153,7 +186,7 @@ export default function Dashboard() {
           </Select>
           <ThemeToggle label={t.theme} />
         </Toolbar>
-        {data?.season && (
+        {season && (
           <Container maxWidth={false} disableGutters sx={{ maxWidth: pageWidth }}>
             <Tabs value={server} onChange={(_, s) => serverStore.set(s)} aria-label={t.yourServer}
                   variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
@@ -173,9 +206,9 @@ export default function Dashboard() {
               <Skeleton variant="rounded" height={160} />
             </Stack>
           )}
-          {data && !data.season && <Typography color="text.secondary">{t.nothing}</Typography>}
+          {data && !season && <Typography color="text.secondary">{t.nothing}</Typography>}
 
-          {data?.season && (
+          {season && (
             <Box sx={{
               display: "grid", gap: 2.5, alignItems: "start",
               gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: wide ? "minmax(0, 5fr) minmax(0, 7fr)" : "minmax(0, 1fr)" },
@@ -183,7 +216,7 @@ export default function Dashboard() {
               gridTemplateRows: { lg: wide ? "auto auto 1fr auto" : "none" },
             }}>
               <Box sx={{ gridArea: "season" }}>
-                <SeasonCard key={data.season.season} season={data.season} lang={lang} t={t} now={now} />
+                <SeasonCard key={season.season} season={season} lang={lang} t={t} now={now} />
               </Box>
 
               {/* after the close the forecast and its table would only invite players to report
@@ -201,38 +234,42 @@ export default function Dashboard() {
                     <Distribution p={prediction} lang={lang} t={t} />
                   </Box>
                 </>
+              ) : prediction === undefined && switchFailed === predictionKey(season.season, server) ? (
+                <Typography variant="body2" color="error" sx={{ gridArea: "forecast" }}>{t.loadFailed}</Typography>
+              ) : prediction === undefined ? (
+                <Skeleton variant="rounded" height={160} sx={{ gridArea: "forecast" }} />
               ) : (
                 <Typography color="text.secondary" sx={{ gridArea: "forecast" }}>
-                  {data.season.state === "upcoming" ? t.noForecastUpcoming
-                    : data.season.state === "live" ? t.noForecast : t.noForecastEnded}
+                  {season.state === "upcoming" ? t.noForecastUpcoming
+                    : season.state === "live" ? t.noForecast : t.noForecastEnded}
                 </Typography>
               )}
 
               {/* one card at a time: in-raid reports up to the close, final results after it */}
-              {finalWindowOpen(data.season, now) ? (
+              {finalWindowOpen(season, now) ? (
                 <Box id="report" sx={{ gridArea: "report", scrollMarginTop: 128 }}>
-                  <ReportForm key={`final-${server}`} final season={data.season} health={data.health} server={server}
-                              predictions={data.predictions}
-                              lang={lang} t={t} surveyUrl={data.season.survey?.url.startsWith("https://tally.so/")
-                                && now >= Date.parse(data.season.survey.opens_at) ? data.season.survey.url : null} />
+                  <ReportForm key={`final-${server}`} final season={season} health={data?.health ?? null} server={server}
+                              predictions={data?.predictions ?? {}}
+                              lang={lang} t={t} surveyUrl={season.survey?.url.startsWith("https://tally.so/")
+                                && now >= Date.parse(season.survey.opens_at) ? season.survey.url : null} />
                 </Box>
-              ) : (data.season.state === "live" || data.season.state === "upcoming") && (
+              ) : (season.state === "live" || season.state === "upcoming") && (
                 <Box id="report" sx={{ gridArea: "report", scrollMarginTop: 128 }}>
-                  <ReportForm key={server} season={data.season} health={data.health} server={server}
-                              lang={lang} t={t} predictions={data.predictions} />
+                  <ReportForm key={server} season={season} health={data?.health ?? null} server={server}
+                              lang={lang} t={t} predictions={data?.predictions ?? {}} />
                 </Box>
               )}
 
-              {data.history && (
+              {data?.history && (
                 <Box sx={{ gridArea: "hist" }}>
                   <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
-                    current={data.season.season} measuring={ended} />
+                    current={season.season} measuring={ended} />
                 </Box>
               )}
             </Box>
           )}
 
-          {data?.history && !data.season && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t} />}
+          {data?.history && !season && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t} />}
 
           <Stack direction="row" spacing={2} sx={{ justifyContent: "center", pt: 2, pb: 1 }}>
             <Link href="https://enikk.app" target="_blank" rel="noopener" variant="caption" color="text.secondary">

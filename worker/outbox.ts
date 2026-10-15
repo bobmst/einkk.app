@@ -11,8 +11,9 @@ export async function handleOutbox(request: Request, env: WorkerEnv, key: string
   if (request.method !== "GET" && request.method !== "HEAD") return error(405, "method_not_allowed");
   if (!KEY.test(key) || key.includes("..")) return error(400, "bad_key");
 
-  // onlyIf takes the request's conditional headers: a matching If-None-Match
-  // comes back as metadata without a body, which is a 304.
+  // onlyIf takes the request's conditional headers, and any failed one comes back
+  // as metadata without a body: a 412 when it was If-Match / If-Unmodified-Since,
+  // else (If-None-Match matched, or not modified since) a 304.
   const object = await env.OUTBOX.get(key, { onlyIf: request.headers });
   if (!object) return error(404, "not_found");
   const headers = {
@@ -21,6 +22,18 @@ export async function handleOutbox(request: Request, env: WorkerEnv, key: string
     ETag: object.httpEtag,
     "X-Content-Type-Options": "nosniff",
   };
-  if (!("body" in object)) return new Response(null, { status: 304, headers });
+  if (!("body" in object)) {
+    return new Response(null, { status: failedPrecondition(request.headers, object) ? 412 : 304, headers });
+  }
   return new Response(request.method === "HEAD" ? null : object.body, { headers });
+}
+
+/** Whether If-Match or If-Unmodified-Since fails for this object (RFC 9110 13.2.2: they come first). */
+function failedPrecondition(headers: Headers, object: R2Object): boolean {
+  const match = headers.get("If-Match");
+  if (match !== null) {
+    return !(match.trim() === "*" || match.split(",").some((tag) => tag.trim() === object.httpEtag));
+  }
+  const since = Date.parse(headers.get("If-Unmodified-Since") ?? "");
+  return !Number.isNaN(since) && Math.floor(object.uploaded.getTime() / 1000) * 1000 > since;
 }

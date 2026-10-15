@@ -60,6 +60,12 @@ describe("digitCheck", () => {
     expect(digitCheck(cells, 0.2, 400, 1)).toBeNull();                  // a top player above the top cell
   });
 
+  it("checks only a digit too many past the last cell", () => {
+    expect(digitCheck(cells, 40, 30, 1)).toBeNull();                    // under a third of the 10% cell
+    expect(digitCheck(cells, 10, 30, 1)).toBe("low");                   // at the last cell it still counts
+    expect(digitCheck(cells, 40, 1500, 1)).toBe("high");                // 10x the 10% cell
+  });
+
   it("reads the curve between cells in log rank", () => {
     expect(valueAt(cells, 3)).toBe(220);
     expect(valueAt(cells, 0.1)).toBe(300);

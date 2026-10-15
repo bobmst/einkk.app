@@ -8,6 +8,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { duration, elementName, when, type Lang, type Text } from "@/lib/i18n";
 import type { Element, Season } from "@/lib/outbox";
+import { throughMinute } from "@/lib/windows";
 
 export const ELEMENT_COLORS: Record<Element, string> = {
   fire: "#e5484d", water: "#3e8cf0", wind: "#30a46c", iron: "#d99a0b", electronic: "#a35ee8",
@@ -19,12 +20,12 @@ export default function SeasonCard({ season, lang, t, now }: {
   const [art, setArt] = useState(true);              // public/bosses/s<n>.webp, if copied
   const color = ELEMENT_COLORS[season.boss.element];
   const weakness = season.boss.weakness;
-  const ends = Date.parse(season.ends_at) + 60_000;   // ends_at is the last minute
+  const ends = throughMinute(season.ends_at);          // ends_at is the last minute
   const starts = Date.parse(season.starts_at);
   const survey = season.survey;
   // the contract only allows Tally links; the page checks too rather than trust the outbox
   const surveyOpen = survey && survey.url.startsWith("https://tally.so/")
-    && now >= Date.parse(survey.opens_at) && now <= Date.parse(survey.closes_at);
+    && now >= Date.parse(survey.opens_at) && now < throughMinute(survey.closes_at);
 
   return (
     <Card sx={{ overflow: "hidden" }}>
