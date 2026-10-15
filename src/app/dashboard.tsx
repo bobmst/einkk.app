@@ -28,8 +28,9 @@ import {
   LANG_NAMES, LANGS, SERVER_ORDER, duration, langStore, serverName, serverStore, text, type Lang,
 } from "@/lib/i18n";
 import {
-  finalWindowOpen, finalsKey, health, latestPrediction, outbox, predictionKey, stateAt,
-  type Finals, type Health, type History, type Prediction, type Predictions, type Season, type Server,
+  finalWindowOpen, finalsKey, health, latestPrediction, outbox, predictionKey, previousFinalOpen, stateAt,
+  surveyLink, type Finals, type Health, type History, type Prediction, type Predictions, type Season,
+  type Server,
 } from "@/lib/outbox";
 import { saveSnapshot, snapshotStore, type Snapshot } from "@/lib/snapshot";
 import { chooseMode } from "@/lib/theme-storage";
@@ -195,6 +196,23 @@ export default function Dashboard() {
   const pageWidth = { md: 900, lg: wide ? 1240 : 900 };
   const one = `"season" "forecast" "dist" "report" "hist"`;
   const reportOpen = season?.state === "live" && !finalWindowOpen(season, now);
+  // the closing season's final results, still taken after the next season is published
+  const previous = season ? previousFinalOpen(season, now) : null;
+
+  const ownCard = !season ? null : finalWindowOpen(season, now) ? (
+    <ReportForm key={`final-${season.season}-${server}`} final season={season}
+                health={data?.health ?? null} server={server} predictions={data?.predictions ?? {}}
+                lang={lang} t={t} surveyUrl={surveyLink(season.survey, now)} />
+  ) : (season.state === "live" || season.state === "upcoming") ? (
+    <ReportForm key={server} season={season} health={data?.health ?? null} server={server}
+                lang={lang} t={t} predictions={data?.predictions ?? {}} />
+  ) : null;
+  const previousCard = previous && (
+    <ReportForm key={`final-${previous.season}-${server}`} final
+                season={{ season: previous.season, state: "measuring" }}
+                health={data?.health ?? null} server={server}
+                lang={lang} t={t} surveyUrl={surveyLink(previous.survey, now)} />
+  );
 
   return (
     <>
@@ -288,20 +306,12 @@ export default function Dashboard() {
                 </Typography>
               )}
 
-              {/* one card at a time: in-raid reports up to the close, final results after it */}
-              {finalWindowOpen(season, now) ? (
-                <Box id="report" sx={{ gridArea: "report", scrollMarginTop: 128 }}>
-                  <ReportForm key={`final-${server}`} final season={season} health={data?.health ?? null} server={server}
-                              predictions={data?.predictions ?? {}}
-                              lang={lang} t={t} surveyUrl={season.survey?.url.startsWith("https://tally.so/")
-                                && now >= Date.parse(season.survey.opens_at) ? season.survey.url : null} />
-                </Box>
-              ) : (season.state === "live" || season.state === "upcoming") && (
-                <Box id="report" sx={{ gridArea: "report", scrollMarginTop: 128 }}>
-                  <ReportForm key={server} season={season} health={data?.health ?? null} server={server}
-                              lang={lang} t={t} predictions={data?.predictions ?? {}} />
-                </Box>
-              )}
+              {/* one card per season: in-raid reports up to the close, final results after it;
+                  the season before keeps its final-result card until its own window ends. While
+                  the raid is live its own card comes first, otherwise the open final window */}
+              <Stack id="report" spacing={2.5} sx={{ gridArea: "report", scrollMarginTop: 128 }}>
+                {season.state === "live" ? <>{ownCard}{previousCard}</> : <>{previousCard}{ownCard}</>}
+              </Stack>
 
               {data?.history && (
                 <Box sx={{ gridArea: "hist" }}>

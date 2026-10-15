@@ -3,8 +3,9 @@
 //
 // Kept apart from the in-raid reports on purpose: those tune the running
 // season's forecast, these are our own record of where each server's lines
-// ended and feed later seasons. Taken only for the published season, from its
-// close through the end of the survey window.
+// ended and feed later seasons. Taken only for the published season, or the
+// one before it while season.json still carries it as `previous`, from that
+// season's close through the end of its survey window.
 //
 // Two salted keys let the engine count distinct players without an address:
 // the client address hashed with the season (stable for the whole window) and
@@ -15,7 +16,7 @@ import finalSchema from "../contracts/final-report.schema.json";
 import type { WorkerEnv } from "./env";
 import { error, json } from "./http";
 import { contractErrors, hourBefore, readFields, sha256Hex, turnstilePassed, utcSeconds } from "./reports";
-import { currentSeason, inFinalWindow } from "./season";
+import { currentSeason, finalSeason, inFinalWindow } from "./season";
 
 const validator = new Validator(finalSchema as unknown as Schema, "2020-12", false);
 const SCHEMA_VERSION = finalSchema.properties.schema_version.const;
@@ -47,8 +48,8 @@ export async function handleFinal(request: Request, env: WorkerEnv, now = new Da
   const invalid = contractErrors(validator, doc);
   if (invalid) return invalid;
 
-  const published = await currentSeason(env.OUTBOX);
-  if (!published || doc.season !== published.season || !inFinalWindow(published, now.getTime())) {
+  const target = finalSeason(await currentSeason(env.OUTBOX), doc.season);
+  if (!target || !inFinalWindow(target, now.getTime())) {
     return error(403, "closed");
   }
 
