@@ -85,6 +85,7 @@ export default function Dashboard() {
   const [now, setNow] = useState(() => Date.now());
   const followed = useRef(server);                    // the refresh reads it, without restarting
   const fetching = useRef(new Set<string>());
+  const [switchFailed, setSwitchFailed] = useState<string | null>(null);   // that forecast's key
   useEffect(() => {
     followed.current = server;
   }, [server]);
@@ -102,7 +103,13 @@ export default function Dashboard() {
         (fresh) => {
           if (!alive) return;
           known = fresh.health;
-          every = fresh.season && stateAt(fresh.season, Date.now()) === "live" ? LIVE_REFRESH_MS : IDLE_REFRESH_MS;
+          const at = Date.now();
+          const state = fresh.season ? stateAt(fresh.season, at) : null;
+          every = state === "live" ? LIVE_REFRESH_MS : IDLE_REFRESH_MS;
+          // a page open before the start switches to the live cadence at the start itself
+          if (fresh.season && state === "upcoming") {
+            every = Math.min(every, Date.parse(fresh.season.starts_at) - at + 5_000);
+          }
           setData(fresh);
           setFailed(false);
         },
@@ -136,7 +143,7 @@ export default function Dashboard() {
     outbox<Prediction>(key).then(
       (p) => setData((prev) => prev && prev.season?.season === seasonNumber
         ? { ...prev, predictions: { ...prev.predictions, [server]: p } } : prev),
-      () => setFailed(true),
+      () => setSwitchFailed(key),                 // shown in the forecast slot; the next refresh retries
     ).finally(() => fetching.current.delete(key));
   }, [missing, seasonNumber, server]);
 
@@ -227,6 +234,8 @@ export default function Dashboard() {
                     <Distribution p={prediction} lang={lang} t={t} />
                   </Box>
                 </>
+              ) : prediction === undefined && switchFailed === predictionKey(season.season, server) ? (
+                <Typography variant="body2" color="error" sx={{ gridArea: "forecast" }}>{t.loadFailed}</Typography>
               ) : prediction === undefined ? (
                 <Skeleton variant="rounded" height={160} sx={{ gridArea: "forecast" }} />
               ) : (

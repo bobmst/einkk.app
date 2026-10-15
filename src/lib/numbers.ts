@@ -116,15 +116,16 @@ export function valueAt(cells: Cell[], pc: number): number | null {
  * A damage that looks a digit short or a digit long for its rank: "low" under a
  * third of where that rank's line should be by now (so day 1's small scores
  * never trip it), "high" over four times that rank's final forecast. A wrong
- * digit count is a factor of ten, so ordinary spread stays clear of both. A rank
- * past the curve's last cell isn't checked: the curve says nothing about it, and
- * the last cell's value would flag every ordinary score down there as short.
+ * digit count is a factor of ten, so ordinary spread stays clear of both. Past
+ * the curve's last cell only "high" is checked: damage falls with rank, so the
+ * last cell's value bounds every rank below it from above, but says nothing of
+ * how low an ordinary score down there can be.
  */
 export function digitCheck(cells: Cell[], pc: number, tenthB: number, progress: number): "low" | "high" | null {
-  if (cells.length === 0 || pc > Math.max(...cells.map((c) => c.percentile))) return null;
-  const expected = valueAt(cells, pc);
+  const past = cells.length > 0 && pc > Math.max(...cells.map((c) => c.percentile));
+  const expected = valueAt(cells, pc);                       // the last cell's value past it
   if (!expected) return null;
   if (tenthB > 4 * expected) return "high";
-  if (tenthB < (expected * progress) / 3) return "low";
+  if (!past && tenthB < (expected * progress) / 3) return "low";
   return null;
 }
