@@ -36,6 +36,8 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
   if (!env.TURNSTILE_SECRET || !env.RATE_KEY_SALT) return error(503, "intake_not_configured");
   const ip = request.headers.get("CF-Connecting-IP") ?? "";
   const rateKey = await rateKeyFor(env.RATE_KEY_SALT, ip, now);
+  // the hour's window can reach back into yesterday (UTC), whose reports carry yesterday's key
+  const earlierKey = await rateKeyFor(env.RATE_KEY_SALT, ip, new Date(now.getTime() - 3_600_000));
 
   const doc: Record<string, unknown> = { schema_version: SCHEMA_VERSION, id: crypto.randomUUID() };
   for (const key of PLAYER_FIELDS) if (key in fields) doc[key] = fields[key];
@@ -44,10 +46,15 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
 
   const invalid = contractErrors(validator, doc);
   if (invalid) return invalid;
-  doc.read_at = utcSeconds(new Date(doc.read_at as string));   // any zone the contract allows -> UTC
+  // any zone the contract allows -> UTC; a valid RFC 3339 time JS can't read (a leap second) is refused
+  const readAt = new Date(doc.read_at as string);
+  if (Number.isNaN(readAt.getTime())) {
+    return error(400, "invalid_report", { errors: [{ at: "#/read_at", rule: "format" }] });
+  }
+  doc.read_at = utcSeconds(readAt);
 
   const season = await currentSeason(env.OUTBOX);
-  if (!season || doc.season !== season.season || !inRankedWindow(season, now)) {
+  if (!season || doc.season !== season.season || !inRankedWindow(season, now.getTime())) {
     return error(403, "closed");
   }
 
@@ -59,10 +66,10 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
   // the limit is checked inside the INSERT, so parallel requests can't all slip under it
   const inserted = await env.INBOX.prepare(
     "INSERT INTO reports (id, submitted_at, season, server, rate_key, doc) SELECT ?, ?, ?, ?, ?, ? "
-      + "WHERE (SELECT COUNT(*) FROM reports WHERE rate_key = ? AND submitted_at > ?) < ?",
+      + "WHERE (SELECT COUNT(*) FROM reports WHERE rate_key IN (?, ?) AND submitted_at > ?) < ?",
   )
     .bind(doc.id, doc.submitted_at, doc.season, doc.server, rateKey, JSON.stringify(doc),
-      rateKey, hourBefore(now), REPORTS_PER_HOUR)
+      rateKey, earlierKey, hourBefore(now), REPORTS_PER_HOUR)
     .run();
   if (!inserted.meta.changes) return error(429, "rate_limited");
   return json({ id: doc.id }, 201);

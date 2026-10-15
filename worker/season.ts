@@ -1,11 +1,13 @@
 // The current season as the engine last published it (outbox season.json), for
 // the intake's window checks. The engine is the one clock: the page and the
-// intake both read the same document.
-export interface SeasonWindow {
+// intake both read the same document. The windows themselves are shared with the
+// page: src/lib/windows.ts.
+import type { SeasonTimes } from "../src/lib/windows";
+
+export { inFinalWindow, inRankedWindow } from "../src/lib/windows";
+
+export interface SeasonWindow extends SeasonTimes {
   season: number;
-  starts_at: string;
-  ends_at: string;
-  survey_closes_at?: string;
 }
 
 export async function currentSeason(outbox: R2Bucket | undefined): Promise<SeasonWindow | null> {
@@ -19,23 +21,4 @@ export async function currentSeason(outbox: R2Bucket | undefined): Promise<Seaso
   } catch {
     return null;
   }
-}
-
-/** Ranked play runs from starts_at through the last minute that ends_at names (04:59 JST). */
-export function inRankedWindow(season: SeasonWindow, now: Date): boolean {
-  const t = now.getTime();
-  return t >= Date.parse(season.starts_at) && t < Date.parse(season.ends_at) + 60_000;
-}
-
-// The survey's own window when the form exists, else the rule the engine uses
-// for it: END 05:00 JST + 20 days, closing 23:59 JST (ends_at is 04:59 JST).
-export const FINAL_WINDOW_MS = (20 * 24 + 19) * 3_600_000 + 60_000;
-
-/** Final results run from the close through the end of the survey window. */
-export function inFinalWindow(season: SeasonWindow, now: Date): boolean {
-  const open = Date.parse(season.ends_at) + 60_000;
-  const close = season.survey_closes_at ? Date.parse(season.survey_closes_at) + 60_000
-    : Date.parse(season.ends_at) + FINAL_WINDOW_MS;
-  const t = now.getTime();
-  return t >= open && t < close;
 }

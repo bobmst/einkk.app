@@ -48,7 +48,7 @@ export async function handleFinal(request: Request, env: WorkerEnv, now = new Da
   if (invalid) return invalid;
 
   const published = await currentSeason(env.OUTBOX);
-  if (!published || doc.season !== published.season || !inFinalWindow(published, now)) {
+  if (!published || doc.season !== published.season || !inFinalWindow(published, now.getTime())) {
     return error(403, "closed");
   }
 
