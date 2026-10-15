@@ -8,7 +8,7 @@ engine. This directory is the single source of truth for both sides.
 | `prediction.schema.json` | engine (outbox) | site | 0.5.0 (draft): optional nested `bands` (0.2.0), the `residuals` they come from (0.3.0), and `shadow_nowcast`, the reference-only final line with today's player reports (0.4.0; 0.5.0 made it this server's final line instead of JP's day line) |
 | `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
 | `final-report.schema.json` | site (inbox, `final_reports`) | engine | 0.1.0 (draft) |
-| `season.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
+| `season.schema.json` | engine (outbox) | site | 0.2.0 (draft): optional `previous`, the season before while its final results are still taken (0.2.0) |
 | `history.schema.json` | engine (outbox) | site | 0.3.0 (draft): the band is optional, `hit: null` without one (0.2.0); `final.estimate` and the `survey_and_reports` source (0.3.0) |
 
 `report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
@@ -23,6 +23,9 @@ and a random browser id) so the engine can count distinct players.
 measuring → closed) and the Tally survey, which is `null` until the form exists. The site links
 to the survey only after the raid has ended and while the survey window is open. The schema
 accepts only `https://tally.so/` URLs, because the site renders this value as a link.
+`previous` carries the season before (number, schedule, survey) for as long as its final-results
+window may be open: the next season is usually announced inside it, and the site keeps taking and
+offering the closing season's final results until that window ends.
 
 `history.schema.json` is our track record. Each season and server entry holds one or both of:
 - **the forecast of record**, with its band and grading (`error_pct`, `hit`; `null` until graded).

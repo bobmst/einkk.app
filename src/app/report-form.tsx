@@ -10,7 +10,8 @@
 // (/api/finals, contracts/final-report.schema.json): its own title, colour and
 // marker so nobody mistakes it for an in-raid report, no read time, and a
 // random browser id kept in localStorage, which the Worker hashes to count
-// distinct players.
+// distinct players. That season may be the one before the published one
+// (Season.previous), whose final window outlasts the next season's announcement.
 import { useEffect, useRef, useState } from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -86,9 +87,10 @@ function browserId(): string {
 }
 
 export default function ReportForm({ season, health, server: followed, lang, t, final = false, surveyUrl,
-  predictions = {} }: {
-  season: Season; health: Health | null; server: Server; lang: Lang; t: Text;
-  final?: boolean; surveyUrl?: string | null; predictions?: Predictions;
+  predictions }: {
+  season: Pick<Season, "season" | "state">; health: Health | null; server: Server; lang: Lang; t: Text;
+  final?: boolean; surveyUrl?: string | null;
+  predictions?: Predictions;      // the page's forecasts for this season; without them the form fetches its own
 }) {
   const [step, setStep] = useState<Step>("form");
   const [server, setServer] = useState<Server>(followed);
@@ -141,8 +143,9 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
   // a score a digit short or long for its rank, against the chosen server's curve
   // and how far the raid has come (a numeric rank is a top-200 one: the top cell)
   // the page fetches only the followed server's forecast; a report for another server fetches its own
-  const forecast = (server in predictions ? predictions[server] : others[server]) ?? undefined;
-  const fetchOther = server !== followed && !(server in predictions) && !(server in others);
+  const shared = predictions ?? {};
+  const forecast = (server in shared ? shared[server] : others[server]) ?? undefined;
+  const fetchOther = (server !== followed || !predictions) && !(server in shared) && !(server in others);
   useEffect(() => {
     if (!fetchOther) return;
     let alive = true;
