@@ -38,7 +38,7 @@ Start with a task list of the steps below.
    - the PR is closed, merged or a draft;
    - the change needs no review: generated or bot-made, or trivially correct, like a typo or
      version bump only;
-   - the PR already has a comment containing `<!-- pr-review -->` for its current head commit
+   - the PR already has a comment containing `<!-- pr-review <full head sha> -->` for its current head commit
      (`gh pr view <n> --comments`).
 
    Claude-written PRs still get reviewed.
