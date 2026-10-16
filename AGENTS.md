@@ -23,5 +23,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Player-facing text is in the season survey's five languages (English, 日本語, 한국어, 简体中文,
   繁體中文) plus Español, all in `src/lib/i18n.ts`. Damage is in 0.1B (1e8) units unless a field says
   otherwise; the page shows it as 亿/億/억, or as billions to three decimals in English and Spanish.
+- **Every new pull request gets a review.** Right after opening a PR, run the `pr-review` skill on it
+  with `--comment` (`.claude/skills/pr-review/SKILL.md`). It launches the review subagents, validates
+  each finding, and posts only confirmed issues on the PR. Report what it posted. Fix the findings
+  only when asked.
 - Issues use the templates in `.github/ISSUE_TEMPLATE/`. The triage labels are `needs-triage`, `needs-info`,
   `ready-for-agent`, `ready-for-human` and `wontfix`.
