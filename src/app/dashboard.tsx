@@ -271,9 +271,13 @@ export default function Dashboard() {
 
           {data?.history && !season && <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t} />}
 
-          <Stack direction="row" spacing={2} sx={{ justifyContent: "center", pt: 2, pb: 1 }}>
+          <Stack direction="row" spacing={2} useFlexGap
+                 sx={{ justifyContent: "center", flexWrap: "wrap", rowGap: 0.5, pt: 2, pb: 1 }}>
             <Link href="https://enikk.app" target="_blank" rel="noopener" variant="caption" color="text.secondary">
               {t.bossArt}
+            </Link>
+            <Link href="https://ikken-border.jp/" target="_blank" rel="noopener" variant="caption" color="text.secondary">
+              {t.ikkenLink}
             </Link>
             <Link href={ISSUES} target="_blank" rel="noopener" variant="caption" color="text.secondary">
               {t.feedback}
