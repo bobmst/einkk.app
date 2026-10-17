@@ -50,7 +50,11 @@ worker-configuration.d.ts
 
 # This repository is PUBLIC. Secrets, local agent settings and any player data
 # must never be committed; these patterns are a backstop, not the rule.
-.claude/
+# Of .claude/ only the shared pr-review skill is tracked; settings stay local.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/pr-review/
 *.key
 *api_key*
 *.db
