@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finalWindowOpen, stateAt, type Season } from "./outbox";
+import { finalWindowOpen, previousFinalOpen, stateAt, surveyLink, type Season } from "./outbox";
 
 const season: Season = {
   issued_at: "2026-10-31T00:00:00Z", season: 42, boss: { name: "Altruia", element: "water" },
@@ -43,5 +43,46 @@ describe("stateAt", () => {
   it("keeps the document's closed once the final line is in", () => {
     expect(stateAt({ ...season, state: "closed" }, Date.parse("2026-10-25T00:00:00Z"))).toBe("closed");
     expect(stateAt(season, Date.parse("2026-10-25T00:00:00Z"))).toBe("measuring");
+  });
+});
+
+describe("previousFinalOpen", () => {
+  // S43 published while S42's final window (to 11/11 23:59 JST) is still open
+  const next: Season = {
+    ...season, season: 43, starts_at: "2026-11-13T20:00:00Z", ends_at: "2026-11-18T19:59:00Z", state: "upcoming",
+    previous: { season: 42, starts_at: season.starts_at, ends_at: season.ends_at, survey: null },
+  };
+
+  it("offers the previous season's final results through its own window", () => {
+    expect(previousFinalOpen(next, Date.parse("2026-11-05T00:00:00Z"))?.season).toBe(42);
+    expect(previousFinalOpen(next, Date.parse("2026-11-11T14:59:59Z"))?.season).toBe(42);
+    expect(previousFinalOpen(next, Date.parse("2026-11-11T15:00:00Z"))).toBeNull();
+  });
+
+  it("follows the previous survey's closes_at once its form exists", () => {
+    const survey = { url: "https://tally.so/r/abc", opens_at: "2026-10-21T20:00:00Z", closes_at: "2026-11-08T14:59:00Z" };
+    const doc = { ...next, previous: { ...next.previous!, survey } };
+    expect(previousFinalOpen(doc, Date.parse("2026-11-08T14:59:30Z"))?.season).toBe(42);
+    expect(previousFinalOpen(doc, Date.parse("2026-11-08T15:00:00Z"))).toBeNull();
+  });
+
+  it("offers nothing without `previous`, or with one that isn't older", () => {
+    expect(previousFinalOpen({ ...next, previous: undefined }, Date.parse("2026-11-05T00:00:00Z"))).toBeNull();
+    const bad = { ...next, previous: { ...next.previous!, season: 43 } };
+    expect(previousFinalOpen(bad, Date.parse("2026-11-05T00:00:00Z"))).toBeNull();
+  });
+});
+
+describe("surveyLink", () => {
+  const survey = { url: "https://tally.so/r/abc", opens_at: "2026-10-21T20:00:00Z", closes_at: "2026-11-08T14:59:00Z" };
+
+  it("links a Tally form once it has opened", () => {
+    expect(surveyLink(survey, Date.parse("2026-10-21T19:59:59Z"))).toBeNull();
+    expect(surveyLink(survey, Date.parse("2026-10-21T20:00:00Z"))).toBe(survey.url);
+  });
+
+  it("never links anything but Tally", () => {
+    expect(surveyLink({ ...survey, url: "https://example.com/form" }, Date.parse("2026-11-01T00:00:00Z"))).toBeNull();
+    expect(surveyLink(null, Date.parse("2026-11-01T00:00:00Z"))).toBeNull();
   });
 });

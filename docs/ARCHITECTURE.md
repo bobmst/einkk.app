@@ -45,7 +45,7 @@ site ── writes ──> inbox: validated, rate-limited player reports ── 
 | Contract | Direction | Status |
 |---|---|---|
 | `prediction.schema.json` | engine → site | 0.1.0 (draft) |
-| `season.schema.json` | engine → site | 0.1.0 (draft) |
+| `season.schema.json` | engine → site | 0.2.0 (draft) |
 | `history.schema.json` | engine → site | 0.1.0 (draft) |
 | `report.schema.json` | site → engine | 0.1.0 (draft) |
 | `final-report.schema.json` | site → engine | 0.1.0 (draft) |
@@ -59,7 +59,7 @@ All API routes are served by the Worker under `/api/*` (`worker/`). Responses ar
 |---|---|
 | `GET /api/health` | Reports which bindings exist, whether intake is configured, the site mode (`production` or `rehearsal`) and the public Turnstile site key the report form needs. Never returns secrets. |
 | `POST /api/reports` | Accepts one in-raid report. The body holds the player fields of `report.schema.json` plus `turnstile_token`. The Worker sets `id`, `submitted_at` and `client`. Responses: `201 {"id"}`, or `400` (`bad_json`, `unknown_fields`, `invalid_report`), `403` (`cross_origin`, `turnstile_failed`), `413`, `415`, `429` (`rate_limited`), `503` (`intake_not_configured`). Outside the published season's ranked window (`starts_at` to the last minute of `ends_at`), or for another season: `403` (`closed`). |
-| `POST /api/finals` | Accepts one final result for the published season, from its close until the survey window ends (END + 20 days, 23:59 JST). The body holds the player fields of `final-report.schema.json` (no `read_at`) plus a random `browser_id` the page keeps in localStorage and `turnstile_token`. It is stored in its own table, `final_reports`, apart from the in-raid reports: those tune the running season, final results are our record of where each server ended and feed later seasons. Same responses as `/api/reports`; `403` (`closed`) outside the window. |
+| `POST /api/finals` | Accepts one final result for the published season, or for the season before it while `season.json` carries it as `previous`, from that season's close until the survey window ends (END + 20 days, 23:59 JST). The body holds the player fields of `final-report.schema.json` (no `read_at`) plus a random `browser_id` the page keeps in localStorage and `turnstile_token`. It is stored in its own table, `final_reports`, apart from the in-raid reports: those tune the running season, final results are our record of where each server ended and feed later seasons. Same responses as `/api/reports`; `403` (`closed`) outside the window. |
 | `GET /api/outbox/<key>.json` | Serves a document the engine published to R2, e.g. `season.json`. Keys are lowercase paths. Responses are cached for 30 seconds and carry an ETag, so a matching `If-None-Match` gets a `304`. |
 
 - **Order of the intake checks:** request shape first, then the contract, then the Turnstile call, then the rate limit, then the insert. Nothing is stored unless every step passes.
