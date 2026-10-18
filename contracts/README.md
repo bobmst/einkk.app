@@ -5,7 +5,7 @@ engine. This directory is the single source of truth for both sides.
 
 | Schema | Written by | Read by | Version |
 |---|---|---|---|
-| `prediction.schema.json` | engine (outbox) | site | 0.5.0 (draft): optional nested `bands` (0.2.0), the `residuals` they come from (0.3.0), and `shadow_nowcast`, the reference-only final line with today's player reports (0.4.0; 0.5.0 made it this server's final line instead of JP's day line) |
+| `prediction.schema.json` | engine (outbox) | site | 0.6.0 (draft): optional nested `bands` (0.2.0), the `residuals` they come from (0.3.0), `shadow_nowcast`, the reference-only final line with today's player reports (0.4.0; 0.5.0 made it this server's final line instead of JP's day line), and `code_sha`, the engine commit that made the forecast (0.6.0) |
 | `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
 | `final-report.schema.json` | site (inbox, `final_reports`) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
