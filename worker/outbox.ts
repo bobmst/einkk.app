@@ -7,28 +7,41 @@
 // round of requests instead of two. A distinct URL, not a new document: the
 // body and ETag are the prediction's own.
 //
-// Every read goes through this colo's edge cache (the Workers Cache API) for
-// the same MAX_AGE_SECONDS the responses advertise: the bucket sits in eastern
-// North America, and an R2 read costs 150-300 ms from Europe and Asia, 304s
-// included. Conditional requests are answered here from the cached validators.
+// Every read goes through this colo's edge cache (the Workers Cache API): the
+// bucket sits in eastern North America, and an R2 read costs 150-350 ms from
+// Europe and Asia. A colo serves its copy stale-while-revalidate:
+//   - younger than MAX_AGE_SECONDS (what the responses advertise): served (hit);
+//   - older, up to STALE_SECONDS: served at once while R2 is read again in the
+//     background (stale), so a quiet colo isn't a miss on nearly every request;
+//   - older than that, or none: R2 first (miss).
+// "Not published" is kept for MAX_AGE_SECONDS only and never served stale, so
+// a new document shows up as quickly as it did before the cache.
+// Conditional requests are answered here from the cached validators.
 import type { WorkerEnv } from "./env";
 import { error } from "./http";
 
 const KEY = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*\.json$/;
 const SERVER = /^(jp|kr|na|sea|tw|gb)$/;
 export const MAX_AGE_SECONDS = 30;
+// The longest a colo goes on serving its copy of a document: a new forecast reaches
+// a quiet colo at most this long after it was published (the engine republishes
+// every 15-30 minutes in a raid, the page polls every 5).
+export const STALE_SECONDS = 600;
+
+type CacheState = "hit" | "stale" | "miss";
 
 /** A published document, or a cached "not published", with what conditional requests are judged by. */
 interface Doc {
   body: string;
   etag: string;
   uploaded: number;           // ms
-  cache: "hit" | "miss";
+  cache: CacheState;
 }
-type Read = Doc | { missing: true; cache: "hit" | "miss" };
+type Read = Doc | { missing: true; cache: CacheState };
 
 // The cache entry's own headers: never sent to a client.
 const UPLOADED = "X-Outbox-Uploaded";
+const FETCHED = "X-Outbox-Fetched";         // when this colo read it from R2, ms
 const MISSING = "X-Outbox-Missing";
 
 /** The edge cache, where the runtime has one (not on workers.dev, previews or in tests). */
@@ -36,30 +49,51 @@ function edgeCache(): Cache | null {
   return typeof caches === "undefined" ? null : (caches as unknown as { default: Cache }).default;
 }
 
-/** One outbox document: from this colo's cache while it's fresh, else from R2, then cached. */
+// keys this isolate is already refreshing, so a burst of stale reads costs one R2 read
+const refreshing = new Set<string>();
+
+/** One outbox document, from this colo's cache when it has one (see above), else from R2. */
 export async function readOutbox(env: WorkerEnv, ctx: ExecutionContext | undefined, origin: string,
   key: string): Promise<Read> {
   const cache = edgeCache();
   const cacheKey = `${origin}/api/outbox/${key}`;
   const cached = cache ? await cache.match(cacheKey) : undefined;
-  if (cached) {
+  if (cache && cached) {
     if (cached.headers.has(MISSING)) return { missing: true, cache: "hit" };
-    return { body: await cached.text(), etag: cached.headers.get("ETag") ?? "",
-      uploaded: Number(cached.headers.get(UPLOADED)), cache: "hit" };
+    const fresh = Date.now() - Number(cached.headers.get(FETCHED)) < MAX_AGE_SECONDS * 1000;
+    const doc: Doc = { body: await cached.text(), etag: cached.headers.get("ETag") ?? "",
+      uploaded: Number(cached.headers.get(UPLOADED)), cache: fresh ? "hit" : "stale" };
+    if (!fresh && !refreshing.has(cacheKey)) {
+      refreshing.add(cacheKey);
+      // a failed refresh leaves the copy as it is: the next request past MAX_AGE tries again
+      const refresh = fromR2(env, key).then((read) => store(cache, cacheKey, read)).catch(() => {})
+        .finally(() => refreshing.delete(cacheKey));
+      if (ctx) ctx.waitUntil(refresh); else await refresh;
+    }
+    return doc;
   }
 
-  const object = await env.OUTBOX.get(key);
-  const read: Read = object
-    ? { body: await object.text(), etag: object.httpEtag, uploaded: object.uploaded.getTime(), cache: "miss" }
-    : { missing: true, cache: "miss" };
+  const read = await fromR2(env, key);
   if (cache) {
-    const headers: Record<string, string> = { "Cache-Control": `public, max-age=${MAX_AGE_SECONDS}` };
-    if ("missing" in read) headers[MISSING] = "1";
-    else Object.assign(headers, { ETag: read.etag, [UPLOADED]: String(read.uploaded) });
-    const put = cache.put(cacheKey, new Response("missing" in read ? "" : read.body, { headers }));
+    const put = store(cache, cacheKey, read);
     if (ctx) ctx.waitUntil(put); else await put;
   }
   return read;
+}
+
+async function fromR2(env: WorkerEnv, key: string): Promise<Read> {
+  const object = await env.OUTBOX.get(key);
+  return object
+    ? { body: await object.text(), etag: object.httpEtag, uploaded: object.uploaded.getTime(), cache: "miss" }
+    : { missing: true, cache: "miss" };
+}
+
+function store(cache: Cache, cacheKey: string, read: Read): Promise<void> {
+  const headers: Record<string, string> = "missing" in read
+    ? { "Cache-Control": `public, max-age=${MAX_AGE_SECONDS}`, [MISSING]: "1" }
+    : { "Cache-Control": `public, max-age=${STALE_SECONDS}`, ETag: read.etag, [UPLOADED]: String(read.uploaded),
+        [FETCHED]: String(Date.now()) };
+  return cache.put(cacheKey, new Response("missing" in read ? "" : read.body, { headers }));
 }
 
 export async function handleOutbox(request: Request, env: WorkerEnv, key: string,
