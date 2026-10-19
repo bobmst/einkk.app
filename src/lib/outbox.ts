@@ -93,18 +93,47 @@ export type Predictions = Partial<Record<Server, Prediction | null>>;
 
 export const predictionKey = (season: number, server: Server) => `predictions/s${season}/${server}.json`;
 
-/** One outbox document, or null when it isn't published (404). */
-export async function outbox<T>(key: string): Promise<T | null> {
-  const response = await fetch(`/api/outbox/${key}`);
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`${key}: HTTP ${response.status}`);
-  return (await response.json()) as T;
+// Players far from Cloudflare's nearest colo (mainland China) can see a request
+// hang for many seconds: each one gives up after FETCH_TIMEOUT_MS and is tried once
+// more, so the page can fall back to the data it last loaded instead of waiting.
+export const FETCH_TIMEOUT_MS = 8_000;
+
+class HttpError extends Error {
+  constructor(path: string, readonly status: number) {
+    super(`${path}: HTTP ${status}`);
+  }
 }
+
+/** JSON from the Worker, or null on a 404; tried twice on a timeout, a network error or a 5xx. */
+async function getJson<T>(path: string, init: RequestInit = {}): Promise<T | null> {
+  for (let attempt = 1; ; attempt++) {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(path, { ...init, signal: abort.signal });
+      if (response.status === 404) return null;
+      if (!response.ok) throw new HttpError(path, response.status);
+      return (await response.json()) as T;                // the body counts against the timeout too
+    } catch (e) {
+      if (attempt >= 2 || (e instanceof HttpError && e.status < 500)) throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/** One outbox document, or null when it isn't published (404). */
+export const outbox = <T>(key: string) => getJson<T>(`/api/outbox/${key}`);
+
+/**
+ * The server's prediction for the season the Worker reads from season.json, in the
+ * same round of requests as season.json itself; null when none is published.
+ */
+export const latestPrediction = (server: Server) => getJson<Prediction>(`/api/latest/${server}.json`);
 
 export async function health(): Promise<Health | null> {
   try {
-    const response = await fetch("/api/health", { cache: "no-store" });
-    return response.ok ? ((await response.json()) as Health) : null;
+    return await getJson<Health>("/api/health", { cache: "no-store" });
   } catch {
     return null;
   }

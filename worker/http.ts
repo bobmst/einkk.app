@@ -5,6 +5,7 @@ export function json(body: unknown, status = 200, headers: Record<string, string
   });
 }
 
-export function error(status: number, code: string, detail: Record<string, unknown> = {}): Response {
-  return json({ error: code, ...detail }, status);
+export function error(status: number, code: string, detail: Record<string, unknown> = {},
+  headers: Record<string, string> = {}): Response {
+  return json({ error: code, ...detail }, status, headers);
 }
