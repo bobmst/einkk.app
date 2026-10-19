@@ -103,7 +103,28 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);         // a new Turnstile widget per try
   const box = useRef<HTMLDivElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const shown = useRef<Step>(step);
   const [others, setOthers] = useState<Predictions>({});   // forecasts of servers the page doesn't follow
+
+  // On a phone the form is far taller than the review and sent steps. After Next the
+  // browser keeps its scroll position, so the shorter card ends up above the screen
+  // and a first-time player misses the review and Turnstile. On every step change,
+  // bring the card's top back under the sticky header (its scroll-margin) and move
+  // focus to its heading.
+  useEffect(() => {
+    if (shown.current === step) return;
+    shown.current = step;
+    const el = card.current;
+    if (!el) return;
+    const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+    if (el.getBoundingClientRect().top < margin) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    }
+    heading.current?.focus({ preventScroll: true });
+  }, [step]);
 
   const open = (final || season.state === "live") && Boolean(health?.intake && health.turnstile_site_key);
 
@@ -199,10 +220,13 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
   }
 
   return (
-    <Card sx={final ? { borderColor: "secondary.main", borderWidth: 2, bgcolor: "action.hover" } : undefined}>
+    <Card ref={card} sx={{ scrollMarginTop: 128,             // the sticky AppBar and server tabs
+      ...(final ? { borderColor: "secondary.main", borderWidth: 2, bgcolor: "action.hover" } : {}) }}>
       <CardContent>
         {final && <Chip size="small" color="secondary" label={t.finalChip} sx={{ mb: 1 }} />}
-        <Typography variant="h2" sx={{ mb: 0.5 }}>{final ? t.finalTitle(season.season) : t.report}</Typography>
+        <Typography ref={heading} tabIndex={-1} variant="h2" sx={{ mb: 0.5, "&:focus": { outline: "none" } }}>
+          {final ? t.finalTitle(season.season) : t.report}
+        </Typography>
         {!open ? (
           <Typography variant="body2" color="text.secondary">
             {season.state === "live" ? t.reportUnavailable : t.reportClosed}
