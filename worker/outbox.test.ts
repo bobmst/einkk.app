@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkerEnv } from "./env";
-import { handleLatest, handleOutbox, MAX_AGE_SECONDS } from "./outbox";
+import { handleLatest, handleOutbox, MAX_AGE_SECONDS, STALE_SECONDS } from "./outbox";
 
 const ETAG = '"abc123"';
 const SEASON = JSON.stringify({ schema_version: "0.1.0", season: 42 });
@@ -126,7 +126,10 @@ describe("edge cache", () => {
     });
     return entries;
   }
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   it("reads R2 once per document and serves repeats from the cache, 304s included", async () => {
     const entries = fakeCache();
@@ -135,7 +138,8 @@ describe("edge cache", () => {
     expect(first.headers.get("X-Outbox-Cache")).toBe("miss");
     expect([...entries.keys()]).toEqual(["https://einkk.example/api/outbox/season.json"]);
     expect(entries.get("https://einkk.example/api/outbox/season.json")?.headers.get("Cache-Control"))
-      .toBe(`public, max-age=${MAX_AGE_SECONDS}`);
+      .toBe(`public, max-age=${STALE_SECONDS}`);
+    expect(first.headers.get("Cache-Control")).toBe(`public, max-age=${MAX_AGE_SECONDS}`);
 
     const second = await get("season.json", {}, e);
     expect(second.headers.get("X-Outbox-Cache")).toBe("hit");
@@ -170,5 +174,91 @@ describe("edge cache", () => {
     const direct = await get("predictions/s42/jp.json", {}, e);
     expect(direct.headers.get("X-Outbox-Cache")).toBe("hit");
     expect(reads).toEqual(["season.json", "predictions/s42/jp.json"]);
+  });
+
+  describe("stale-while-revalidate", () => {
+    const T0 = Date.parse("2026-10-20T00:00:00Z");
+    const at = (ms: number) => vi.setSystemTime(T0 + ms);
+    const NEW = JSON.stringify({ schema_version: "0.1.0", season: 43 });
+
+    it("serves a copy older than MAX_AGE at once and refreshes it from R2 behind the response", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      fakeCache();
+      const objects = { "season.json": { body: SEASON, etag: ETAG } };
+      const { env: e, reads } = bucket(objects);
+      at(0);
+      expect((await get("season.json", {}, e)).headers.get("X-Outbox-Cache")).toBe("miss");
+      at(MAX_AGE_SECONDS * 1000 - 1);
+      expect((await get("season.json", {}, e)).headers.get("X-Outbox-Cache")).toBe("hit");
+      expect(reads).toHaveLength(1);
+
+      objects["season.json"] = { body: NEW, etag: '"new"' };       // the engine publishes
+      at(MAX_AGE_SECONDS * 1000 + 1);
+      const stale = await get("season.json", {}, e);
+      expect(stale.headers.get("X-Outbox-Cache")).toBe("stale");
+      expect(await stale.text()).toBe(SEASON);                     // the copy, not a wait on R2
+      expect(stale.headers.get("ETag")).toBe(ETAG);
+      expect(reads).toHaveLength(2);                               // ... while R2 was read again
+
+      const after = await get("season.json", {}, e);
+      expect(after.headers.get("X-Outbox-Cache")).toBe("hit");
+      expect(await after.text()).toBe(NEW);
+      expect(after.headers.get("ETag")).toBe('"new"');
+      expect(reads).toHaveLength(2);
+    });
+
+    it("answers conditional requests from a stale copy too", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      fakeCache();
+      const { env: e } = bucket({ "season.json": { body: SEASON, etag: ETAG } });
+      at(0);
+      await get("season.json", {}, e);
+      at(MAX_AGE_SECONDS * 1000 + 1);
+      const response = await get("season.json", { headers: { "If-None-Match": ETAG } }, e);
+      expect(response.status).toBe(304);
+      expect(response.headers.get("X-Outbox-Cache")).toBe("stale");
+    });
+
+    it("refreshes in waitUntil when the runtime gives a context", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      fakeCache();
+      const { env: e, reads } = bucket({ "season.json": { body: SEASON, etag: ETAG } });
+      const pending: Promise<unknown>[] = [];
+      const ctx = { waitUntil: (p: Promise<unknown>) => void pending.push(p) } as unknown as ExecutionContext;
+      const read = (init: RequestInit = {}) =>
+        handleOutbox(new Request("https://einkk.example/api/outbox/season.json", init), e, "season.json", ctx);
+      at(0);
+      await read();
+      await Promise.all(pending.splice(0));
+      at(MAX_AGE_SECONDS * 1000 + 1);
+      expect((await read()).headers.get("X-Outbox-Cache")).toBe("stale");
+      expect(pending).toHaveLength(1);
+      await Promise.all(pending.splice(0));
+      expect(reads).toHaveLength(2);
+      expect((await read()).headers.get("X-Outbox-Cache")).toBe("hit");
+    });
+
+    it("keeps serving the copy when the refresh fails", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      fakeCache();
+      const objects: Record<string, { body: string; etag: string }> = { "season.json": { body: SEASON, etag: ETAG } };
+      const { env: e } = bucket(objects);
+      at(0);
+      await get("season.json", {}, e);
+      (e.OUTBOX as unknown as { get: () => Promise<never> }).get = async () => { throw new Error("R2 down"); };
+      at(MAX_AGE_SECONDS * 1000 + 1);
+      const response = await get("season.json", {}, e);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe(SEASON);
+      expect(response.headers.get("X-Outbox-Cache")).toBe("stale");
+    });
+
+    it("keeps a missing document for MAX_AGE only, so a new one shows up as fast as before", async () => {
+      const entries = fakeCache();
+      const { env: e } = bucket({});
+      await get("predictions/s43/jp.json", {}, e);
+      expect(entries.get("https://einkk.example/api/outbox/predictions/s43/jp.json")?.headers.get("Cache-Control"))
+        .toBe(`public, max-age=${MAX_AGE_SECONDS}`);
+    });
   });
 });
