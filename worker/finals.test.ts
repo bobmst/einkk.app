@@ -108,8 +108,56 @@ describe("POST /api/finals", () => {
     expect((await handleFinal(post(valid), env, new Date("2026-11-20T15:00:00Z"))).status).toBe(403);
   });
 
+  describe("after the next season is published", () => {
+    // S43 announced inside S42's final window; the engine carries S42 along as `previous`
+    const NEXT = {
+      season: 43, starts_at: "2026-11-24T20:00:00Z", ends_at: "2026-11-29T19:59:00Z", state: "upcoming",
+      survey: null,
+      previous: { season: 42, starts_at: SEASON.starts_at, ends_at: SEASON.ends_at, survey: SEASON.survey },
+    };
+    beforeEach(() => {
+      env = { ...env, OUTBOX: fakeOutbox(NEXT) } as unknown as WorkerEnv;
+    });
+
+    it("still takes the previous season's final results through its survey window", async () => {
+      expect((await handleFinal(post(valid), env, NOW)).status).toBe(201);
+      expect((await handleFinal(post(valid), env, new Date("2026-11-20T14:59:59Z"))).status).toBe(201);
+      expect(db.rows.map((r) => r.season)).toEqual([42, 42]);
+    });
+
+    it("closes the previous season at the end of its own window", async () => {
+      const response = await handleFinal(post(valid), env, new Date("2026-11-20T15:00:00Z"));
+      expect(response.status).toBe(403);
+      expect(turnstile).not.toHaveBeenCalled();
+    });
+
+    it("runs the previous window to END + 20 days 23:59 JST when its form doesn't exist", async () => {
+      env = { ...env, OUTBOX: fakeOutbox({ ...NEXT, previous: { ...NEXT.previous, survey: null } }) } as unknown as WorkerEnv;
+      expect((await handleFinal(post(valid), env, new Date("2026-11-20T14:59:59Z"))).status).toBe(201);
+      expect((await handleFinal(post(valid), env, new Date("2026-11-20T15:00:00Z"))).status).toBe(403);
+    });
+
+    it.each([
+      ["the new season, before it has run", { ...valid, season: 43 }],
+      ["a season older than the previous one", { ...valid, season: 41 }],
+    ])("refuses %s", async (_name, body) => {
+      expect((await handleFinal(post(body), env, NOW)).status).toBe(403);
+    });
+
+    it("ignores a `previous` that isn't older than the published season", async () => {
+      const doc = { ...NEXT, previous: { ...NEXT.previous, season: 43 } };
+      env = { ...env, OUTBOX: fakeOutbox({ ...doc, season: 42 }) } as unknown as WorkerEnv;
+      expect((await handleFinal(post({ ...valid, season: 43 }), env, NOW)).status).toBe(403);
+    });
+
+    it("refuses the previous season's results without `previous` (a 0.1.0 document)", async () => {
+      env = { ...env, OUTBOX: fakeOutbox({ ...NEXT, previous: undefined }) } as unknown as WorkerEnv;
+      expect((await handleFinal(post(valid), env, NOW)).status).toBe(403);
+    });
+  });
+
   it.each([
-    ["no browser id", { ...valid, browser_id: undefined }],
+    ["no browser id",{ ...valid, browser_id: undefined }],
     ["a browser id that isn't a UUID", { ...valid, browser_id: "me" }],
     ["a read time (in-raid field)", { ...valid, read_at: "2026-10-31T04:00:00+09:00" }],
     ["both ranks", { ...valid, rank_n: 80 }],

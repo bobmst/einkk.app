@@ -20,7 +20,22 @@ export interface Season {
   starts_at: string;
   ends_at: string;
   state: "upcoming" | "live" | "measuring" | "closed";
-  survey: { url: string; opens_at: string; closes_at: string } | null;
+  survey: Survey | null;
+  // the season before, while it may still take final results (contract 0.2.0)
+  previous?: PreviousSeason;
+}
+
+export interface Survey {
+  url: string;
+  opens_at: string;
+  closes_at: string;
+}
+
+export interface PreviousSeason {
+  season: number;
+  starts_at: string;
+  ends_at: string;
+  survey: Survey | null;
 }
 
 /**
@@ -36,8 +51,23 @@ export function stateAt(season: Season, now: number): Season["state"] {
 }
 
 /** The window the Worker takes final results in (src/lib/windows.ts), by the clock. */
-export function finalWindowOpen(season: Season, now: number): boolean {
+export function finalWindowOpen(season: Season | PreviousSeason, now: number): boolean {
   return inFinalWindow({ ...season, survey_closes_at: season.survey?.closes_at }, now);
+}
+
+/**
+ * The season before the published one while its final window is still open. The
+ * engine publishes the next season inside that window, so the page keeps offering
+ * the closing season's final results beside it, as the Worker keeps taking them.
+ */
+export function previousFinalOpen(season: Season, now: number): PreviousSeason | null {
+  const previous = season.previous;
+  return previous && previous.season < season.season && finalWindowOpen(previous, now) ? previous : null;
+}
+
+/** A survey link the page may show at `now`: only a Tally form, only once it has opened. */
+export function surveyLink(survey: Survey | null, now: number): string | null {
+  return survey?.url.startsWith("https://tally.so/") && now >= Date.parse(survey.opens_at) ? survey.url : null;
 }
 
 export interface Band {

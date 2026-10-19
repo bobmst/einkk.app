@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/season.schema.json",
-  "title": "Current season (draft 0.1.0)",
-  "description": "The season the site shows: boss, schedule, raid state and the end-of-season survey. The private engine writes it to the outbox whenever any of these change; the site renders the countdown and the state from it. All times are UTC.",
+  "title": "Current season (draft 0.2.0)",
+  "description": "The season the site shows: boss, schedule, raid state and the end-of-season survey. The private engine writes it to the outbox whenever any of these change; the site renders the countdown and the state from it. All times are UTC. While the season before it still takes final results, it travels along as `previous`.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "issued_at": {
       "$ref": "#/$defs/utc"
@@ -64,6 +64,53 @@
     },
     "survey": {
       "description": "The end-of-season survey, which stays on Tally. null until the season's form exists. The site links to it only after the raid has ended, and only between opens_at and closes_at.",
+      "$ref": "#/$defs/survey"
+    },
+    "previous": {
+      "description": "The season before this one, published only while its final-results window may still be open: from its close until its survey's closes_at, or END + 20 days 23:59 JST before the form exists. The site keeps taking that season's final results through this window after the next season is published. Absent otherwise.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "season",
+        "starts_at",
+        "ends_at",
+        "survey"
+      ],
+      "properties": {
+        "season": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "starts_at": {
+          "$ref": "#/$defs/utc"
+        },
+        "ends_at": {
+          "$ref": "#/$defs/utc"
+        },
+        "survey": {
+          "$ref": "#/$defs/survey"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "utc": {
+      "description": "ISO 8601 in UTC, with a Z suffix.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "element": {
+      "enum": [
+        "fire",
+        "water",
+        "wind",
+        "iron",
+        "electronic"
+      ]
+    },
+    "survey": {
+      "description": "A season's survey on Tally, or null until its form exists.",
       "oneOf": [
         {
           "type": "null"
@@ -91,23 +138,6 @@
             }
           }
         }
-      ]
-    }
-  },
-  "$defs": {
-    "utc": {
-      "description": "ISO 8601 in UTC, with a Z suffix.",
-      "type": "string",
-      "format": "date-time",
-      "pattern": "Z$"
-    },
-    "element": {
-      "enum": [
-        "fire",
-        "water",
-        "wind",
-        "iron",
-        "electronic"
       ]
     }
   }
