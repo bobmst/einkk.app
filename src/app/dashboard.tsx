@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import Alert from "@mui/material/Alert";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import Container from "@mui/material/Container";
 import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
@@ -24,12 +25,13 @@ import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
 import TranslateOutlined from "@mui/icons-material/TranslateOutlined";
 import {
-  LANG_NAMES, LANGS, SERVER_ORDER, langStore, serverName, serverStore, text, type Lang,
+  LANG_NAMES, LANGS, SERVER_ORDER, duration, langStore, serverName, serverStore, text, type Lang,
 } from "@/lib/i18n";
 import {
-  finalWindowOpen, health, outbox, predictionKey, stateAt,
+  finalWindowOpen, health, latestPrediction, outbox, predictionKey, stateAt,
   type Health, type History, type Prediction, type Predictions, type Season, type Server,
 } from "@/lib/outbox";
+import { saveSnapshot, snapshotStore, type Snapshot } from "@/lib/snapshot";
 import ReportForm from "./report-form";
 import SeasonCard from "./season-card";
 import { Distribution, Forecast } from "./server-view";
@@ -41,6 +43,7 @@ import TrackRecord from "./track-record";
 // 30 otherwise, and not at all while it is hidden (it catches up when shown).
 const LIVE_REFRESH_MS = 5 * 60_000;
 const IDLE_REFRESH_MS = 30 * 60_000;
+const FAILED_RETRY_MS = 60_000;
 const ISSUES = "https://github.com/bobmst/einkk.app/issues/new/choose";
 const HTML_LANG: Record<Lang, string> = { en: "en", ja: "ja", ko: "ko", zhs: "zh-Hans", zht: "zh-Hant", es: "es" };
 
@@ -54,13 +57,18 @@ interface Data {
 // health (site mode, Turnstile key) doesn't change while the page is open: fetched once.
 // Of the forecasts only the followed server's: the page shows one server, and each
 // document is a Worker request. Another server's is fetched when the player follows it.
+// All in one round: /api/latest finds the season on the Worker's side, so the page
+// doesn't wait for season.json before it can ask for the forecast.
 async function load(server: Server, known?: Health | null): Promise<Data> {
-  const [h, season, history] = await Promise.all([
-    known ?? health(), outbox<Season>("season.json"), outbox<History>("history.json"),
+  const [h, season, history, current] = await Promise.all([
+    known ?? health(), outbox<Season>("season.json"), outbox<History>("history.json"), latestPrediction(server),
   ]);
-  const predictions: Predictions = season
-    ? { [server]: await outbox<Prediction>(predictionKey(season.season, server)) } : {};
-  return { health: h, season, predictions, history };
+  if (!season) return { health: h, season, predictions: {}, history };
+  // The Worker's read of season.json and the page's are cached separately (30 s each),
+  // so right at a new season they can name different seasons: the page's decides.
+  const prediction = current && current.season !== season.season
+    ? await outbox<Prediction>(predictionKey(season.season, server)) : current;
+  return { health: h, season, predictions: { [server]: prediction }, history };
 }
 
 function ThemeToggle({ label }: { label: string }) {
@@ -80,8 +88,15 @@ export default function Dashboard() {
   const lang = useSyncExternalStore(langStore.subscribe, langStore.get, langStore.server);
   const picked = useSyncExternalStore(serverStore.subscribe, serverStore.get, serverStore.server);
   const server = picked ?? serverStore.fallback(lang);
-  const [data, setData] = useState<Data | null>(null);
+  const [loaded, setLoaded] = useState<Data | null>(null);       // this visit's
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
+  // until this visit's first load succeeds, the last visit's data, marked as updating
+  const saved = useSyncExternalStore(snapshotStore.subscribe, snapshotStore.get, snapshotStore.server) as
+    Snapshot<Data> | null;
+  const stale = !loaded && saved !== null;
+  const data = loaded ?? saved?.data ?? null;
+  const shownAt = loaded ? loadedAt : saved?.saved_at ?? null;
   const [now, setNow] = useState(() => Date.now());
   const followed = useRef(server);                    // the refresh reads it, without restarting
   const fetching = useRef(new Set<string>());
@@ -99,9 +114,11 @@ export default function Dashboard() {
     const refresh = () => {
       clearTimeout(timer);
       last = Date.now();
+      let ok = false;
       load(followed.current, known).then(
         (fresh) => {
           if (!alive) return;
+          ok = true;
           known = fresh.health;
           const at = Date.now();
           const state = fresh.season ? stateAt(fresh.season, at) : null;
@@ -110,12 +127,14 @@ export default function Dashboard() {
           if (fresh.season && state === "upcoming") {
             every = Math.min(every, Date.parse(fresh.season.starts_at) - at + 5_000);
           }
-          setData(fresh);
+          setLoaded(fresh);
+          setLoadedAt(at);
           setFailed(false);
+          saveSnapshot(fresh, at);
         },
         () => alive && setFailed(true),
       ).finally(() => {
-        if (alive) timer = setTimeout(() => !document.hidden && refresh(), every);
+        if (alive) timer = setTimeout(() => !document.hidden && refresh(), ok ? every : FAILED_RETRY_MS);
       });
     };
     const onShow = () => {
@@ -136,16 +155,16 @@ export default function Dashboard() {
   const seasonNumber = data?.season?.season;
   const missing = seasonNumber !== undefined && !(server in (data?.predictions ?? {}));
   useEffect(() => {
-    if (!missing || seasonNumber === undefined) return;
+    if (!missing || seasonNumber === undefined || stale) return;   // a first load in flight brings it
     const key = predictionKey(seasonNumber, server);
     if (fetching.current.has(key)) return;
     fetching.current.add(key);
     outbox<Prediction>(key).then(
-      (p) => setData((prev) => prev && prev.season?.season === seasonNumber
+      (p) => setLoaded((prev) => prev && prev.season?.season === seasonNumber
         ? { ...prev, predictions: { ...prev.predictions, [server]: p } } : prev),
       () => setSwitchFailed(key),                 // shown in the forecast slot; the next refresh retries
     ).finally(() => fetching.current.delete(key));
-  }, [missing, seasonNumber, server]);
+  }, [missing, seasonNumber, server, stale]);
 
   useEffect(() => {
     document.documentElement.lang = HTML_LANG[lang];
@@ -199,7 +218,16 @@ export default function Dashboard() {
       <Container maxWidth={false} sx={{ py: 3, maxWidth: pageWidth }}>
         <Stack spacing={2.5}>
           {data?.health?.mode === "rehearsal" && <Alert severity="warning">{t.rehearsal}</Alert>}
-          {failed && <Alert severity="error">{t.loadFailed}</Alert>}
+          {failed && !data && <Alert severity="error">{t.loadFailed}</Alert>}
+          {failed && data && shownAt !== null && (
+            <Alert severity="warning">{t.staleData(duration(lang, now - shownAt))}</Alert>
+          )}
+          {stale && !failed && shownAt !== null && (
+            <Stack direction="row" spacing={1} role="status" sx={{ alignItems: "center", color: "text.secondary" }}>
+              <CircularProgress size={14} color="inherit" />
+              <Typography variant="body2">{t.updating(duration(lang, now - shownAt))}</Typography>
+            </Stack>
+          )}
           {!data && !failed && (
             <Stack spacing={2}>
               <Skeleton variant="rounded" height={240} />

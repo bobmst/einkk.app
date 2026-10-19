@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { finalWindowOpen, stateAt, type Season } from "./outbox";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { FETCH_TIMEOUT_MS, finalWindowOpen, health, latestPrediction, outbox, stateAt, type Season } from "./outbox";
 
 const season: Season = {
   issued_at: "2026-10-31T00:00:00Z", season: 42, boss: { name: "Altruia", element: "water" },
@@ -43,5 +43,74 @@ describe("stateAt", () => {
   it("keeps the document's closed once the final line is in", () => {
     expect(stateAt({ ...season, state: "closed" }, Date.parse("2026-10-25T00:00:00Z"))).toBe("closed");
     expect(stateAt(season, Date.parse("2026-10-25T00:00:00Z"))).toBe("measuring");
+  });
+});
+
+describe("outbox fetches", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+  // a fetch that never answers, until its signal aborts it
+  const hang = (_: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+  });
+
+  it("returns the document, or null when it isn't published", async () => {
+    const fetch = vi.fn(async (path: string) => (path.endsWith("season.json") ? json({ season: 42 }) : json({}, 404)));
+    vi.stubGlobal("fetch", fetch);
+    expect(await outbox("season.json")).toEqual({ season: 42 });
+    expect(await outbox("history.json")).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks the latest route for the followed server's forecast", async () => {
+    const fetch = vi.fn(async (_path: string) => json({ season: 42, server: "kr" }));
+    vi.stubGlobal("fetch", fetch);
+    expect(await latestPrediction("kr")).toEqual({ season: 42, server: "kr" });
+    expect(fetch.mock.calls[0][0]).toBe("/api/latest/kr.json");
+  });
+
+  it("tries a failed or 5xx request once more, and gives up after that", async () => {
+    const flaky = vi.fn().mockRejectedValueOnce(new TypeError("network")).mockResolvedValueOnce(json({ ok: 1 }));
+    vi.stubGlobal("fetch", flaky);
+    expect(await outbox("season.json")).toEqual({ ok: 1 });
+    const down = vi.fn(async () => json({}, 503));
+    vi.stubGlobal("fetch", down);
+    await expect(outbox("season.json")).rejects.toThrow("HTTP 503");
+    expect(down).toHaveBeenCalledTimes(2);
+  });
+
+  it("doesn't retry a 4xx other than 404", async () => {
+    const bad = vi.fn(async () => json({}, 400));
+    vi.stubGlobal("fetch", bad);
+    await expect(outbox("season.json")).rejects.toThrow("HTTP 400");
+    expect(bad).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up on a hanging request after the timeout, tries once more, then fails", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn(hang);
+    vi.stubGlobal("fetch", fetch);
+    const result = outbox("season.json").catch((e: Error) => e.name);
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS);
+    expect(await result).toBe("AbortError");
+  });
+
+  it("recovers when the retry answers in time", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockImplementationOnce(hang).mockResolvedValueOnce(json({ season: 42 }));
+    vi.stubGlobal("fetch", fetch);
+    const result = outbox("season.json");
+    await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS);
+    expect(await result).toEqual({ season: 42 });
+  });
+
+  it("reads health as null when it can't be had", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json({}, 503)));
+    expect(await health()).toBeNull();
   });
 });
