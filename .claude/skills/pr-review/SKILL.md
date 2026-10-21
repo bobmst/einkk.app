@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Review a pull request with parallel subagents, keep only validated high-signal findings, and post them on the PR. Run it right after opening a pull request in this repository (AGENTS.md requires it), or when asked to review a PR. Usage /pr-review <PR number or URL> [--comment].
+description: Review a pull request with subagents sized to the change (one reviewer for docs-only or other no-logic changes, up to four for risky ones), keep only validated high-signal findings, and post them on the PR. Run it right after opening a pull request in this repository (AGENTS.md requires it), or when asked to review a PR. Usage /pr-review <PR number or URL> [--comment].
 ---
 
 # PR review
@@ -34,7 +34,9 @@ Start with a task list of the steps below.
 
 ## Steps
 
-1. **Gate** (one `haiku` agent). Stop without reviewing if any of these holds:
+Steps 1–3 are lookups. Do them yourself with `gh`; they need no agent.
+
+1. **Gate.** Stop without reviewing if any of these holds:
    - the PR is closed, merged or a draft;
    - the change needs no review: generated or bot-made, or trivially correct, like a typo or
      version bump only;
@@ -43,16 +45,27 @@ Start with a task list of the steps below.
 
    Claude-written PRs still get reviewed.
 
-2. **Instruction files** (one `haiku` agent). List the paths, not the contents, of every
-   `AGENTS.md` and `CLAUDE.md` that governs a changed file:
+2. **Instruction files.** List the paths, not the contents, of every `AGENTS.md` and
+   `CLAUDE.md` that governs a changed file:
    - at the repo root;
    - in each directory on the path down to each changed file.
 
-3. **Summary** (one `sonnet` agent). Read the PR (`gh pr view`, `gh pr diff`) and summarise what
-   it changes.
+3. **Size the change.** Read the PR's files and diff stats (`gh pr view <n> --json files`, then
+   `gh pr diff <n>`), and pick the smallest tier that fits.
 
-4. **Review** (four agents in parallel). Each returns a list of issues, each with a description,
-   its file and line, and why it was flagged (`instruction file` or `bug`).
+   | Tier | When | Reviewers |
+   |---|---|---|
+   | **S** | No logic changes: docs, comments, instruction or skill text, test-only changes, renames, constants or config values, wording in UI text | one `sonnet` agent: instruction-file compliance plus anything that breaks (a wrong path, a broken link or reference, a test that can't pass) |
+   | **M** | Logic changes confined to one module or feature, roughly under 300 changed lines of code | one `sonnet` agent for instruction-file compliance, and one `opus` agent for bugs and logic in the changed code |
+   | **L** | Any of: writes to the DB or a schema/migration change; secrets, auth or anything security-sensitive; published outputs or a contract (outbox documents, schemas, the public site's data path); the forecast model; several modules; or over roughly 300 changed lines of code | the four reviewers below |
+
+   When unsure between two tiers, take the larger. Say which tier you chose and why, in one line,
+   before launching anything.
+
+4. **Review** (the tier's agents, in parallel). Each returns a list of issues, each with a
+   description, its file and line, and why it was flagged (`instruction file` or `bug`). Tier L
+   uses all four; tiers S and M use the agents the table names, with the same instructions as
+   the matching ones here.
    - **Agents 1 and 2** (`sonnet`): instruction-file compliance. A rule applies to a file only if
      its instruction file sits in that file's directory or a parent of it.
    - **Agent 3** (`opus`): obvious bugs, reading only the diff. Flag only significant bugs that
@@ -64,7 +77,9 @@ Start with a task list of the steps below.
    - code that won't compile, parse or type-check (syntax or type errors, missing imports,
      unresolved names);
    - logic that gives wrong results for every input, not just some;
-   - a clear instruction-file violation whose rule you can quote word for word.
+   - a clear instruction-file violation whose rule you can quote word for word;
+   - in non-code changes: a path, link or cross-reference that no longer resolves, or a test
+     that cannot pass.
 
    **Never flag:**
    - style or quality opinions;
@@ -74,12 +89,13 @@ Start with a task list of the steps below.
 
    A false positive costs the reviewer more than a miss.
 
-5. **Validate** (one agent per issue, in parallel). Each validator gets the PR title and
-   description plus the issue, and confirms with high confidence that the issue is real. For
-   example, it checks that the "undefined" name really is undefined, or that the quoted rule is
-   in scope for that file and really broken.
-   - Use `opus` for bugs and logic, and `sonnet` for instruction-file issues.
-   - Drop every issue that isn't confirmed.
+5. **Validate** (only when step 4 found issues). Confirm with high confidence that each issue
+   is real, and drop every one that isn't.
+   - When one file read or one search settles it, check it yourself. Examples: the "undefined"
+     name really is undefined; the quoted rule is in scope for that file and really broken.
+   - Otherwise launch one validator per issue, in parallel. Give each the PR title and
+     description plus the issue. Use `opus` for bugs and logic, and `sonnet` for
+     instruction-file issues.
 
 6. **Report.** Print the confirmed issues, each with a one-line description. With none, print:
    "No issues found. Checked for bugs and AGENTS.md / CLAUDE.md compliance." Without
@@ -104,8 +120,9 @@ Start with a task list of the steps below.
       - Cite what you rely on with a permalink to the full commit sha, with at least one line of
         context on each side. Example:
         `https://github.com/<owner>/<repo>/blob/<full sha>/AGENTS.md#L10-L14`
-   5. The summary comment starts with `## Code review` and ends with
-      `<!-- pr-review <full head sha> -->`, which is the marker step 1 looks for.
+   5. The summary comment starts with `## Code review` and names the tier, e.g. "Tier S (docs
+      only): one reviewer". It ends with `<!-- pr-review <full head sha> -->`, which is the
+      marker step 1 looks for.
 
 ## False positives (never flag these)
 
