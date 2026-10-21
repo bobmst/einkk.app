@@ -21,6 +21,8 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
   const theme = useTheme();
   const { mode, systemMode } = useColorScheme();
   const dark = (mode === "system" ? systemMode : mode) === "dark";
+  const range = { stroke: (theme.vars ?? theme).palette.text.secondary, strokeDasharray: "4 3",
+                  strokeOpacity: dark ? 0.75 : 1, shapeRendering: "crispEdges" as const };
   const cell = cells.find((c) => c.percentile === tier) ?? cells[0];
   const xs = ratios(p);
   // the 9-in-10 range comes from the same curve as the chance; the line marks the
@@ -60,8 +62,10 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
           hideLegend
           slotProps={{ tooltip: { trigger: "none" } }}
         >
-          <ChartsReferenceLine x={lo} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.secondary, strokeDasharray: "4 3" }} />
-          <ChartsReferenceLine x={hi} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.secondary, strokeDasharray: "4 3" }} />
+          {/* snapped to whole pixels: at fractional positions one dashed line came out
+              crisp and the other smeared paler, though both are the same colour */}
+          <ChartsReferenceLine x={lo} lineStyle={range} />
+          <ChartsReferenceLine x={hi} lineStyle={range} />
           {/* theme.vars follows the colour scheme; theme.palette is the light one.
               Solid white is harsh on the dark card, so the line is softened there. */}
           <ChartsReferenceLine x={cell.value} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.primary,
