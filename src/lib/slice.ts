@@ -1,17 +1,18 @@
 // Where a tier's final line may land: a smooth curve over the possible final
 // values, and the chance a given score clears it. Built from the forecast's own
-// walk-forward misses (prediction.residuals) with their sign kept: a forecast
-// that has run low puts more of the curve above it. The slice's 9-in-10 range
-// and the chance both come from this one curve, so they agree with each other;
-// they need not match the engine's symmetric bands (bobmst/einkk.app#46).
+// walk-forward misses (prediction.residuals), each taken both ways round: with
+// 6-15 seasons their signs are mostly noise, and a walk-forward over S12-S41
+// scored the signed curve worse on every route (bobmst/einkk.app#50). The
+// slice's 9-in-10 range and the chance both come from this one curve.
 import type { Cell, Prediction } from "./outbox";
 
 const SQRT2 = Math.SQRT2;
 
-/** final / forecast ratios the misses imply: error_pct is (forecast − final) / final. */
+/** final / forecast ratios the misses imply, each miss both ways round:
+ *  error_pct is (forecast − final) / final, so a miss m gives 1 / (1 ± m). */
 export function ratios(p: Prediction): number[] {
-  const misses = (p.residuals ?? []).map((r) => r.error_pct / 100).filter((e) => e > -1);
-  if (misses.length >= 3) return misses.map((e) => 1 / (1 + e));
+  const misses = (p.residuals ?? []).map((r) => Math.abs(r.error_pct) / 100).filter((m) => m < 1);
+  if (misses.length >= 3) return misses.flatMap((m) => [1 / (1 + m), 1 / (1 - m)]);
   // an older document without residuals: a normal shape matching its band
   const band = p.bands?.length ? p.bands[p.bands.length - 1] : { ...p.band, level: p.band.level ?? 0.9 };
   const half = (band.hi - band.lo) / 2 / p.prediction;

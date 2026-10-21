@@ -9,8 +9,9 @@ const misses = (...pcts: number[]) =>
 describe("tier slice", () => {
   const p = misses(2, -5, 3);
 
-  it("keeps the sign of the misses: final / forecast = 1 / (1 + error)", () => {
-    expect(ratios(p).map((r) => +r.toFixed(4)).sort()).toEqual([1 / 1.02, 1 / 0.95, 1 / 1.03].map((r) => +r.toFixed(4)).sort());
+  it("takes each miss both ways round: final / forecast = 1 / (1 ± |error|)", () => {
+    expect(ratios(p).map((r) => +r.toFixed(4)).sort())
+      .toEqual([1 / 1.02, 1 / 0.98, 1 / 1.05, 1 / 0.95, 1 / 1.03, 1 / 0.97].map((r) => +r.toFixed(4)).sort());
   });
 
   it("integrates to one", () => {
@@ -20,11 +21,21 @@ describe("tier slice", () => {
     expect(area).toBeCloseTo(1, 2);
   });
 
-  it("leans toward the side the forecast has missed on", () => {
-    // S42 GLOBAL's router misses: mostly the forecast ran low, so the line tends to end above it
+  it("doesn't lean on the misses' signs", () => {
+    // S42 GLOBAL's router misses: 6 of 9 low, which a sign-flip test can't tell from noise
+    const global = [-5.09, -4.26, -4.1, -3.35, -2.54, -0.5, 1.05, 2.1, 2.9];
+    const xs = ratios(misses(...global));
+    expect(xs).toEqual(ratios(misses(...global.map((e) => -e))));
+    expect(cdf(xs, 1)).toBeCloseTo(0.5, 1);
+  });
+
+  it("draws one peak at the forecast from misses that leave a hole there", () => {
+    // the #46 case: only one of GLOBAL's nine misses is inside ±1%
     const xs = ratios(misses(-5.09, -4.26, -4.1, -3.35, -2.54, -0.5, 1.05, 2.1, 2.9));
-    expect(cdf(xs, 1)).toBeLessThan(0.45);
-    expect(quantile(xs, 0.95) - 1).toBeGreaterThan(1 - quantile(xs, 0.05));
+    const grid = Array.from({ length: 401 }, (_, i) => 0.9 + i * 0.0005);
+    const ys = density(xs, grid);
+    const peaks = ys.filter((y, i) => i > 0 && i < ys.length - 1 && y > ys[i - 1] && y >= ys[i + 1]).length;
+    expect(peaks).toBe(1);
   });
 
   it("draws one peak, widening the bandwidth when the misses alone would give two", () => {
