@@ -1,29 +1,51 @@
 import { describe, expect, it } from "vitest";
-import { cdf, chanceText, density, ratios, tierFor } from "../src/lib/slice";
+import { bandwidth, cdf, chanceText, density, quantile, ratios, tierFor } from "../src/lib/slice";
 import type { Prediction } from "../src/lib/outbox";
 
 const base = { prediction: 200, band: { lo: 184, hi: 216, level: 0.9, method: "conformal_walk_forward" } } as unknown as Prediction;
+const misses = (...pcts: number[]) =>
+  ({ ...base, residuals: pcts.map((error_pct, i) => ({ season: 41 - i, error_pct })) }) as Prediction;
 
 describe("tier slice", () => {
-  const p = { ...base, residuals: [{ season: 41, error_pct: 2 }, { season: 40, error_pct: -5 }, { season: 39, error_pct: 3 }] } as Prediction;
+  const p = misses(2, -5, 3);
 
-  it("mirrors the misses, as the bands do", () => {
-    expect(ratios(p).sort()).toEqual([0.95, 0.97, 0.98, 1.02, 1.03, 1.05].sort());
+  it("keeps the sign of the misses: final / forecast = 1 / (1 + error)", () => {
+    expect(ratios(p).map((r) => +r.toFixed(4)).sort()).toEqual([1 / 1.02, 1 / 0.95, 1 / 1.03].map((r) => +r.toFixed(4)).sort());
   });
 
-  it("is centred on the forecast and integrates to one", () => {
+  it("integrates to one", () => {
     const xs = ratios(p);
-    expect(cdf(xs, 1)).toBeCloseTo(0.5, 6);
     const grid = Array.from({ length: 2001 }, (_, i) => 0.7 + i * 0.0003);
     const area = density(xs, grid).reduce((s, y) => s + y * 0.0003, 0);
     expect(area).toBeCloseTo(1, 2);
+  });
+
+  it("leans toward the side the forecast has missed on", () => {
+    // S42 GLOBAL's router misses: mostly the forecast ran low, so the line tends to end above it
+    const xs = ratios(misses(-5.09, -4.26, -4.1, -3.35, -2.54, -0.5, 1.05, 2.1, 2.9));
+    expect(cdf(xs, 1)).toBeLessThan(0.45);
+    expect(quantile(xs, 0.95) - 1).toBeGreaterThan(1 - quantile(xs, 0.05));
+  });
+
+  it("draws one peak, widening the bandwidth when the misses alone would give two", () => {
+    const xs = ratios(misses(-6, -5.5, -5, 5, 5.5, 6));            // two tight clusters
+    const grid = Array.from({ length: 401 }, (_, i) => 0.88 + i * 0.0006);
+    const ys = density(xs, grid);
+    const peaks = ys.filter((y, i) => i > 0 && i < ys.length - 1 && y > ys[i - 1] && y >= ys[i + 1]).length;
+    expect(peaks).toBe(1);
+    expect(bandwidth(xs)).toBeGreaterThan(0.004);
+  });
+
+  it("puts its 9-in-10 range around 90% of the curve", () => {
+    const xs = ratios(p);
+    expect(cdf(xs, quantile(xs, 0.95)) - cdf(xs, quantile(xs, 0.05))).toBeCloseTo(0.9, 3);
   });
 
   it("gives a higher score a higher chance of clearing the line (the line ending below it)", () => {
     const xs = ratios(p);
     expect(cdf(xs, 0.9)).toBeLessThan(0.02);                  // a score far below the forecast line
     expect(cdf(xs, 1.03)).toBeGreaterThan(cdf(xs, 1.0));
-    expect(cdf(xs, 1.1)).toBeGreaterThan(0.98);               // far above it
+    expect(cdf(xs, 1.15)).toBeGreaterThan(0.98);              // far above it (3 misses: wide tails)
   });
 
   it("falls back to the band without residuals", () => {

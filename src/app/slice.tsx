@@ -1,7 +1,8 @@
 "use client";
 // A slice through the damage-by-rank chart at one tier: where that tier's final
-// line may land (a curve, most likely in the middle, the 9-in-10 range marked),
-// and, with the player's score entered, the chance it makes that tier.
+// line may land (a curve from the forecast's signed past misses, the forecast
+// and the 9-in-10 range marked), and, with the player's score entered, the
+// chance it makes that tier.
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
@@ -11,7 +12,7 @@ import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
 import { LineChart } from "@mui/x-charts/LineChart";
 import { damage, type Lang, type Text } from "@/lib/i18n";
 import type { Cell, Prediction } from "@/lib/outbox";
-import { cdf, chanceText, density, ratios } from "@/lib/slice";
+import { cdf, chanceText, density, quantile, ratios } from "@/lib/slice";
 
 export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
   p: Prediction; cells: Cell[]; score: number | null; tier: number; onTier: (tier: number) => void;
@@ -20,13 +21,13 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
   const theme = useTheme();
   const cell = cells.find((c) => c.percentile === tier) ?? cells[0];
   const xs = ratios(p);
-  const widest = p.bands?.length ? p.bands[p.bands.length - 1] : p.band;
-  const lo = (cell.value * widest.lo) / p.prediction;
-  const hi = (cell.value * widest.hi) / p.prediction;
+  // the 9-in-10 range comes from the same curve as the chance; the line marks the
+  // tier's forecast damage, the same value as the table's damage column
+  const lo = cell.value * quantile(xs, 0.05);
+  const hi = cell.value * quantile(xs, 0.95);
 
-  const span = Math.max(...xs) - Math.min(...xs);
-  const from = Math.min(...xs) - 0.25 * span;
-  const to = Math.max(...xs) + 0.25 * span;
+  const from = quantile(xs, 0.002);
+  const to = quantile(xs, 0.998);
   const grid = Array.from({ length: 81 }, (_, i) => from + ((to - from) * i) / 80);
   const ys = density(xs, grid);
   const values = grid.map((r) => cell.value * r);
@@ -68,7 +69,7 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
         </LineChart>
       </Box>
       <Typography variant="body2">
-        {t.mostLikely} <b>{damage(lang, cell.value)}</b> · {t.likelyRange(damage(lang, lo), damage(lang, hi))}
+        {t.damage} <b>{damage(lang, cell.value)}</b> · {t.likelyRange(damage(lang, lo), damage(lang, hi))}
       </Typography>
       {chance !== null && (
         <Typography variant="body1" sx={{ mt: 0.5, fontWeight: 700, color: "warning.main" }}>
