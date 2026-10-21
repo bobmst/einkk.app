@@ -58,9 +58,10 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
           hideLegend
           slotProps={{ tooltip: { trigger: "none" } }}
         >
-          <ChartsReferenceLine x={lo} lineStyle={{ stroke: theme.palette.text.secondary, strokeDasharray: "4 3" }} />
-          <ChartsReferenceLine x={hi} lineStyle={{ stroke: theme.palette.text.secondary, strokeDasharray: "4 3" }} />
-          <ChartsReferenceLine x={cell.value} lineStyle={{ stroke: theme.palette.text.primary }} />
+          <ChartsReferenceLine x={lo} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.secondary, strokeDasharray: "4 3" }} />
+          <ChartsReferenceLine x={hi} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.secondary, strokeDasharray: "4 3" }} />
+          {/* theme.vars follows the colour scheme; theme.palette is the light one */}
+          <ChartsReferenceLine x={cell.value} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.primary }} />
           {scoreOnAxis && (
             <ChartsReferenceLine x={score} label={t.you} labelAlign="start"
                                  lineStyle={{ stroke: warn, strokeWidth: 2 }}

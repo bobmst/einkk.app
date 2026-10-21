@@ -36,12 +36,16 @@ function bandsOf(p: Prediction): Band[] {
 }
 
 const pctLabel = (level: number) => `${Math.round(level * 1000) / 10}%`;
+function useDark() {
+  const { mode, systemMode } = useColorScheme();
+  return (mode === "system" ? systemMode : mode) === "dark";
+}
+
 /** Band i's fill, narrowest (0) darkest. Dark mode needs much more opacity for
  *  the steps to stay apart on a near-black card. */
 function useShade() {
   const theme = useTheme();
-  const { mode, systemMode } = useColorScheme();
-  const dark = (mode === "system" ? systemMode : mode) === "dark";
+  const dark = useDark();
   const steps = dark ? [0.9, 0.55, 0.28, 0.15] : [0.5, 0.3, 0.16, 0.1];
   return (i: number) => alpha(theme.palette.primary.main, steps[i] ?? steps[steps.length - 1]);
 }
@@ -128,6 +132,7 @@ function YouMarker({ pct, value, label, color, onCurve }: {
 export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
   const theme = useTheme();
   const shade = useShade();
+  const dark = useDark();
   const [mine, setMine] = useState("");
   const typed = useDeferredValue(mine);                       // the charts catch up; typing never waits
   const [picked, setPicked] = useState<{ tier: number; score: number | null } | null>(null);
@@ -196,7 +201,9 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
               [`& .${lineClasses.mark}[data-series-id^="band-"], & .${lineClasses.highlight}[data-series-id^="band-"]`]: { display: "none" },
             }}
           >
-            <ChartsReferenceLine x={3} lineStyle={{ stroke: theme.palette.divider }} />
+            {/* theme.vars, not theme.palette: with CSS variables the palette holds the
+                light scheme's colours. The divider all but vanishes on the dark card. */}
+            <ChartsReferenceLine x={3} lineStyle={{ stroke: dark ? (theme.vars ?? theme).palette.text.secondary : (theme.vars ?? theme).palette.divider }} />
             {where && value && (
               <YouMarker pct={where.percentile} value={value} label={t.you} color={theme.palette.warning.main}
                          onCurve={where.kind === "at"} />
