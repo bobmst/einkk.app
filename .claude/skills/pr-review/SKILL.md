@@ -77,7 +77,9 @@ Steps 1–3 are lookups. Do them yourself with `gh`; they need no agent.
    - code that won't compile, parse or type-check (syntax or type errors, missing imports,
      unresolved names);
    - logic that gives wrong results for every input, not just some;
-   - a clear instruction-file violation whose rule you can quote word for word.
+   - a clear instruction-file violation whose rule you can quote word for word;
+   - in non-code changes: a path, link or cross-reference that no longer resolves, or a test
+     that cannot pass.
 
    **Never flag:**
    - style or quality opinions;
