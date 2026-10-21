@@ -4,7 +4,6 @@
 // that has run low puts more of the curve above it. The slice's 9-in-10 range
 // and the chance both come from this one curve, so they agree with each other;
 // they need not match the engine's symmetric bands (bobmst/einkk.app#46).
-import type { Placement } from "./numbers";
 import type { Cell, Prediction } from "./outbox";
 
 const SQRT2 = Math.SQRT2;
@@ -61,10 +60,20 @@ export function density(xs: number[], points: number[]): number[] {
   return points.map((x) => kde(xs, h, x));
 }
 
+function cdfAt(xs: number[], h: number, ratio: number): number {
+  return xs.reduce((s, xi) => s + 0.5 * (1 + erf((ratio - xi) / (h * SQRT2))), 0) / xs.length;
+}
+
 /** Chance the final line ends at or below `ratio` x forecast. */
 export function cdf(xs: number[], ratio: number): number {
+  return cdfAt(xs, bandwidth(xs), ratio);
+}
+
+/** Chance `score` makes each tier (its line ends at or below the score), by percentile.
+ *  Every tier's line shares the curve's shape, scaled to that tier's forecast damage. */
+export function chances(xs: number[], cells: Cell[], score: number): Map<number, number> {
   const h = bandwidth(xs);
-  return xs.reduce((s, xi) => s + 0.5 * (1 + erf((ratio - xi) / (h * SQRT2))), 0) / xs.length;
+  return new Map(cells.map((c) => [c.percentile, cdfAt(xs, h, score / c.value)]));
 }
 
 /** The ratio below which the final line ends with chance `q`. */
@@ -74,7 +83,7 @@ export function quantile(xs: number[], q: number): number {
   let hi = Math.max(...xs) + 8 * h;
   for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
-    if (xs.reduce((s, xi) => s + 0.5 * (1 + erf((mid - xi) / (h * SQRT2))), 0) / xs.length < q) lo = mid;
+    if (cdfAt(xs, h, mid) < q) lo = mid;
     else hi = mid;
   }
   return (lo + hi) / 2;
@@ -103,13 +112,26 @@ export function chanceText(c: number): string {
   return `${Math.min(99, Math.max(1, Math.round(c * 100)))}%`;
 }
 
-/** The tier a score sits in: the smallest listed tier that contains it (top 0.89%
- *  is in the top 1%), the top tier above the curve, the last below it; 3% (or the
- *  first tier) with no score. */
-export function tierFor(cells: Cell[], where: Placement | null): number {
-  const pcts = cells.map((c) => c.percentile).sort((a, b) => a - b);
-  if (!where) return pcts.includes(3) ? 3 : pcts[0];
-  if (where.kind === "above") return pcts[0];
-  if (where.kind === "below") return pcts[pcts.length - 1];
-  return pcts.find((x) => x >= where.percentile - 1e-9) ?? pcts[pcts.length - 1];
+/** A table cell's chance: a whole percent, "<1%" / ">99%" at the ends, so a sure
+ *  tier and a hopeless one don't read as 99% and 1% odds. */
+export function chanceCell(c: number): string {
+  if (c < 0.005) return "<1%";
+  if (c > 0.995) return ">99%";
+  return chanceText(c);
+}
+
+/** The tier the slice opens on: the one whose chance is nearest even, where the
+ *  final line's spread decides it (a score between two tiers' ranges is nearly
+ *  sure of one and nearly out of the other); 3% (or the first tier) with no score.
+ *  Where chances have run out to 0 or 1 alike, the tier whose line is nearest the
+ *  score in log terms; the higher tier on a full tie. */
+export function tierFor(cells: Cell[], score: number | null, xs: number[]): number {
+  const sorted = [...cells].sort((a, b) => a.percentile - b.percentile);
+  if (!score) return sorted.some((c) => c.percentile === 3) ? 3 : sorted[0].percentile;
+  const odds = chances(xs, sorted, score);
+  const key = (c: Cell) => [Math.abs((odds.get(c.percentile) ?? 0) - 0.5), Math.abs(Math.log(score / c.value))];
+  return sorted.reduce((best, c) => {
+    const [a, b] = [key(c), key(best)];
+    return a[0] < b[0] - 1e-9 || (Math.abs(a[0] - b[0]) <= 1e-9 && a[1] < b[1] - 1e-12) ? c : best;
+  }).percentile;
 }

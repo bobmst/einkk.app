@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bandwidth, cdf, chanceText, density, quantile, ratios, tierFor } from "../src/lib/slice";
+import { bandwidth, cdf, chanceCell, chances, chanceText, density, quantile, ratios, tierFor } from "../src/lib/slice";
 import type { Prediction } from "../src/lib/outbox";
 
 const base = { prediction: 200, band: { lo: 184, hi: 216, level: 0.9, method: "conformal_walk_forward" } } as unknown as Prediction;
@@ -60,14 +60,54 @@ describe("tier slice", () => {
   });
 });
 
+describe("chances", () => {
+  const cells = [0.5, 0.7, 1, 2, 3, 5, 10].map((percentile) => ({ percentile, value: 100 / percentile }));
+  const xs = [0.97, 0.98, 0.99, 1, 1, 1.01, 1.02, 1.03];
+  it("gives each tier the slice's own chance", () => {
+    const odds = chances(xs, cells, 25);
+    for (const c of cells) expect(odds.get(c.percentile)).toBeCloseTo(cdf(xs, 25 / c.value), 12);
+  });
+  it("reads a score between two tiers' ranges as nearly sure of one, nearly out of the other", () => {
+    const odds = chances(xs, cells, 25);            // 3% line 33.3, 5% line 20
+    expect(odds.get(3)).toBeLessThan(0.01);
+    expect(odds.get(5)).toBeGreaterThan(0.99);
+  });
+});
+
+describe("chanceCell", () => {
+  it("marks the ends instead of rounding them to 1% and 99%", () => {
+    expect(chanceCell(0.001)).toBe("<1%");
+    expect(chanceCell(0.999)).toBe(">99%");
+    expect(chanceCell(0.006)).toBe("1%");
+    expect(chanceCell(0.42)).toBe("42%");
+  });
+});
+
 describe("tierFor", () => {
   const cells = [0.5, 0.7, 1, 2, 3, 5, 10].map((percentile) => ({ percentile, value: 100 / percentile }));
-  it("picks the tier the score sits in", () => {
-    expect(tierFor(cells, null)).toBe(3);
-    expect(tierFor(cells, { kind: "at", percentile: 0.89 })).toBe(1);
-    expect(tierFor(cells, { kind: "at", percentile: 2 })).toBe(2);
-    expect(tierFor(cells, { kind: "at", percentile: 3.4 })).toBe(5);
-    expect(tierFor(cells, { kind: "above", percentile: 0.5 })).toBe(0.5);
-    expect(tierFor(cells, { kind: "below", percentile: 10 })).toBe(10);
+  const xs = [0.97, 0.98, 0.99, 1, 1, 1.01, 1.02, 1.03];      // median 1
+  it("opens on 3% with no score", () => {
+    expect(tierFor(cells, null, xs)).toBe(3);
+    expect(tierFor(cells.filter((c) => c.percentile !== 3), null, xs)).toBe(0.5);
+  });
+  it("opens on the tier whose chance is nearest even", () => {
+    const odds = chances(xs, cells, 34);                     // just above the 3% line (33.3)
+    const nearest = [...odds].sort((a, b) => Math.abs(a[1] - 0.5) - Math.abs(b[1] - 0.5))[0][0];
+    expect(odds.get(3)).toBeGreaterThan(0.6);
+    expect(odds.get(3)).toBeLessThan(0.99);
+    expect(tierFor(cells, 34, xs)).toBe(nearest);
+    expect(tierFor(cells, 34, xs)).toBe(3);
+    expect(tierFor(cells, 40, xs)).toBe(3);                  // between 2% (50) and 3%, nearer 3%
+    expect(tierFor(cells, 25, xs)).toBe(5);                  // in the 3%-5% gap, nearer 5% (20)
+  });
+  it("follows the chance, not the distance, on a skewed curve", () => {
+    const skewed = [0.9, 0.97, 0.98, 0.99, 1, 1, 1.01, 1.01];   // a long low tail
+    const odds = chances(skewed, cells, 34);
+    const nearest = [...odds].sort((a, b) => Math.abs(a[1] - 0.5) - Math.abs(b[1] - 0.5))[0][0];
+    expect(tierFor(cells, 34, skewed)).toBe(nearest);
+  });
+  it("still ranks the tiers when every chance has run out", () => {
+    expect(tierFor(cells, 1000, xs)).toBe(0.5);              // above every tier
+    expect(tierFor(cells, 1, xs)).toBe(10);                  // below every tier
   });
 });

@@ -25,7 +25,7 @@ import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
 import { axisDamage, placement, regroupField, scoreToTenthB } from "@/lib/numbers";
 import type { Prediction } from "@/lib/outbox";
 import Slice from "./slice";
-import { tierFor } from "@/lib/slice";
+import { chanceCell, chances, ratios, tierFor } from "@/lib/slice";
 
 type Band = { level: number; lo: number; hi: number };
 
@@ -142,8 +142,10 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const hidden = () => null;                                  // kept out of the tooltip
   const value = scoreToTenthB(typed);
   const where = value ? placement(cells, value) : null;
-  // the tier follows the score until a chip is picked for that same score
-  const tier = picked && picked.score === value ? picked.tier : tierFor(cells, where);
+  const xs = ratios(p);
+  const odds = value ? chances(xs, cells, value) : null;           // the chance it makes each tier
+  // the slice opens on the tier still in question, until a tier is picked for that same score
+  const tier = picked && picked.score === value ? picked.tier : tierFor(cells, value, xs);
   const pctText = (x: number) => (x >= 1 ? x.toFixed(1) : x.toFixed(2)).replace(/\.?0+$/, "");
 
   // Tooltip rows, top to bottom: widest ↑ … narrowest ↑, the forecast, narrowest ↓ … widest ↓.
@@ -229,24 +231,33 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
         <Slice p={p} cells={cells} score={value} tier={tier} lang={lang} t={t}
                onTier={(x) => setPicked({ tier: x, score: value })} />
 
-        <Table size="small" sx={{ mt: 2 }}>
+        {/* a fourth column on a phone: narrower padding, so each range stays on one line */}
+        <Table size="small" sx={{ mt: 2, ...(odds && { "& .MuiTableCell-root": { px: { xs: 1, sm: 2 } } }) }}>
           <TableHead>
             <TableRow>
               <TableCell>{t.tier}</TableCell>
               <TableCell align="right">{t.damage}</TableCell>
               <TableCell align="right">{rangeLabel(t, widest.level)}</TableCell>
+              {odds && <TableCell align="right">{t.yourChance}</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
             {cells.map((c, k) => (
-              <TableRow key={c.percentile} selected={c.percentile === tier}>
+              <TableRow key={c.percentile} selected={c.percentile === tier} hover={!!odds}
+                        onClick={odds ? () => setPicked({ tier: c.percentile, score: value }) : undefined}
+                        sx={odds ? { cursor: "pointer" } : undefined}>
                 <TableCell>{c.percentile}%</TableCell>
                 <TableCell align="right" sx={{ fontWeight: c.percentile === tier ? 700 : 400 }}>
                   {c.extrapolated ? "~" : ""}{damage(lang, c.value)}
                 </TableCell>
-                <TableCell align="right" sx={{ color: "text.secondary" }}>
+                <TableCell align="right" sx={{ color: "text.secondary", whiteSpace: odds ? "nowrap" : undefined }}>
                   {damage(lang, at(widest, "lo")[k])} – {damage(lang, at(widest, "hi")[k])}
                 </TableCell>
+                {odds && (
+                  <TableCell align="right" sx={{ color: "warning.main", fontWeight: 700 }}>
+                    {chanceCell(odds.get(c.percentile) ?? 0)}
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
