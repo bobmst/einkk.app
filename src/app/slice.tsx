@@ -7,7 +7,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { alpha, useTheme } from "@mui/material/styles";
+import { alpha, useColorScheme, useTheme } from "@mui/material/styles";
 import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
 import { LineChart } from "@mui/x-charts/LineChart";
 import { damage, type Lang, type Text } from "@/lib/i18n";
@@ -19,6 +19,10 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
   lang: Lang; t: Text;
 }) {
   const theme = useTheme();
+  const { mode, systemMode } = useColorScheme();
+  const dark = (mode === "system" ? systemMode : mode) === "dark";
+  const range = { stroke: (theme.vars ?? theme).palette.text.secondary, strokeDasharray: "4 3",
+                  strokeOpacity: dark ? 0.75 : 1, shapeRendering: "crispEdges" as const };
   const cell = cells.find((c) => c.percentile === tier) ?? cells[0];
   const xs = ratios(p);
   // the 9-in-10 range comes from the same curve as the chance; the line marks the
@@ -58,10 +62,14 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
           hideLegend
           slotProps={{ tooltip: { trigger: "none" } }}
         >
-          <ChartsReferenceLine x={lo} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.secondary, strokeDasharray: "4 3" }} />
-          <ChartsReferenceLine x={hi} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.secondary, strokeDasharray: "4 3" }} />
-          {/* theme.vars follows the colour scheme; theme.palette is the light one */}
-          <ChartsReferenceLine x={cell.value} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.primary }} />
+          {/* snapped to whole pixels: at fractional positions one dashed line came out
+              crisp and the other smeared paler, though both are the same colour */}
+          <ChartsReferenceLine x={lo} lineStyle={range} />
+          <ChartsReferenceLine x={hi} lineStyle={range} />
+          {/* theme.vars follows the colour scheme; theme.palette is the light one.
+              Solid white is harsh on the dark card, so the line is softened there. */}
+          <ChartsReferenceLine x={cell.value} lineStyle={{ stroke: (theme.vars ?? theme).palette.text.primary,
+                                                         strokeOpacity: dark ? 0.65 : 1 }} />
           {scoreOnAxis && (
             <ChartsReferenceLine x={score} label={t.you} labelAlign="start"
                                  lineStyle={{ stroke: warn, strokeWidth: 2 }}

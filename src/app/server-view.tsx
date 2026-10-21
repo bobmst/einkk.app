@@ -203,7 +203,8 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           >
             {/* theme.vars, not theme.palette: with CSS variables the palette holds the
                 light scheme's colours. The divider all but vanishes on the dark card. */}
-            <ChartsReferenceLine x={3} lineStyle={{ stroke: dark ? (theme.vars ?? theme).palette.text.secondary : (theme.vars ?? theme).palette.divider }} />
+            <ChartsReferenceLine x={3} lineStyle={{ stroke: dark ? (theme.vars ?? theme).palette.text.secondary : (theme.vars ?? theme).palette.divider,
+                                                    strokeOpacity: dark ? 0.6 : 1, shapeRendering: "crispEdges" }} />
             {where && value && (
               <YouMarker pct={where.percentile} value={value} label={t.you} color={theme.palette.warning.main}
                          onCurve={where.kind === "at"} />
