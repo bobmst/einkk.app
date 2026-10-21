@@ -1,6 +1,6 @@
 "use client";
 // A slice through the damage-by-rank chart at one tier: where that tier's final
-// line may land (a curve from the forecast's signed past misses, the forecast
+// line may land (a curve from the forecast's past misses both ways round, the forecast
 // and the 9-in-10 range marked), and, with the player's score entered, the
 // chance it makes that tier.
 import Box from "@mui/material/Box";
