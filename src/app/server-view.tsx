@@ -238,7 +238,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
               <TableCell>{t.tier}</TableCell>
               <TableCell align="right">{t.damage}</TableCell>
               <TableCell align="right">{rangeLabel(t, widest.level)}</TableCell>
-              {odds && <TableCell align="right">{t.yourChance}</TableCell>}
+              {odds && <TableCell align="right">{t.tierChance}</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -254,7 +254,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
                   {damage(lang, at(widest, "lo")[k])} – {damage(lang, at(widest, "hi")[k])}
                 </TableCell>
                 {odds && (
-                  <TableCell align="right" sx={{ color: "warning.main", fontWeight: 700 }}>
+                  <TableCell align="right" sx={{ fontWeight: c.percentile === tier ? 700 : 400 }}>
                     {chanceCell(odds.get(c.percentile) ?? 0)}
                   </TableCell>
                 )}
