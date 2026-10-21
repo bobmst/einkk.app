@@ -86,8 +86,8 @@ describe("chances", () => {
 });
 
 describe("chanceCell", () => {
-  it("marks the ends instead of rounding them to 1% and 99%", () => {
-    expect(chanceCell(0.001)).toBe("<1%");
+  it("leaves a hopeless tier blank and marks a sure one instead of rounding to 99%", () => {
+    expect(chanceCell(0.001)).toBe("");
     expect(chanceCell(0.999)).toBe(">99%");
     expect(chanceCell(0.006)).toBe("1%");
     expect(chanceCell(0.42)).toBe("42%");

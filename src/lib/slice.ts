@@ -113,10 +113,10 @@ export function chanceText(c: number): string {
   return `${Math.min(99, Math.max(1, Math.round(c * 100)))}%`;
 }
 
-/** A table cell's chance: a whole percent, "<1%" / ">99%" at the ends, so a sure
- *  tier and a hopeless one don't read as 99% and 1% odds. */
+/** A table cell's chance: a whole percent, blank under 1% and ">99%" at the top,
+ *  so a sure tier and a hopeless one don't read as 99% and 1% odds. */
 export function chanceCell(c: number): string {
-  if (c < 0.005) return "<1%";
+  if (c < 0.005) return "";
   if (c > 0.995) return ">99%";
   return chanceText(c);
 }
