@@ -28,10 +28,11 @@ import {
   LANG_NAMES, LANGS, SERVER_ORDER, duration, langStore, serverName, serverStore, text, type Lang,
 } from "@/lib/i18n";
 import {
-  finalWindowOpen, health, latestPrediction, outbox, predictionKey, stateAt,
-  type Health, type History, type Prediction, type Predictions, type Season, type Server,
+  finalWindowOpen, finalsKey, health, latestPrediction, outbox, predictionKey, stateAt,
+  type Finals, type Health, type History, type Prediction, type Predictions, type Season, type Server,
 } from "@/lib/outbox";
 import { saveSnapshot, snapshotStore, type Snapshot } from "@/lib/snapshot";
+import FinalsView from "./finals-view";
 import ReportForm from "./report-form";
 import SeasonCard from "./season-card";
 import { Distribution, Forecast } from "./server-view";
@@ -52,6 +53,7 @@ interface Data {
   season: Season | null;
   predictions: Predictions;
   history: History | null;
+  finals?: Finals | null;               // once the raid has closed (solo_raid_predict #63)
 }
 
 // health (site mode, Turnstile key) doesn't change while the page is open: fetched once.
@@ -66,9 +68,12 @@ async function load(server: Server, known?: Health | null): Promise<Data> {
   if (!season) return { health: h, season, predictions: {}, history };
   // The Worker's read of season.json and the page's are cached separately (30 s each),
   // so right at a new season they can name different seasons: the page's decides.
-  const prediction = current && current.season !== season.season
-    ? await outbox<Prediction>(predictionKey(season.season, server)) : current;
-  return { health: h, season, predictions: { [server]: prediction }, history };
+  const ended = ["measuring", "closed"].includes(stateAt(season, Date.now()));
+  const [prediction, finals] = await Promise.all([
+    current && current.season !== season.season ? outbox<Prediction>(predictionKey(season.season, server)) : current,
+    ended ? outbox<Finals>(finalsKey(season.season)) : null,
+  ]);
+  return { health: h, season, predictions: { [server]: prediction }, history, finals };
 }
 
 function ThemeToggle({ label }: { label: string }) {
@@ -249,7 +254,12 @@ export default function Dashboard() {
 
               {/* after the close the forecast and its table would only invite players to report
                   their numbers back as final results: hidden until this season's own lines exist */}
-              {prediction && ended ? (
+              {ended && data?.finals?.season === season.season ? (
+                <Box sx={{ gridArea: "forecast" }}>
+                  <FinalsView finals={data.finals} server={server} lang={lang} t={t} now={now}
+                    entry={data.history?.entries.find((e) => e.season === season.season && e.server === server)} />
+                </Box>
+              ) : prediction && ended ? (
                 <Typography variant="body2" color="text.secondary" sx={{ gridArea: "forecast" }}>
                   {t.distAfterClose}
                 </Typography>

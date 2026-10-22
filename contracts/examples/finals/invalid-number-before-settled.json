@@ -1,0 +1,8 @@
+{
+  "schema_version": "0.1.0",
+  "issued_at": "2026-10-22T02:00:00Z",
+  "season": 42,
+  "settles_at": "2026-10-22T08:00:00Z",
+  "settled": false,
+  "servers": [{"server": "jp", "players": 12, "near_3": 2, "line": {"value": 269.33, "confirmed": true}}]
+}

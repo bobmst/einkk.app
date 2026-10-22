@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/finals.schema.json",
+  "title": "A season's final results (draft 0.1.0)",
+  "description": "What players' final results say about each server once a raid has closed (solo_raid_predict #63). The private engine writes it to the outbox as finals/s<n>.json from the raid's close on. Until settles_at it carries only how many results are in: no number, so nothing on the page can be copied back as a final result. After it, each server's 3% line for the season, and its curve and tier table once there are enough results near 3%. All damage in 0.1B.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "issued_at",
+    "season",
+    "settles_at",
+    "settled",
+    "servers"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "issued_at": {
+      "$ref": "#/$defs/utc"
+    },
+    "season": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "settles_at": {
+      "description": "When the season's results are shown: a fixed time after the raid's close, once the in-game ranking can no longer change.",
+      "$ref": "#/$defs/utc"
+    },
+    "settled": {
+      "description": "Whether settles_at had passed when the engine wrote this document. false: the servers carry counts only.",
+      "type": "boolean"
+    },
+    "servers": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "$ref": "#/$defs/server"
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "settled": {
+        "const": false
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "servers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "line": false,
+            "points": false,
+            "cells": false
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "server",
+        "players",
+        "near_3"
+      ],
+      "dependentRequired": {
+        "points": [
+          "cells",
+          "line"
+        ],
+        "cells": [
+          "points",
+          "line"
+        ]
+      },
+      "properties": {
+        "server": {
+          "enum": [
+            "jp",
+            "kr",
+            "na",
+            "sea",
+            "tw",
+            "gb"
+          ]
+        },
+        "players": {
+          "description": "Distinct players with a final result for this server and season, from every source we keep (our survey, final results sent to this site, community collection).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "near_3": {
+          "description": "Of those, the distinct players whose final rank is inside 2.85-3.15%. Three of them confirm a server's 3% line (JP's is confirmed by the official last-day line instead).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "line": {
+          "description": "The season's 3% line. confirmed false: read from fewer than three results near 3%, so no forecast is graded against it.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "confirmed"
+          ],
+          "properties": {
+            "value": {
+              "$ref": "#/$defs/damage"
+            },
+            "confirmed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "points": {
+          "description": "The results the curve is drawn through, one per result with a % rank. Only when at least five distinct players are inside 2.5-3.5%.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rank_pc",
+              "damage"
+            ],
+            "properties": {
+              "rank_pc": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100
+              },
+              "damage": {
+                "$ref": "#/$defs/damage"
+              }
+            }
+          }
+        },
+        "cells": {
+          "description": "The tier table: the damage at each published percentile on the server's curve through the line. extrapolated marks a tier beyond the results we have.",
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "percentile",
+              "value"
+            ],
+            "properties": {
+              "percentile": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100
+              },
+              "value": {
+                "$ref": "#/$defs/damage"
+              },
+              "extrapolated": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "damage": {
+      "description": "0.1B (1e8) units, the unit every document uses.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 100000
+    },
+    "utc": {
+      "description": "ISO 8601 in UTC, with a Z suffix.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    }
+  }
+}

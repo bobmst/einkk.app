@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.1.0",
+  "issued_at": "2026-10-22T20:05:00Z",
+  "season": 42,
+  "settles_at": "2026-10-22T08:00:00Z",
+  "settled": true,
+  "servers": [
+    {"server": "jp", "players": 29, "near_3": 4, "line": {"value": 269.33, "confirmed": true},
+     "points": [{"rank_pc": 0.08, "damage": 373.01}, {"rank_pc": 2.9, "damage": 271.3}, {"rank_pc": 3.16, "damage": 265.25}],
+     "cells": [{"percentile": 0.5, "value": 330.1}, {"percentile": 3, "value": 269.33},
+               {"percentile": 10, "value": 188.2, "extrapolated": true}]},
+    {"server": "kr", "players": 3, "near_3": 0, "line": {"value": 307.35, "confirmed": false}},
+    {"server": "na", "players": 0, "near_3": 0}
+  ]
+}

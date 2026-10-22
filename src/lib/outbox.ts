@@ -88,6 +88,30 @@ export interface History {
   entries: HistoryEntry[];
 }
 
+/** One server's final results in finals/s<n>.json (contracts/finals.schema.json). */
+export interface FinalsServer {
+  server: Server;
+  players: number;                                  // distinct players with a final result
+  near_3: number;                                   // of them, inside 2.85-3.15%
+  line?: { value: number; confirmed: boolean };     // only once settled
+  points?: { rank_pc: number; damage: number }[];   // with enough results near 3%
+  cells?: Cell[];
+}
+
+/**
+ * What players' final results say once a raid has closed. Before settles_at the
+ * engine writes counts only, so nothing on the page can be copied back as a result.
+ */
+export interface Finals {
+  issued_at: string;
+  season: number;
+  settles_at: string;
+  settled: boolean;
+  servers: FinalsServer[];
+}
+
+export const finalsKey = (season: number) => `finals/s${season}.json`;
+
 /** A server's latest forecast for a season: absent from a map until fetched, null when none is published. */
 export type Predictions = Partial<Record<Server, Prediction | null>>;
 
