@@ -10,6 +10,7 @@ engine. This directory is the single source of truth for both sides.
 | `final-report.schema.json` | site (inbox, `final_reports`) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.1.0 (draft) |
 | `history.schema.json` | engine (outbox) | site | 0.3.0 (draft): the band is optional, `hit: null` without one (0.2.0); `final.estimate` and the `survey_and_reports` source (0.3.0) |
+| `finals.schema.json` | engine (outbox, `finals/s<n>.json`) | site | 0.1.0 (draft) |
 
 `report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
 only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_at` and `client`;
@@ -32,6 +33,14 @@ accepts only `https://tally.so/` URLs, because the site renders this value as a 
   `reports` (final results sent to this site after the raid) or `survey_and_reports`. `n` counts
   distinct players and is required for those sources. `estimate: true` marks a line read off the
   server's curve because no observation sat near 3%; forecasts are not graded against it.
+
+`finals.schema.json` is what players' final results say about each server once a raid has closed
+(`finals/s<n>.json`). Until `settles_at`, a fixed time after the close, it carries only counts:
+how many players sent a result, and how many sit near 3%. No number, because any number on the page
+could be sent back to us as a final result. After it, each server's 3% line for the season
+(`confirmed` with three or more results inside 2.85–3.15%, or JP's official last-day line), and,
+with five or more players inside 2.5–3.5%, the results themselves and the tier table on the curve
+through them.
 
 JP's final line is the last official-day value from community posts, copied by hand, so it is
 `manual_collection` too. Nothing is taken from another site's compiled data. Legacy bands carry

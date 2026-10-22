@@ -67,7 +67,7 @@ export default function TrackRecord({ entries, server, lang, t, current, measuri
             </TableHead>
             <TableBody>
               {mine.map((e) => (
-                <TableRow key={e.season}>
+                <TableRow key={e.season} selected={measuring && e.season === current}>
                   <TableCell>{e.season}</TableCell>
                   <TableCell align="right">
                     {e.forecast !== undefined ? damage(lang, e.forecast) : "—"}
