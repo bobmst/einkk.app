@@ -4,6 +4,7 @@
 // match the season survey (accent #0070D7).
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { themeStorage } from "@/lib/theme-storage";
 
 const theme = createTheme({
   cssVariables: { colorSchemeSelector: "class" },
@@ -30,7 +31,7 @@ const theme = createTheme({
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider theme={theme} defaultMode="system">
+    <ThemeProvider theme={theme} defaultMode="system" storageManager={themeStorage}>
       <CssBaseline enableColorScheme />
       {children}
     </ThemeProvider>

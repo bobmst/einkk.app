@@ -32,6 +32,7 @@ import {
   type Finals, type Health, type History, type Prediction, type Predictions, type Season, type Server,
 } from "@/lib/outbox";
 import { saveSnapshot, snapshotStore, type Snapshot } from "@/lib/snapshot";
+import { chooseMode } from "@/lib/theme-storage";
 import FinalsView from "./finals-view";
 import ReportForm from "./report-form";
 import SeasonCard from "./season-card";
@@ -82,7 +83,11 @@ function ThemeToggle({ label }: { label: string }) {
   const dark = (mode === "system" ? systemMode : mode) === "dark";
   return (
     <Tooltip title={label}>
-      <IconButton onClick={() => setMode(dark ? "light" : "dark")} aria-label={label}>
+      <IconButton onClick={() => {
+        const next = dark ? "light" : "dark";
+        chooseMode(next);                                 // the one write this tab makes (#62)
+        setMode(next);
+      }} aria-label={label}>
         {dark ? <LightModeOutlined /> : <DarkModeOutlined />}
       </IconButton>
     </Tooltip>
