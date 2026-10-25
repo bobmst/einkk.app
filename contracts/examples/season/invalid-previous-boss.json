@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.2.0",
+  "issued_at": "2026-11-10T03:00:00Z",
+  "season": 43,
+  "boss": {
+    "name": "Example Boss",
+    "element": "wind"
+  },
+  "starts_at": "2026-11-24T20:00:00Z",
+  "ends_at": "2026-11-29T19:59:00Z",
+  "state": "upcoming",
+  "survey": null,
+  "previous": {
+    "season": 42,
+    "boss": {
+      "name": "Example Boss",
+      "element": "fire"
+    },
+    "starts_at": "2026-10-27T20:00:00Z",
+    "ends_at": "2026-11-01T19:59:00Z",
+    "survey": null
+  }
+}
