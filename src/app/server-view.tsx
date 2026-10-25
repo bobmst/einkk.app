@@ -22,10 +22,10 @@ import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
 import { useDrawingArea, useXScale, useYScale } from "@mui/x-charts/hooks";
 import { LineChart, lineClasses } from "@mui/x-charts/LineChart";
 import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
-import { axisDamage, placement, regroupField, scoreToTenthB } from "@/lib/numbers";
+import { axisDamage, parseRank, placement, regroupField, scoreToTenthB } from "@/lib/numbers";
 import type { Prediction } from "@/lib/outbox";
 import Slice from "./slice";
-import { chanceCell, chances, ratios, tierFor } from "@/lib/slice";
+import { chanceCell, chances, closedTiers, ratios, tierFor } from "@/lib/slice";
 
 type Band = { level: number; lo: number; hi: number };
 
@@ -135,6 +135,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const dark = useDark();
   const [mine, setMine] = useState("");
   const typed = useDeferredValue(mine);                       // the charts catch up; typing never waits
+  const [rankTyped, setRankTyped] = useState("");             // the in-game % rank shown with it
   const [picked, setPicked] = useState<{ tier: number; score: number | null } | null>(null);
   const cells = [...(p.cells ?? [])].sort((a, b) => a.percentile - b.percentile);
   if (cells.length < 2) return null;
@@ -149,8 +150,10 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const where = value ? placement(cells, value) : null;
   const xs = ratios(p);
   const odds = value ? chances(xs, cells, value) : null;           // the chance it makes each tier
+  // tiers the in-game rank already puts this score past: only a higher score gets in
+  const closed = closedTiers(cells, value ? parseRank(rankTyped) : null);
   // the slice opens on the tier still in question, until a tier is picked for that same score
-  const tier = picked && picked.score === value ? picked.tier : tierFor(cells, value, xs);
+  const tier = picked && picked.score === value ? picked.tier : tierFor(cells, value, xs, closed);
   const pctText = (x: number) => (x >= 1 ? x.toFixed(1) : x.toFixed(2)).replace(/\.?0+$/, "");
 
   // Tooltip rows, top to bottom: widest ↑ … narrowest ↑, the forecast, narrowest ↓ … widest ↓.
@@ -226,6 +229,17 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
                          input: { endAdornment: value ? (
                            <InputAdornment position="end">{damage(lang, value)}</InputAdornment>) : null } }}
           />
+          {value && (
+            <TextField
+              size="small"
+              value={rankTyped}
+              onChange={(e) => setRankTyped(e.target.value)}
+              placeholder={t.rankPlaceholder}
+              helperText={t.rankHelp}
+              slotProps={{ htmlInput: { inputMode: "decimal" },
+                           input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
+            />
+          )}
           {where && (
             <Box>
               <Chip color="warning" variant="outlined" label={
@@ -236,7 +250,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           )}
         </Stack>
 
-        <Slice p={p} cells={cells} score={value} tier={tier} lang={lang} t={t}
+        <Slice p={p} cells={cells} score={value} tier={tier} closed={closed.has(tier)} lang={lang} t={t}
                onTier={(x) => setPicked({ tier: x, score: value })} />
 
         {/* a fourth column on a phone: narrower padding, so each range stays on one line */}
@@ -262,9 +276,13 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
                   {damage(lang, at(widest, "lo")[k])} – {damage(lang, at(widest, "hi")[k])}
                 </TableCell>
                 {odds && (
-                  <TableCell align="right" sx={{ fontWeight: c.percentile === tier ? 700 : 400 }}>
-                    {chanceCell(odds.get(c.percentile) ?? 0)}
-                  </TableCell>
+                  closed.has(c.percentile) ? (
+                    <TableCell align="right" sx={{ color: "text.secondary" }}>{t.closedCell}</TableCell>
+                  ) : (
+                    <TableCell align="right" sx={{ fontWeight: c.percentile === tier ? 700 : 400 }}>
+                      {chanceCell(odds.get(c.percentile) ?? 0)}
+                    </TableCell>
+                  )
                 )}
               </TableRow>
             ))}

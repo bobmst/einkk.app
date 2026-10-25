@@ -121,14 +121,25 @@ export function chanceCell(c: number): string {
   return chanceText(c);
 }
 
+/** The tiers a score can no longer make, from the in-game rank shown with it: ranked
+ *  past the top p% now, it can only fall further as others pass it, so no final line
+ *  lets it in; only a higher score can (bobmst/einkk.app#66). Empty without a rank. */
+export function closedTiers(cells: Cell[], rank: number | null): Set<number> {
+  return new Set(rank === null ? [] : cells.filter((c) => rank > c.percentile).map((c) => c.percentile));
+}
+
 /** The tier the slice opens on: the one whose chance is nearest even, where the
  *  final line's spread decides it (a score between two tiers' ranges is nearly
  *  sure of one and nearly out of the other); 3% (or the first tier) with no score.
  *  Where chances have run out to 0 or 1 alike, the tier whose line is nearest the
- *  score in log terms; the higher tier on a full tie. */
-export function tierFor(cells: Cell[], score: number | null, xs: number[]): number {
-  const sorted = [...cells].sort((a, b) => a.percentile - b.percentile);
-  if (!score) return sorted.some((c) => c.percentile === 3) ? 3 : sorted[0].percentile;
+ *  score in log terms; the higher tier on a full tie. Tiers in `closed` are passed
+ *  over while any other is left; with every tier closed, the widest. */
+export function tierFor(cells: Cell[], score: number | null, xs: number[],
+                        closed: Set<number> = new Set()): number {
+  const all = [...cells].sort((a, b) => a.percentile - b.percentile);
+  if (!score) return all.some((c) => c.percentile === 3) ? 3 : all[0].percentile;
+  const sorted = all.filter((c) => !closed.has(c.percentile));
+  if (!sorted.length) return all[all.length - 1].percentile;
   const odds = chances(xs, sorted, score);
   const key = (c: Cell) => [Math.abs((odds.get(c.percentile) ?? 0) - 0.5), Math.abs(Math.log(score / c.value))];
   return sorted.reduce((best, c) => {
