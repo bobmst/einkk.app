@@ -25,7 +25,8 @@ import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
 import { axisDamage, parseRank, placement, regroupField, scoreToTenthB } from "@/lib/numbers";
 import type { Prediction } from "@/lib/outbox";
 import Slice from "./slice";
-import { chanceCell, chances, closedTiers, ratios, tierFor } from "@/lib/slice";
+import { chanceCell, chanceText, chances, closedTiers, ratios, tierFor } from "@/lib/slice";
+import { finalRank, stayChance } from "@/lib/finalrank";
 
 type Band = { level: number; lo: number; hi: number };
 
@@ -151,7 +152,10 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const xs = ratios(p);
   const odds = value ? chances(xs, cells, value) : null;           // the chance it makes each tier
   // tiers the in-game rank already puts this score past: only a higher score gets in
-  const closed = closedTiers(cells, value ? parseRank(rankTyped) : null);
+  const rank = value ? parseRank(rankTyped) : null;
+  const closed = closedTiers(cells, rank);
+  // where that rank ends at the close if the score stays: the engine's table (#68)
+  const ends = rank ? finalRank(p, rank) : null;
   // the slice opens on the tier still in question, until a tier is picked for that same score
   const tier = picked && picked.score === value ? picked.tier : tierFor(cells, value, xs, closed);
   const pctText = (x: number) => (x >= 1 ? x.toFixed(1) : x.toFixed(2)).replace(/\.?0+$/, "");
@@ -239,6 +243,18 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
               slotProps={{ htmlInput: { inputMode: "decimal" },
                            input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
             />
+          )}
+          {ends && (
+            <Box>
+              <Typography variant="body2">
+                {t.finalRank(pctText(ends.median), pctText(ends.lo), pctText(ends.hi), pctLabel(ends.level))}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {cells.filter((c) => !closed.has(c.percentile)).slice(0, 3)
+                  .map((c) => t.stayIn(c.percentile, chanceText(stayChance(ends, c.percentile)))).join(" · ")}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">{t.finalRankNote}</Typography>
+            </Box>
           )}
           {where && (
             <Box>

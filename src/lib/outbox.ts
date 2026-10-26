@@ -101,6 +101,9 @@ export interface Prediction {
   inputs: { anchors: { day: number; value: number }[] };
   // reference only, never used by the forecast: this server's final line with today's reports (contract 0.5.0)
   shadow_nowcast?: { day: number; final: number; reports_used: number; servers: Partial<Record<Server, number>> };
+  // where a rank read when this was issued is likely to end at the close, per start rank (contract 0.7.0)
+  rank_slide?: { hours_to_close: number; level: number;
+                 rows: { rank_pc: number; median: number; lo: number; hi: number }[] };
 }
 
 export interface HistoryEntry {
