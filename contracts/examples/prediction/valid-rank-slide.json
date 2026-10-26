@@ -1,0 +1,102 @@
+{
+  "schema_version": "0.7.0",
+  "run_id": "s42-jp-2026-10-31T04:15Z",
+  "revision": 1,
+  "issued_at": "2026-10-31T04:15:00Z",
+  "season": 42,
+  "server": "jp",
+  "model_version": "router-v2.3",
+  "state": {
+    "raid_day": 5,
+    "day_fraction": 0,
+    "hours_to_close": 24,
+    "known_days": 4,
+    "method": "router"
+  },
+  "target": {
+    "percentile": 3,
+    "unit": "0.1B",
+    "horizon": "raid_close"
+  },
+  "prediction": 226.25,
+  "band": {
+    "lo": 217.32,
+    "hi": 235.18,
+    "level": 0.9,
+    "method": "conformal_walk_forward"
+  },
+  "bands": [
+    {
+      "level": 0.5,
+      "lo": 223.05,
+      "hi": 229.45
+    },
+    {
+      "level": 0.75,
+      "lo": 220.8,
+      "hi": 231.7
+    },
+    {
+      "level": 0.9,
+      "lo": 217.32,
+      "hi": 235.18
+    }
+  ],
+  "provisional": false,
+  "inputs": {
+    "anchors": [
+      {
+        "day": 1,
+        "value": 73.35,
+        "source": "official"
+      },
+      {
+        "day": 2,
+        "value": 118.59,
+        "source": "official"
+      },
+      {
+        "day": 3,
+        "value": 167.73,
+        "source": "official"
+      },
+      {
+        "day": 4,
+        "value": 186.25,
+        "source": "official"
+      }
+    ],
+    "reports_used_today": 0,
+    "nowcast": null
+  },
+  "dq": {
+    "reports_seen_today": 0,
+    "reports_rejected_today": 0,
+    "blocking": false,
+    "notes": []
+  },
+  "rank_slide": {
+    "hours_to_close": 30.0,
+    "level": 0.9,
+    "rows": [
+      {
+        "rank_pc": 1,
+        "median": 2,
+        "lo": 1.6,
+        "hi": 2.5
+      },
+      {
+        "rank_pc": 3,
+        "median": 5,
+        "lo": 4,
+        "hi": 6.25
+      },
+      {
+        "rank_pc": 10,
+        "median": 15,
+        "lo": 12,
+        "hi": 18.75
+      }
+    ]
+  }
+}
