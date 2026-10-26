@@ -247,7 +247,7 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
           {ends && (
             <Box>
               <Typography variant="body2">
-                {t.finalRank(pctText(ends.median), pctText(ends.lo), pctText(ends.hi))}
+                {t.finalRank(pctText(ends.median), pctText(ends.lo), pctText(ends.hi), pctLabel(ends.level))}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {cells.filter((c) => !closed.has(c.percentile)).slice(0, 3)

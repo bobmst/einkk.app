@@ -4,7 +4,7 @@
 // table: it interpolates between rows and turns the range into a chance per tier.
 import type { Prediction } from "./outbox";
 
-export type FinalRank = { median: number; lo: number; hi: number; mu: number; sd: number };
+export type FinalRank = { median: number; lo: number; hi: number; level: number; mu: number; sd: number };
 
 /** The table's row at `pc`%, interpolated in log rank; null without a table or outside
  *  the ranks it covers (never extrapolated). */
@@ -20,7 +20,7 @@ export function finalRank(p: Prediction, pc: number): FinalRank | null {
   const at = (k: "median" | "lo" | "hi") => Math.exp(Math.log(a[k]) + w * (Math.log(b[k]) - Math.log(a[k])));
   const [median, lo, hi] = [at("median"), at("lo"), at("hi")];
   const sd = (Math.log(hi) - Math.log(lo)) / (2 * normalQuantile(0.5 + s.level / 2));
-  return { median, lo, hi, mu: Math.log(median), sd: Math.max(sd, 1e-6) };
+  return { median, lo, hi, level: s.level, mu: Math.log(median), sd: Math.max(sd, 1e-6) };
 }
 
 /** Chance the rank is still within the top `tier`% at the close (log-normal through the range). */
