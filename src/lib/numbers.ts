@@ -52,15 +52,6 @@ export function scoreToTenthB(input: string): number | null {
   return digits ? Number(digits) / 1e8 : null;
 }
 
-/** An in-game % rank as typed ("2.35", "2,35 %", "top 2.35%") as a percentile, or null
- *  when there is none or it lies outside (0, 100]. */
-export function parseRank(input: string): number | null {
-  const m = input.replace(",", ".").match(/\d*\.?\d+/);
-  if (!m) return null;
-  const v = Number(m[0]);
-  return v > 0 && v <= 100 ? v : null;
-}
-
 /** Short axis label for a 0.1B value: "220" (亿/億/억) or "22B". */
 export function axisDamage(lang: Lang, value: number): string {
   return lang === "en" || lang === "es" ? `${(value / 10).toFixed(0)}B` : value.toFixed(0);
