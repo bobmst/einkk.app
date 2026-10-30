@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { digitCheck, groupDigits, parseRank, raidProgress, regroup, valueAt } from "./numbers";
+import { digitCheck, groupDigits, raidProgress, regroup, valueAt } from "./numbers";
 
 describe("regroup", () => {
   it("keeps the caret after the digit typed mid-number", () => {
@@ -71,20 +71,5 @@ describe("digitCheck", () => {
     expect(valueAt(cells, 0.1)).toBe(300);
     expect(valueAt(cells, 2)!).toBeGreaterThan(220);
     expect(valueAt(cells, 2)!).toBeLessThan(260);
-  });
-});
-
-describe("parseRank", () => {
-  it("reads a typed % rank, with a decimal comma or a % sign", () => {
-    expect(parseRank("2.35")).toBe(2.35);
-    expect(parseRank("2,35 %")).toBe(2.35);
-    expect(parseRank("top 0.7%")).toBe(0.7);
-    expect(parseRank(".5")).toBe(0.5);
-  });
-
-  it("is null when empty or outside (0, 100]", () => {
-    expect(parseRank("")).toBeNull();
-    expect(parseRank("0")).toBeNull();
-    expect(parseRank("120")).toBeNull();
   });
 });

@@ -2,8 +2,7 @@
 // A slice through the damage-by-rank chart at one tier: where that tier's final
 // line may land (a curve from the forecast's past misses both ways round, the forecast
 // and the 9-in-10 range marked), and, with the player's score entered, the
-// chance it makes that tier (or, when the rank shown in game already puts it past
-// that tier, that only a higher score gets in).
+// chance it makes that tier.
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
@@ -15,9 +14,9 @@ import { damage, type Lang, type Text } from "@/lib/i18n";
 import type { Cell, Prediction } from "@/lib/outbox";
 import { cdf, chanceText, density, quantile, ratios } from "@/lib/slice";
 
-export default function Slice({ p, cells, score, tier, closed = false, onTier, lang, t }: {
-  p: Prediction; cells: Cell[]; score: number | null; tier: number; closed?: boolean;
-  onTier: (tier: number) => void; lang: Lang; t: Text;
+export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
+  p: Prediction; cells: Cell[]; score: number | null; tier: number; onTier: (tier: number) => void;
+  lang: Lang; t: Text;
 }) {
   const theme = useTheme();
   const { mode, systemMode } = useColorScheme();
@@ -83,7 +82,7 @@ export default function Slice({ p, cells, score, tier, closed = false, onTier, l
       </Typography>
       {chance !== null && (
         <Typography variant="body1" sx={{ mt: 0.5, fontWeight: 700, color: "warning.main" }}>
-          {closed ? t.closedChance(tier) : t.chance(tier, chanceText(chance))}
+          {t.chance(tier, chanceText(chance))}
         </Typography>
       )}
       {p.state.known_days < 3 && (
