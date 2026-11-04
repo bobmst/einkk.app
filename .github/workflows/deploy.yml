@@ -1,0 +1,74 @@
+name: Deploy
+
+# Where the site goes live (#33, docs/ARCHITECTURE.md "Hosting"):
+# - uat (einkk-app-uat, uat.einkk.app) on every push to main, so a change is seen on
+#   the rehearsal site before players get it;
+# - production (einkk-app, einkk.app) only on a published GitHub release, behind the
+#   "production" environment's required approval.
+# Workers Builds still builds a preview for every other branch; its production-branch
+# builds are switched off, so a merge to main no longer reaches einkk.app by itself.
+# This repo is public: Actions minutes cost nothing.
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "uat: this ref. production: run it on a release tag (v*)."
+        type: choice
+        options: [uat, production]
+        default: uat
+
+permissions:
+  contents: read
+
+jobs:
+  uat:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')
+    runs-on: ubuntu-latest
+    environment: uat
+    concurrency:
+      group: deploy-uat
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Deploy einkk-app-uat
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --env uat
+
+  production:
+    # a release, or a manual run started on a release tag (a redeploy)
+    if: >-
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'production' &&
+        startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Deploy einkk-app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
