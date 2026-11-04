@@ -22,6 +22,23 @@ describe("finalWindowOpen", () => {
     expect(finalWindowOpen(withSurvey, Date.parse("2026-11-05T15:00:00Z"))).toBe(false);
   });
 
+  it("ends at finals_close_at when the maintainer closes it early (contract 0.4.0)", () => {
+    const early = { ...season, finals_close_at: "2026-11-04T21:59:00Z" };
+    expect(finalWindowOpen(early, Date.parse("2026-11-04T21:59:59Z"))).toBe(true);
+    expect(finalWindowOpen(early, Date.parse("2026-11-04T22:00:00Z"))).toBe(false);
+    const withSurvey = { ...early, survey: { url: "https://tally.so/r/x", opens_at: "2026-10-21T20:00:00Z",
+      closes_at: "2026-11-11T14:59:00Z" } };
+    expect(finalWindowOpen(withSurvey, Date.parse("2026-11-05T00:00:00Z"))).toBe(false);   // over the survey's
+    expect(previousFinalOpen({ ...season, season: 43, previous: { ...early, survey: null } } as Season,
+      Date.parse("2026-11-05T00:00:00Z"))).toBeNull();
+  });
+
+  it("never lets finals_close_at keep the window open past its usual end", () => {
+    const late = { ...season, finals_close_at: "2027-11-04T21:59:00Z" };
+    expect(finalWindowOpen(late, Date.parse("2026-11-11T14:59:59Z"))).toBe(true);
+    expect(finalWindowOpen(late, Date.parse("2026-11-11T15:00:00Z"))).toBe(false);
+  });
+
   it("is shut while the raid is upcoming or live", () => {
     expect(finalWindowOpen({ ...season, state: "upcoming" }, Date.parse("2026-10-16T19:00:00Z"))).toBe(false);
     expect(finalWindowOpen({ ...season, state: "live" }, Date.parse("2026-10-19T00:00:00Z"))).toBe(false);

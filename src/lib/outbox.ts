@@ -22,6 +22,8 @@ export interface Season {
   ends_at: string | null;
   state: "upcoming" | "live" | "measuring" | "closed";
   survey: Survey | null;
+  // an early end to final results, set by the maintainer (contract 0.4.0)
+  finals_close_at?: string;
   // the season before, while it may still take final results (contract 0.2.0)
   previous?: PreviousSeason;
 }
@@ -37,6 +39,7 @@ export interface PreviousSeason {
   starts_at: string;
   ends_at: string;
   survey: Survey | null;
+  finals_close_at?: string;
 }
 
 /**
@@ -53,7 +56,7 @@ export function stateAt(season: Season, now: number): Season["state"] {
 
 /** The window the Worker takes final results in (src/lib/windows.ts), by the clock. */
 export function finalWindowOpen(season: Season | PreviousSeason, now: number): boolean {
-  return inFinalWindow({ ...season, survey_closes_at: season.survey?.closes_at }, now);
+  return inFinalWindow({ ...season, survey_closes_at: season.survey?.closes_at }, now);   // finals_close_at rides along
 }
 
 /**

@@ -12,6 +12,8 @@ export interface SeasonTimes {
   starts_at: string | null;
   ends_at: string | null;
   survey_closes_at?: string | null;
+  // an early end to final results, set by the maintainer (contract 0.4.0)
+  finals_close_at?: string | null;
 }
 
 /** The first instant after the minute `iso` names. */
@@ -30,7 +32,9 @@ export function inRankedWindow(season: SeasonTimes, now: number): boolean {
 /** Final results: from the close through the end of the survey window. */
 export function inFinalWindow(season: SeasonTimes, now: number): boolean {
   if (!season.ends_at) return false;
-  const close = season.survey_closes_at ? throughMinute(season.survey_closes_at)
+  const usual = season.survey_closes_at ? throughMinute(season.survey_closes_at)
     : Date.parse(season.ends_at) + FINAL_WINDOW_MS;
+  // finals_close_at only ever ends it earlier, never later (contract 0.4.0)
+  const close = season.finals_close_at ? Math.min(usual, throughMinute(season.finals_close_at)) : usual;
   return now >= throughMinute(season.ends_at) && now < close;
 }
