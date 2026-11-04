@@ -146,7 +146,8 @@ describe("POST /api/reports", () => {
     ["no dates yet (contract 0.3.0)", { starts_at: null, ends_at: null }],
     ["only one of its dates", { ends_at: null }],
   ])("refuses every report while the season has %s", async (_name, dates) => {
-    const doc = { season: valid.season, starts_at: "2026-10-25T20:00:00Z", ends_at: "2026-10-30T19:59:00Z", ...dates };
+    const doc: Record<string, unknown> = { ...SEASON };
+    Object.assign(doc, dates);
     env = { ...env, OUTBOX: fakeOutbox(doc) } as unknown as WorkerEnv;
     expect((await handleReport(post(valid), env, NOW)).status).toBe(403);
     expect(turnstile).not.toHaveBeenCalled();
