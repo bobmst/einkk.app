@@ -6,9 +6,11 @@
 // 04:59 JST, the survey's closes_at 23:59 JST), so a window runs through the end
 // of that minute.
 
+// An upcoming season may be published before its dates are known (contract
+// 0.3.0: starts_at and ends_at null); it has no window yet.
 export interface SeasonTimes {
-  starts_at: string;
-  ends_at: string;
+  starts_at: string | null;
+  ends_at: string | null;
   survey_closes_at?: string | null;
 }
 
@@ -21,11 +23,13 @@ export const FINAL_WINDOW_MS = (20 * 24 + 19) * 3_600_000 + 60_000;
 
 /** Ranked play: from starts_at through the last minute ends_at names. */
 export function inRankedWindow(season: SeasonTimes, now: number): boolean {
+  if (!season.starts_at || !season.ends_at) return false;
   return now >= Date.parse(season.starts_at) && now < throughMinute(season.ends_at);
 }
 
 /** Final results: from the close through the end of the survey window. */
 export function inFinalWindow(season: SeasonTimes, now: number): boolean {
+  if (!season.ends_at) return false;
   const close = season.survey_closes_at ? throughMinute(season.survey_closes_at)
     : Date.parse(season.ends_at) + FINAL_WINDOW_MS;
   return now >= throughMinute(season.ends_at) && now < close;

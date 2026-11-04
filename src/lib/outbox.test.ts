@@ -41,6 +41,11 @@ describe("stateAt", () => {
     expect(stateAt({ ...season, state: "live" }, Date.parse("2026-10-21T20:00:00Z"))).toBe("measuring");
   });
 
+  it("stays upcoming while the season's dates are not known (contract 0.3.0)", () => {
+    const undated: Season = { ...season, season: 43, starts_at: null, ends_at: null, state: "upcoming" };
+    expect(stateAt(undated, Date.parse("2030-01-01T00:00:00Z"))).toBe("upcoming");
+  });
+
   it("keeps the document's closed once the final line is in", () => {
     expect(stateAt({ ...season, state: "closed" }, Date.parse("2026-10-25T00:00:00Z"))).toBe("closed");
     expect(stateAt(season, Date.parse("2026-10-25T00:00:00Z"))).toBe("measuring");
@@ -120,8 +125,14 @@ describe("previousFinalOpen", () => {
   // S43 published while S42's final window (to 11/11 23:59 JST) is still open
   const next: Season = {
     ...season, season: 43, starts_at: "2026-11-13T20:00:00Z", ends_at: "2026-11-18T19:59:00Z", state: "upcoming",
-    previous: { season: 42, starts_at: season.starts_at, ends_at: season.ends_at, survey: null },
+    previous: { season: 42, starts_at: season.starts_at!, ends_at: season.ends_at!, survey: null },
   };
+
+  it("keeps the previous season's final results open while the next one has no dates yet", () => {
+    const undated: Season = { ...next, starts_at: null, ends_at: null };
+    expect(previousFinalOpen(undated, Date.parse("2026-11-05T00:00:00Z"))?.season).toBe(42);
+    expect(finalWindowOpen(undated, Date.parse("2026-11-05T00:00:00Z"))).toBe(false);
+  });
 
   it("offers the previous season's final results through its own window", () => {
     expect(previousFinalOpen(next, Date.parse("2026-11-05T00:00:00Z"))?.season).toBe(42);

@@ -144,6 +144,12 @@ describe("POST /api/finals", () => {
       expect((await handleFinal(post(body), env, NOW)).status).toBe(403);
     });
 
+    it("keeps the previous window while the next season has no dates yet (contract 0.3.0)", async () => {
+      env = { ...env, OUTBOX: fakeOutbox({ ...NEXT, starts_at: null, ends_at: null }) } as unknown as WorkerEnv;
+      expect((await handleFinal(post(valid), env, NOW)).status).toBe(201);
+      expect((await handleFinal(post({ ...valid, season: 43 }), env, NOW)).status).toBe(403);
+    });
+
     it("ignores a `previous` that isn't older than the published season", async () => {
       const doc = { ...NEXT, previous: { ...NEXT.previous, season: 43 } };
       env = { ...env, OUTBOX: fakeOutbox({ ...doc, season: 42 }) } as unknown as WorkerEnv;

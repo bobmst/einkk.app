@@ -135,7 +135,7 @@ export default function Dashboard() {
           const state = fresh.season ? stateAt(fresh.season, at) : null;
           every = state === "live" ? LIVE_REFRESH_MS : IDLE_REFRESH_MS;
           // a page open before the start switches to the live cadence at the start itself
-          if (fresh.season && state === "upcoming") {
+          if (fresh.season?.starts_at && state === "upcoming") {
             every = Math.min(every, Date.parse(fresh.season.starts_at) - at + 5_000);
           }
           setLoaded(fresh);

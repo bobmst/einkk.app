@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/season.schema.json",
-  "title": "Current season (draft 0.2.0)",
-  "description": "The season the site shows: boss, schedule, raid state and the end-of-season survey. The private engine writes it to the outbox whenever any of these change; the site renders the countdown and the state from it. All times are UTC. While the season before it still takes final results, it travels along as `previous`.",
+  "title": "Current season (draft 0.3.0)",
+  "description": "The season the site shows: boss, schedule, raid state and the end-of-season survey. The private engine writes it to the outbox whenever any of these change; the site renders the countdown and the state from it. All times are UTC. An upcoming season may be published before its dates are known, with `starts_at` and `ends_at` null (0.3.0). While the season before it still takes final results, it travels along as `previous`.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.2.0"
+      "const": "0.3.0"
     },
     "issued_at": {
       "$ref": "#/$defs/utc"
@@ -48,13 +48,15 @@
       }
     },
     "starts_at": {
-      "$ref": "#/$defs/utc"
+      "description": "The raid's open. null only while the season is upcoming and its dates are not known yet; set together with ends_at.",
+      "$ref": "#/$defs/utc_or_null"
     },
     "ends_at": {
-      "$ref": "#/$defs/utc"
+      "description": "The last minute of ranked play. null only together with starts_at, while the season is upcoming.",
+      "$ref": "#/$defs/utc_or_null"
     },
     "state": {
-      "description": "upcoming: before starts_at. live: the raid is running. measuring: the raid has ended and the final border is still being measured and graded. closed: graded and final.",
+      "description": "upcoming: before starts_at, or before the dates are known (starts_at null). live: the raid is running. measuring: the raid has ended and the final border is still being measured and graded. closed: graded and final.",
       "enum": [
         "upcoming",
         "live",
@@ -93,12 +95,77 @@
       }
     }
   },
+  "allOf": [
+    {
+      "description": "Dates are known together: both null or both set.",
+      "if": {
+        "properties": {
+          "starts_at": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "starts_at"
+        ]
+      },
+      "then": {
+        "properties": {
+          "ends_at": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "ends_at": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "description": "Only an upcoming season may be undated.",
+      "if": {
+        "properties": {
+          "state": {
+            "not": {
+              "const": "upcoming"
+            }
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "starts_at": {
+            "type": "string"
+          },
+          "ends_at": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "utc": {
       "description": "ISO 8601 in UTC, with a Z suffix.",
       "type": "string",
       "format": "date-time",
       "pattern": "Z$"
+    },
+    "utc_or_null": {
+      "description": "A UTC time, or null where the schema allows an unknown one.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/utc"
+        }
+      ]
     },
     "element": {
       "enum": [
