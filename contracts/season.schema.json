@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/season.schema.json",
-  "title": "Current season (draft 0.3.0)",
+  "title": "Current season (draft 0.4.0)",
   "description": "The season the site shows: boss, schedule, raid state and the end-of-season survey. The private engine writes it to the outbox whenever any of these change; the site renders the countdown and the state from it. All times are UTC. An upcoming season may be published before its dates are known, with `starts_at` and `ends_at` null (0.3.0). While the season before it still takes final results, it travels along as `previous`.",
   "type": "object",
   "additionalProperties": false,
@@ -17,7 +17,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.3.0"
+      "const": "0.4.0"
     },
     "issued_at": {
       "$ref": "#/$defs/utc"
@@ -68,8 +68,12 @@
       "description": "The end-of-season survey, which stays on Tally. null until the season's form exists. The site links to it only after the raid has ended, and only between opens_at and closes_at.",
       "$ref": "#/$defs/survey"
     },
+    "finals_close_at": {
+      "description": "The last minute final results are taken, when the maintainer closes them before the default window (END + 20 days 23:59 JST, or the survey's closes_at) ends. Absent otherwise (0.4.0).",
+      "$ref": "#/$defs/utc"
+    },
     "previous": {
-      "description": "The season before this one, published only while its final-results window may still be open: from its close until its survey's closes_at, or END + 20 days 23:59 JST before the form exists. The site keeps taking that season's final results through this window after the next season is published. Absent otherwise.",
+      "description": "The season before this one, published only while its final-results window may still be open: from its close until its survey's closes_at, or END + 20 days 23:59 JST before the form exists. The site keeps taking that season's final results through this window after the next season is published. Absent otherwise, and absent once its finals_close_at has passed.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -91,6 +95,10 @@
         },
         "survey": {
           "$ref": "#/$defs/survey"
+        },
+        "finals_close_at": {
+          "description": "The last minute final results are taken, when the maintainer closes them before the default window (END + 20 days 23:59 JST, or the survey's closes_at) ends. Absent otherwise (0.4.0).",
+          "$ref": "#/$defs/utc"
         }
       }
     }

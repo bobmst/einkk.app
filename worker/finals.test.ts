@@ -150,6 +150,14 @@ describe("POST /api/finals", () => {
       expect((await handleFinal(post({ ...valid, season: 43 }), env, NOW)).status).toBe(403);
     });
 
+    it("closes the previous season at its finals_close_at (contract 0.4.0)", async () => {
+      const early = { ...NEXT, previous: { ...NEXT.previous, finals_close_at: "2026-11-01T00:00:00Z" } };
+      env = { ...env, OUTBOX: fakeOutbox(early) } as unknown as WorkerEnv;
+      const response = await handleFinal(post(valid), env, NOW);
+      expect(response.status).toBe(403);
+      expect(turnstile).not.toHaveBeenCalled();
+    });
+
     it("ignores a `previous` that isn't older than the published season", async () => {
       const doc = { ...NEXT, previous: { ...NEXT.previous, season: 43 } };
       env = { ...env, OUTBOX: fakeOutbox({ ...doc, season: 42 }) } as unknown as WorkerEnv;

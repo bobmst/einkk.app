@@ -29,7 +29,8 @@ function seasonWindow(doc: SeasonFields | null | undefined, undatedOk = false): 
   if (!doc || typeof doc.season !== "number") return null;
   const starts_at = time(doc.starts_at), ends_at = time(doc.ends_at);
   if (!(starts_at && ends_at) && !(undatedOk && !starts_at && !ends_at)) return null;
-  return { season: doc.season, starts_at, ends_at, survey_closes_at: doc.survey?.closes_at };
+  return { season: doc.season, starts_at, ends_at, survey_closes_at: doc.survey?.closes_at,
+    finals_close_at: time(doc.finals_close_at) };
 }
 
 export async function currentSeason(outbox: R2Bucket | undefined): Promise<PublishedSeason | null> {

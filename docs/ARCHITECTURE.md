@@ -45,7 +45,7 @@ site ── writes ──> inbox: validated, rate-limited player reports ── 
 | Contract | Direction | Status |
 |---|---|---|
 | `prediction.schema.json` | engine → site | 0.1.0 (draft) |
-| `season.schema.json` | engine → site | 0.3.0 (draft) |
+| `season.schema.json` | engine → site | 0.4.0 (draft) |
 | `history.schema.json` | engine → site | 0.1.0 (draft) |
 | `report.schema.json` | site → engine | 0.1.0 (draft) |
 | `final-report.schema.json` | site → engine | 0.1.0 (draft) |
