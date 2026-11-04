@@ -1,8 +1,9 @@
 // Cloudflare Worker for einkk.app (docs/ARCHITECTURE.md, "Hosting").
 // The name must match the Worker (project) name in the Cloudflare dashboard.
 // Static pages in out/ are served by the assets layer; only /api/* runs
-// worker/index.ts. Settings live here, not in the dashboard: every Workers
-// Builds deploy applies this file. Secrets (TURNSTILE_SECRET) are the
+// worker/index.ts. Settings live here, not in the dashboard: every deploy
+// applies this file. Production deploys on a GitHub release and uat on every push
+// to main (.github/workflows/deploy.yml, #33); Workers Builds builds the previews. Secrets (TURNSTILE_SECRET) are the
 // exception: they are set in the dashboard or with `wrangler secret put` and
 // never committed. After changing bindings, run `npm run cf-typegen`.
 {
@@ -83,8 +84,9 @@
   },
   // UAT: the rehearsal site on a fixed address for testers, uat.einkk.app. A
   // separate Worker (einkk-app-uat) with the same bindings as the previews, so
-  // it shows the engine's mock season and never touches production data. Deploy
-  // it from the rehearsal branch: `npm run build && npx wrangler deploy --env uat`.
+  // it shows the engine's mock season and never touches production data.
+  // .github/workflows/deploy.yml deploys it on every push to main (#33); by hand:
+  // `npm run build && npx wrangler deploy --env uat`.
   // Its secrets (Turnstile's test TURNSTILE_SECRET and its own RATE_KEY_SALT) are
   // set with `wrangler secret put <NAME> --env uat`.
   "env": {
