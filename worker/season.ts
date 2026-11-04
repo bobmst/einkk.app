@@ -20,10 +20,16 @@ export interface PublishedSeason extends SeasonWindow {
 
 type SeasonFields = Partial<SeasonWindow> & { survey?: { closes_at?: string } | null };
 
-function seasonWindow(doc: SeasonFields | null | undefined): SeasonWindow | null {
-  if (!doc || typeof doc.season !== "number" || !doc.starts_at || !doc.ends_at) return null;
-  return { season: doc.season, starts_at: doc.starts_at, ends_at: doc.ends_at,
-    survey_closes_at: doc.survey?.closes_at };
+const time = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
+
+// Dates come together. Only the current season may lack them (contract 0.3.0): an
+// upcoming season published before its dates are known takes nothing, and the
+// season before keeps its final window.
+function seasonWindow(doc: SeasonFields | null | undefined, undatedOk = false): SeasonWindow | null {
+  if (!doc || typeof doc.season !== "number") return null;
+  const starts_at = time(doc.starts_at), ends_at = time(doc.ends_at);
+  if (!(starts_at && ends_at) && !(undatedOk && !starts_at && !ends_at)) return null;
+  return { season: doc.season, starts_at, ends_at, survey_closes_at: doc.survey?.closes_at };
 }
 
 export async function currentSeason(outbox: R2Bucket | undefined): Promise<PublishedSeason | null> {
@@ -31,7 +37,7 @@ export async function currentSeason(outbox: R2Bucket | undefined): Promise<Publi
   if (!object) return null;
   try {
     const doc = (await object.json()) as SeasonFields & { previous?: SeasonFields | null };
-    const current = seasonWindow(doc);
+    const current = seasonWindow(doc, true);
     if (!current) return null;
     const previous = seasonWindow(doc.previous);
     return previous && previous.season < current.season ? { ...current, previous } : current;

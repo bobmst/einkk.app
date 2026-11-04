@@ -20,8 +20,10 @@ export default function SeasonCard({ season, lang, t, now }: {
   const [art, setArt] = useState(true);              // public/bosses/s<n>.webp, if copied
   const color = ELEMENT_COLORS[season.boss.element];
   const weakness = season.boss.weakness;
-  const ends = throughMinute(season.ends_at);          // ends_at is the last minute
-  const starts = Date.parse(season.starts_at);
+  // null while an upcoming season's dates are not known yet (contract 0.3.0)
+  const dated = Boolean(season.starts_at && season.ends_at);
+  const ends = season.ends_at ? throughMinute(season.ends_at) : NaN;   // ends_at is the last minute
+  const starts = season.starts_at ? Date.parse(season.starts_at) : NaN;
   const survey = season.survey;
   // the contract only allows Tally links; the page checks too rather than trust the outbox
   const surveyOpen = survey && survey.url.startsWith("https://tally.so/")
@@ -76,18 +78,22 @@ export default function SeasonCard({ season, lang, t, now }: {
           {season.state === "live" && (
             <Typography variant="h2" component="p">{t.endsIn(duration(lang, ends - now))}</Typography>
           )}
-          {season.state === "upcoming" && (
+          {season.state === "upcoming" && dated && (
             <Typography variant="h2" component="p">{t.startsIn(duration(lang, starts - now))}</Typography>
           )}
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              {t.starts} {when(lang, season.starts_at)}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t.ends} {when(lang, season.ends_at)}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">{t.timeNote}</Typography>
-          </Box>
+          {dated ? (
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                {t.starts} {when(lang, season.starts_at!)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t.ends} {when(lang, season.ends_at!)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">{t.timeNote}</Typography>
+            </Box>
+          ) : (
+            <Typography variant="body1" color="text.secondary">{t.datesTba}</Typography>
+          )}
           {surveyOpen && (
             <Box>
               <Button variant="outlined" size="small" href={survey.url} target="_blank" rel="noopener">

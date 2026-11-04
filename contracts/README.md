@@ -8,7 +8,7 @@ engine. This directory is the single source of truth for both sides.
 | `prediction.schema.json` | engine (outbox) | site | 0.7.0 (draft): optional nested `bands` (0.2.0), the `residuals` they come from (0.3.0), `shadow_nowcast`, the reference-only final line with today's player reports (0.4.0; 0.5.0 made it this server's final line instead of JP's day line), `code_sha`, the engine commit that made the forecast (0.6.0), and `rank_slide`, where a rank read now is likely to end at the close, per start rank, for the checker (0.7.0) |
 | `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
 | `final-report.schema.json` | site (inbox, `final_reports`) | engine | 0.1.0 (draft) |
-| `season.schema.json` | engine (outbox) | site | 0.2.0 (draft): optional `previous`, the season before while its final results are still taken (0.2.0) |
+| `season.schema.json` | engine (outbox) | site | 0.3.0 (draft): optional `previous`, the season before while its final results are still taken (0.2.0); `starts_at`/`ends_at` may be null while the season is upcoming and its dates aren't known (0.3.0) |
 | `history.schema.json` | engine (outbox) | site | 0.3.0 (draft): the band is optional, `hit: null` without one (0.2.0); `final.estimate` and the `survey_and_reports` source (0.3.0) |
 | `finals.schema.json` | engine (outbox, `finals/s<n>.json`) | site | 0.1.0 (draft) |
 
@@ -27,6 +27,10 @@ accepts only `https://tally.so/` URLs, because the site renders this value as a 
 `previous` carries the season before (number, schedule, survey) for as long as its final-results
 window may be open: the next season is usually announced inside it, and the site keeps taking and
 offering the closing season's final results until that window ends.
+The next boss is often known before its dates, so an `upcoming` season may be published with
+`starts_at` and `ends_at` both `null` (0.3.0): the page shows the boss with "dates not announced
+yet" and no countdown, and the Worker takes no reports for it. The schema allows null dates only
+together and only while `state` is `upcoming`.
 
 `history.schema.json` is our track record. Each season and server entry holds one or both of:
 - **the forecast of record**, with its band and grading (`error_pct`, `hit`; `null` until graded).

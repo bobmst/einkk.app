@@ -142,6 +142,17 @@ describe("POST /api/reports", () => {
     expect((await handleReport(post(valid), env, new Date("2026-10-30T19:59:59Z"))).status).toBe(201);
   });
 
+  it.each([
+    ["no dates yet (contract 0.3.0)", { starts_at: null, ends_at: null }],
+    ["only one of its dates", { ends_at: null }],
+  ])("refuses every report while the season has %s", async (_name, dates) => {
+    const doc: Record<string, unknown> = { ...SEASON };
+    Object.assign(doc, dates);
+    env = { ...env, OUTBOX: fakeOutbox(doc) } as unknown as WorkerEnv;
+    expect((await handleReport(post(valid), env, NOW)).status).toBe(403);
+    expect(turnstile).not.toHaveBeenCalled();
+  });
+
   it("refuses everything while no season is published", async () => {
     env = { ...env, OUTBOX: fakeOutbox(null) } as unknown as WorkerEnv;
     expect((await handleReport(post(valid), env, NOW)).status).toBe(403);

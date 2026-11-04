@@ -17,8 +17,9 @@ export interface Season {
   issued_at: string;
   season: number;
   boss: { name: string; element: Element; weakness?: Element };
-  starts_at: string;
-  ends_at: string;
+  // null while an upcoming season's dates are not known yet (contract 0.3.0)
+  starts_at: string | null;
+  ends_at: string | null;
   state: "upcoming" | "live" | "measuring" | "closed";
   survey: Survey | null;
   // the season before, while it may still take final results (contract 0.2.0)
@@ -45,7 +46,7 @@ export interface PreviousSeason {
  * and after the close the document only tells measuring from closed.
  */
 export function stateAt(season: Season, now: number): Season["state"] {
-  if (now < Date.parse(season.starts_at)) return "upcoming";
+  if (!season.starts_at || !season.ends_at || now < Date.parse(season.starts_at)) return "upcoming";
   if (now < throughMinute(season.ends_at)) return "live";
   return season.state === "closed" ? "closed" : "measuring";
 }
