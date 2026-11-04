@@ -299,10 +299,9 @@ export default function Dashboard() {
                 <Typography variant="body2" color="error" sx={{ gridArea: "forecast" }}>{t.loadFailed}</Typography>
               ) : prediction === undefined ? (
                 <Skeleton variant="rounded" height={160} sx={{ gridArea: "forecast" }} />
-              ) : (
+              ) : season.state === "upcoming" ? null : (
                 <Typography color="text.secondary" sx={{ gridArea: "forecast" }}>
-                  {season.state === "upcoming" ? t.noForecastUpcoming
-                    : season.state === "live" ? t.noForecast : t.noForecastEnded}
+                  {season.state === "live" ? t.noForecast : t.noForecastEnded}
                 </Typography>
               )}
 
