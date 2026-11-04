@@ -28,8 +28,8 @@ accepts only `https://tally.so/` URLs, because the site renders this value as a 
 window may be open: the next season is usually announced inside it, and the site keeps taking and
 offering the closing season's final results until that window ends.
 The next boss is often known before its dates, so an `upcoming` season may be published with
-`starts_at` and `ends_at` both `null` (0.3.0): the page shows the boss with "dates not announced
-yet" and no countdown, and the Worker takes no reports for it. The schema allows null dates only
+`starts_at` and `ends_at` both `null` (0.3.0): the page shows the boss marked "Upcoming"
+and no countdown, and the Worker takes no reports for it. The schema allows null dates only
 together and only while `state` is `upcoming`.
 `finals_close_at` (0.4.0), on the season or on `previous`, ends that season's final results at
 the given minute, before the default window (END + 20 days 23:59 JST) or the survey's `closes_at`
