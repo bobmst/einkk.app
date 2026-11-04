@@ -33,6 +33,12 @@ describe("finalWindowOpen", () => {
       Date.parse("2026-11-05T00:00:00Z"))).toBeNull();
   });
 
+  it("never lets finals_close_at keep the window open past its usual end", () => {
+    const late = { ...season, finals_close_at: "2027-11-04T21:59:00Z" };
+    expect(finalWindowOpen(late, Date.parse("2026-11-11T14:59:59Z"))).toBe(true);
+    expect(finalWindowOpen(late, Date.parse("2026-11-11T15:00:00Z"))).toBe(false);
+  });
+
   it("is shut while the raid is upcoming or live", () => {
     expect(finalWindowOpen({ ...season, state: "upcoming" }, Date.parse("2026-10-16T19:00:00Z"))).toBe(false);
     expect(finalWindowOpen({ ...season, state: "live" }, Date.parse("2026-10-19T00:00:00Z"))).toBe(false);

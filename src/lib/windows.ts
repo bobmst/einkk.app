@@ -32,8 +32,9 @@ export function inRankedWindow(season: SeasonTimes, now: number): boolean {
 /** Final results: from the close through the end of the survey window. */
 export function inFinalWindow(season: SeasonTimes, now: number): boolean {
   if (!season.ends_at) return false;
-  const close = season.finals_close_at ? throughMinute(season.finals_close_at)
-    : season.survey_closes_at ? throughMinute(season.survey_closes_at)
+  const usual = season.survey_closes_at ? throughMinute(season.survey_closes_at)
     : Date.parse(season.ends_at) + FINAL_WINDOW_MS;
+  // finals_close_at only ever ends it earlier, never later (contract 0.4.0)
+  const close = season.finals_close_at ? Math.min(usual, throughMinute(season.finals_close_at)) : usual;
   return now >= throughMinute(season.ends_at) && now < close;
 }
