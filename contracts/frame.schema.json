@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/frame.schema.json",
+  "title": "A frame: one moment of the site, for UAT (draft 0.1.0)",
+  "description": "frames/<id>/frame.json in the rehearsal outbox (einkk-outbox-dev) only, next to the documents the engine computed for that moment (frames/<id>/season.json, predictions/..., history.json, finals/...). In rehearsal mode the page opened with ?frame=<id> reads those documents and freezes its display clock at `at`. Production never reads it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "at"],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "id": {
+      "description": "The frame's name, as in its folder and the ?frame= link.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "at": {
+      "description": "The moment the documents were computed for, and the time the page shows as now.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "label": {
+      "description": "What the frame shows, for whoever opens it.",
+      "type": "string",
+      "maxLength": 200
+    }
+  }
+}

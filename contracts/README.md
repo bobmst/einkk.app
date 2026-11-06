@@ -11,6 +11,7 @@ engine. This directory is the single source of truth for both sides.
 | `season.schema.json` | engine (outbox) | site | 0.4.0 (draft): optional `previous`, the season before while its final results are still taken (0.2.0); `starts_at`/`ends_at` may be null while the season is upcoming and its dates aren't known (0.3.0); optional `finals_close_at`, an early end to final results (0.4.0) |
 | `history.schema.json` | engine (outbox) | site | 0.3.0 (draft): the band is optional, `hit: null` without one (0.2.0); `final.estimate` and the `survey_and_reports` source (0.3.0) |
 | `finals.schema.json` | engine (outbox, `finals/s<n>.json`) | site | 0.1.0 (draft) |
+| `frame.schema.json` | engine (rehearsal outbox only, `frames/<id>/frame.json`) | site (uat, previews) | 0.1.0 (draft) |
 
 `report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
 only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_at` and `client`;
@@ -51,6 +52,14 @@ could be sent back to us as a final result. After it, each server's 3% line for 
 (`confirmed` with three or more results inside 2.85–3.15%, or JP's official last-day line), and,
 with five or more players inside 2.5–3.5%, the results themselves and the tier table on the curve
 through them.
+
+`frame.schema.json` (solo_raid_predict ADR 0007) names one moment of a season: the private
+engine computes that moment's documents and puts them under `frames/<id>/` in the rehearsal
+outbox (einkk-outbox-dev) next to `frame.json`. In rehearsal mode the page opened with
+`?frame=<id>` reads those documents and freezes its display clock at `at` (`?at=` alone
+freezes the clock on the live rehearsal documents), so UAT shows a state exactly as it
+looked and stays in it. Production never reads a frame: its Worker reports
+`mode: "production"` and the page ignores both parameters.
 
 JP's final line is the last official-day value from community posts, copied by hand, so it is
 `manual_collection` too. Nothing is taken from another site's compiled data. Legacy bands carry

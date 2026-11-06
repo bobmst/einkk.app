@@ -32,6 +32,7 @@ import {
   surveyLink, type Finals, type Health, type History, type Prediction, type Predictions, type Season,
   type Server,
 } from "@/lib/outbox";
+import { freeze, frozenAt, now as clockNow, viewFrom, viewKey, type View } from "@/lib/clock";
 import { saveSnapshot, snapshotStore, type Snapshot } from "@/lib/snapshot";
 import { chooseMode } from "@/lib/theme-storage";
 import FinalsView from "./finals-view";
@@ -63,20 +64,49 @@ interface Data {
 // document is a Worker request. Another server's is fetched when the player follows it.
 // All in one round: /api/latest finds the season on the Worker's side, so the page
 // doesn't wait for season.json before it can ask for the forecast.
-async function load(server: Server, known?: Health | null): Promise<Data> {
+// A frame (src/lib/clock.ts) has no /api/latest: its documents are read by key, season.json first.
+async function load(server: Server, known: Health | null, view: View): Promise<Data> {
+  const key = (k: string) => viewKey(view, k);
   const [h, season, history, current] = await Promise.all([
-    known ?? health(), outbox<Season>("season.json"), outbox<History>("history.json"), latestPrediction(server),
+    known ?? health(), outbox<Season>(key("season.json")), outbox<History>(key("history.json")),
+    view.frame ? null : latestPrediction(server),
   ]);
   if (!season) return { health: h, season, predictions: {}, history };
   // The Worker's read of season.json and the page's are cached separately (30 s each),
   // so right at a new season they can name different seasons: the page's decides.
-  const ended = ["measuring", "closed"].includes(stateAt(season, Date.now()));
+  const ended = ["measuring", "closed"].includes(stateAt(season, clockNow()));
   const [prediction, finals] = await Promise.all([
-    current && current.season !== season.season ? outbox<Prediction>(predictionKey(season.season, server)) : current,
-    ended ? outbox<Finals>(finalsKey(season.season)) : null,
+    // a frame by key; otherwise only when /api/latest answered for another season
+    view.frame || (current && current.season !== season.season)
+      ? outbox<Prediction>(key(predictionKey(season.season, server))) : current,
+    ended ? outbox<Finals>(key(finalsKey(season.season))) : null,
   ]);
   return { health: h, season, predictions: { [server]: prediction }, history, finals };
 }
+
+const REAL_VIEW: View = { frame: null, at: null };
+
+/**
+ * The view the link asks for, once the site's mode is known; a frame also freezes the clock.
+ * Throws (the refresh then retries) without a mode, or when a frame's frame.json can't be
+ * read: never a frame's documents on a running clock, nor a frame link silently live.
+ */
+async function openView(h: Health | null): Promise<View> {
+  if (!h) throw new Error("the site's mode is unknown");
+  const view = viewFrom(h.mode, window.location.search);
+  if (view.frame) {
+    const frame = await outbox<{ at: string }>(`frames/${view.frame}/frame.json`);
+    if (!frame || !Number.isFinite(Date.parse(frame.at))) throw new Error(`frame ${view.frame} has no frame.json`);
+    freeze(Date.parse(frame.at));
+  } else {
+    freeze(view.at);
+  }
+  return view;
+}
+
+const ASKS = /[?&](frame|at)=/;
+const linkAsks = () => ASKS.test(window.location.search);
+const noSubscription = () => () => {};
 
 function ThemeToggle({ label }: { label: string }) {
   const { mode, systemMode, setMode } = useColorScheme();
@@ -105,10 +135,15 @@ export default function Dashboard() {
   // until this visit's first load succeeds, the last visit's data, marked as updating
   const saved = useSyncExternalStore(snapshotStore.subscribe, snapshotStore.get, snapshotStore.server) as
     Snapshot<Data> | null;
-  const stale = !loaded && saved !== null;
-  const data = loaded ?? saved?.data ?? null;
-  const shownAt = loaded ? loadedAt : saved?.saved_at ?? null;
-  const [now, setNow] = useState(() => Date.now());
+  // a link asking for a frame or a time never shows the last visit's data: it may be live
+  // data, or another frame's
+  const asked = useSyncExternalStore(noSubscription, linkAsks, () => false);
+  const usable = asked ? null : saved;
+  const stale = !loaded && usable !== null;
+  const data = loaded ?? usable?.data ?? null;
+  const shownAt = loaded ? loadedAt : usable?.saved_at ?? null;
+  const [now, setNow] = useState(() => clockNow());
+  const [view, setView] = useState<View>({ frame: null, at: null });
   const followed = useRef(server);                    // the refresh reads it, without restarting
   const fetching = useRef(new Set<string>());
   const [switchFailed, setSwitchFailed] = useState<string | null>(null);   // that forecast's key
@@ -119,20 +154,34 @@ export default function Dashboard() {
   useEffect(() => {
     let alive = true;
     let known: Health | null = null;
+    let shown: View | null = null;                 // what the link asks for, once health is known
     let every = LIVE_REFRESH_MS;
     let last = 0;
+    const asks = linkAsks();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => {
       clearTimeout(timer);
       last = Date.now();
       let ok = false;
-      load(followed.current, known).then(
+      // Only a link that asks for a frame or a time waits for the site's mode first; every
+      // other open (production's always) loads in one round as before, health included.
+      const viewed = shown || !asks ? Promise.resolve(shown ?? REAL_VIEW)
+        : health().then(async (h) => {
+          known = h;
+          shown = await openView(h);
+          if (alive) {
+            setView(shown);
+            setNow(clockNow());
+          }
+          return shown;
+        });
+      viewed.then((v) => load(followed.current, known, v)).then(
         (fresh) => {
           if (!alive) return;
           ok = true;
           known = fresh.health;
           const at = Date.now();
-          const state = fresh.season ? stateAt(fresh.season, at) : null;
+          const state = fresh.season ? stateAt(fresh.season, clockNow()) : null;
           every = state === "live" ? LIVE_REFRESH_MS : IDLE_REFRESH_MS;
           // a page open before the start switches to the live cadence at the start itself
           if (fresh.season?.starts_at && state === "upcoming") {
@@ -141,19 +190,22 @@ export default function Dashboard() {
           setLoaded(fresh);
           setLoadedAt(at);
           setFailed(false);
-          saveSnapshot(fresh, at);
+          if (!asks) saveSnapshot(fresh, at);            // a frame or a frozen time is no visit to resume
         },
         () => alive && setFailed(true),
       ).finally(() => {
-        if (alive) timer = setTimeout(() => !document.hidden && refresh(), ok ? every : FAILED_RETRY_MS);
+        // a frozen clock shows one moment: nothing to poll for
+        if (alive && !(ok && frozenAt() !== null)) {
+          timer = setTimeout(() => !document.hidden && refresh(), ok ? every : FAILED_RETRY_MS);
+        }
       });
     };
     const onShow = () => {
-      if (!document.hidden && Date.now() - last >= every) refresh();
+      if (!document.hidden && frozenAt() === null && Date.now() - last >= every) refresh();
     };
     refresh();
     document.addEventListener("visibilitychange", onShow);
-    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    const tick = setInterval(() => setNow(clockNow()), 30_000);
     return () => {
       alive = false;
       clearTimeout(timer);
@@ -170,12 +222,12 @@ export default function Dashboard() {
     const key = predictionKey(seasonNumber, server);
     if (fetching.current.has(key)) return;
     fetching.current.add(key);
-    outbox<Prediction>(key).then(
+    outbox<Prediction>(viewKey(view, key)).then(
       (p) => setLoaded((prev) => prev && prev.season?.season === seasonNumber
         ? { ...prev, predictions: { ...prev.predictions, [server]: p } } : prev),
       () => setSwitchFailed(key),                 // shown in the forecast slot; the next refresh retries
     ).finally(() => fetching.current.delete(key));
-  }, [missing, seasonNumber, server, stale]);
+  }, [missing, seasonNumber, server, stale, view]);
 
   useEffect(() => {
     document.documentElement.lang = HTML_LANG[lang];
@@ -246,11 +298,15 @@ export default function Dashboard() {
       <Container maxWidth={false} sx={{ py: 3, maxWidth: pageWidth }}>
         <Stack spacing={2.5}>
           {data?.health?.mode === "rehearsal" && <Alert severity="warning">{t.rehearsal}</Alert>}
+          {frozenAt() !== null && (
+            <Alert severity="info">{t.frozen(new Date(frozenAt() as number).toLocaleString(HTML_LANG[lang]),
+              view.frame)}</Alert>
+          )}
           {failed && !data && <Alert severity="error">{t.loadFailed}</Alert>}
-          {failed && data && shownAt !== null && (
+          {failed && data && shownAt !== null && frozenAt() === null && (
             <Alert severity="warning">{t.staleData(duration(lang, now - shownAt))}</Alert>
           )}
-          {stale && !failed && shownAt !== null && (
+          {stale && !failed && shownAt !== null && frozenAt() === null && (
             <Stack direction="row" spacing={1} role="status" sx={{ alignItems: "center", color: "text.secondary" }}>
               <CircularProgress size={14} color="inherit" />
               <Typography variant="body2">{t.updating(duration(lang, now - shownAt))}</Typography>

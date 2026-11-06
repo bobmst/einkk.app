@@ -12,6 +12,7 @@
 // random browser id kept in localStorage, which the Worker hashes to count
 // distinct players. That season may be the one before the published one
 // (Season.previous), whose final window outlasts the next season's announcement.
+import { frozenAt } from "@/lib/clock";
 import { useEffect, useRef, useState } from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -128,7 +129,9 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
     heading.current?.focus({ preventScroll: true });
   }, [step]);
 
-  const open = (final || season.state === "live") && Boolean(health?.intake && health.turnstile_site_key);
+  // a frozen preview clock (src/lib/clock.ts): the intake checks the real time, so no form
+  const frozen = frozenAt() !== null;
+  const open = !frozen && (final || season.state === "live") && Boolean(health?.intake && health.turnstile_site_key);
 
   // Turnstile only on the review page, fresh each time it opens
   useEffect(() => {
@@ -232,7 +235,7 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
         </Typography>
         {!open ? (
           <Typography variant="body2" color="text.secondary">
-            {season.state === "live" ? t.reportUnavailable : t.reportClosed}
+            {frozen ? t.reportFrozen : season.state === "live" ? t.reportUnavailable : t.reportClosed}
           </Typography>
         ) : step === "sent" ? (
           <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
