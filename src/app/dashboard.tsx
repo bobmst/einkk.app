@@ -84,17 +84,29 @@ async function load(server: Server, known: Health | null, view: View): Promise<D
   return { health: h, season, predictions: { [server]: prediction }, history, finals };
 }
 
-/** The view the link asks for, once the site's mode is known; a frame also freezes the clock. */
+const REAL_VIEW: View = { frame: null, at: null };
+
+/**
+ * The view the link asks for, once the site's mode is known; a frame also freezes the clock.
+ * Throws (the refresh then retries) without a mode, or when a frame's frame.json can't be
+ * read: never a frame's documents on a running clock, nor a frame link silently live.
+ */
 async function openView(h: Health | null): Promise<View> {
-  const view = viewFrom(h?.mode, window.location.search);
+  if (!h) throw new Error("the site's mode is unknown");
+  const view = viewFrom(h.mode, window.location.search);
   if (view.frame) {
-    const frame = await outbox<{ at: string }>(`frames/${view.frame}/frame.json`).catch(() => null);
-    freeze(frame ? Date.parse(frame.at) : view.at);
+    const frame = await outbox<{ at: string }>(`frames/${view.frame}/frame.json`);
+    if (!frame || !Number.isFinite(Date.parse(frame.at))) throw new Error(`frame ${view.frame} has no frame.json`);
+    freeze(Date.parse(frame.at));
   } else {
     freeze(view.at);
   }
   return view;
 }
+
+const ASKS = /[?&](frame|at)=/;
+const linkAsks = () => ASKS.test(window.location.search);
+const noSubscription = () => () => {};
 
 function ThemeToggle({ label }: { label: string }) {
   const { mode, systemMode, setMode } = useColorScheme();
@@ -123,9 +135,13 @@ export default function Dashboard() {
   // until this visit's first load succeeds, the last visit's data, marked as updating
   const saved = useSyncExternalStore(snapshotStore.subscribe, snapshotStore.get, snapshotStore.server) as
     Snapshot<Data> | null;
-  const stale = !loaded && saved !== null;
-  const data = loaded ?? saved?.data ?? null;
-  const shownAt = loaded ? loadedAt : saved?.saved_at ?? null;
+  // a link asking for a frame or a time never shows the last visit's data: it may be live
+  // data, or another frame's
+  const asked = useSyncExternalStore(noSubscription, linkAsks, () => false);
+  const usable = asked ? null : saved;
+  const stale = !loaded && usable !== null;
+  const data = loaded ?? usable?.data ?? null;
+  const shownAt = loaded ? loadedAt : usable?.saved_at ?? null;
   const [now, setNow] = useState(() => clockNow());
   const [view, setView] = useState<View>({ frame: null, at: null });
   const followed = useRef(server);                    // the refresh reads it, without restarting
@@ -141,12 +157,15 @@ export default function Dashboard() {
     let shown: View | null = null;                 // what the link asks for, once health is known
     let every = LIVE_REFRESH_MS;
     let last = 0;
+    const asks = linkAsks();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => {
       clearTimeout(timer);
       last = Date.now();
       let ok = false;
-      const viewed = shown ? Promise.resolve(shown)
+      // Only a link that asks for a frame or a time waits for the site's mode first; every
+      // other open (production's always) loads in one round as before, health included.
+      const viewed = shown || !asks ? Promise.resolve(shown ?? REAL_VIEW)
         : health().then(async (h) => {
           known = h;
           shown = await openView(h);
@@ -171,7 +190,7 @@ export default function Dashboard() {
           setLoaded(fresh);
           setLoadedAt(at);
           setFailed(false);
-          saveSnapshot(fresh, at);
+          if (!asks) saveSnapshot(fresh, at);            // a frame or a frozen time is no visit to resume
         },
         () => alive && setFailed(true),
       ).finally(() => {
