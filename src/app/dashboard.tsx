@@ -148,6 +148,9 @@ export default function Dashboard() {
   const followed = useRef(server);                    // the refresh reads it, without restarting
   const fetching = useRef(new Set<string>());
   const unsaved = useRef<{ data: Data; at: number } | null>(null);
+  // what the page shows, as the refresh and the server switch both see it: each updates it
+  // before it renders, so neither builds on a copy the other has moved past
+  const held = useRef<Data | null>(null);
   const [switchFailed, setSwitchFailed] = useState<string | null>(null);   // that forecast's key
   useEffect(() => {
     followed.current = server;
@@ -159,14 +162,13 @@ export default function Dashboard() {
     let shown: View | null = null;                 // what the link asks for, once health is known
     const asks = linkAsks();
     const jitter = Math.random();                  // this tab's share of the checks' spread
-    let held: Data | null = null;                  // what the page shows, for the plan
     const fetched: Known["fetched"] = { season: 0, prediction: 0, finals: null };
     const retry: Partial<Record<Kind | "all", number>> = {};
     let timer: ReturnType<typeof setTimeout> | undefined;
     let busy = false;
 
     const show = (fresh: Data) => {
-      held = fresh;
+      held.current = fresh;
       const at = Date.now();
       setLoaded(fresh);
       setLoadedAt(at);
@@ -174,22 +176,26 @@ export default function Dashboard() {
       unsaved.current = asks ? null : { data: fresh, at };   // a frame or a frozen time is no visit to resume
     };
     const knownNow = (): Known => ({
-      season: held?.season ?? null,
-      issuedAt: held?.predictions[followed.current]?.issued_at ?? null,
-      finals: held?.finals && held.finals.season === held.season?.season
-        ? { settles_at: held.finals.settles_at, settled: held.finals.settled } : null,
+      season: held.current?.season ?? null,
+      issuedAt: held.current?.predictions[followed.current]?.issued_at ?? null,
+      finals: held.current?.finals && held.current.finals.season === held.current.season?.season
+        ? { settles_at: held.current.finals.settles_at, settled: held.current.finals.settled } : null,
       fetched,
     });
     // the earliest check due, retries included; null: nothing is due by time
     const nextCheck = (): number | null => {
-      const times = [held ? nextDue(plan(knownNow(), Date.now(), jitter)) : 0, ...Object.values(retry)]
-        .filter((t): t is number => t !== undefined && t !== null);
+      // Before the first load works, only its retry: never a zero that would spin. After a
+      // failed check its document stays due by the plan, so a due time already past waits
+      // for the retry instead of firing again at once.
+      const retries = Object.values(retry).filter((t): t is number => t !== undefined);
+      const planned = held.current ? nextDue(plan(knownNow(), Date.now(), jitter)) : null;
+      const times = planned !== null && !(retries.length && planned <= Date.now()) ? [planned, ...retries] : retries;
       return times.length ? Math.min(...times) : null;
     };
     const schedule = () => {
       clearTimeout(timer);
       // a frozen clock shows one moment: nothing to check for
-      if (!alive || busy || (held && frozenAt() !== null)) return;
+      if (!alive || busy || (held.current && frozenAt() !== null)) return;
       const at = nextCheck();
       if (at !== null) timer = setTimeout(() => !document.hidden && check(), Math.max(0, at - Date.now()));
     };
@@ -224,7 +230,7 @@ export default function Dashboard() {
       clearTimeout(timer);
       const now = Date.now();
       try {
-        if (!held) {
+        if (!held.current) {
           try {
             await reload();
             delete retry.all;
@@ -238,6 +244,7 @@ export default function Dashboard() {
         const isDue = (k: Kind) => (due[k] !== null && (due[k] as number) <= now) || (retry[k] ?? Infinity) <= now;
         // whichever is due, one request brings all three (src/lib/refresh.ts says when)
         if ((["season", "prediction", "finals"] as Kind[]).some(isDue)) {
+          const finalsDue = isDue("finals");
           delete retry.season;
           delete retry.prediction;
           delete retry.finals;
@@ -245,14 +252,18 @@ export default function Dashboard() {
             const fresh = await latest();
             const at = Date.now();
             fetched.season = fetched.prediction = at;
+            // due by the page's clock, read whether or not the Worker's clock has put them in
+            // yet: else a page clock ahead of the Worker's would find them due again at once
+            if (finalsDue) fetched.finals = at;
             if (!alive) return;
-            if (!fresh || fresh.season.season !== held.season?.season) return void (await reload());
-            let finals = held.finals;
+            const page = held.current;
+            if (!fresh || fresh.season.season !== page.season?.season) return void (await reload());
+            let finals = page.finals;
             if (fresh.finals !== undefined) {
               finals = fresh.finals;
               fetched.finals = at;
             }
-            show({ ...held, season: fresh.season, predictions: fresh.predictions, finals });
+            show({ ...page, season: fresh.season, predictions: fresh.predictions, finals });
           } catch {
             retry.prediction = Date.now() + RETRY_MS;
           }
@@ -265,7 +276,7 @@ export default function Dashboard() {
 
     // a hidden tab checks nothing; shown again, it catches up on whatever came due
     const onShow = () => {
-      if (document.hidden || (held && frozenAt() !== null)) return;
+      if (document.hidden || (held.current && frozenAt() !== null)) return;
       const at = nextCheck();
       if (at !== null && at <= Date.now()) void check();
     };
@@ -297,8 +308,12 @@ export default function Dashboard() {
     if (fetching.current.has(key)) return;
     fetching.current.add(key);
     outbox<Prediction>(viewKey(view, key)).then(
-      (p) => setLoaded((prev) => prev && prev.season?.season === seasonNumber
-        ? { ...prev, predictions: { ...prev.predictions, [server]: p } } : prev),
+      (p) => {
+        const prev = held.current;
+        if (!prev || prev.season?.season !== seasonNumber) return;
+        held.current = { ...prev, predictions: { ...prev.predictions, [server]: p } };
+        setLoaded(held.current);
+      },
       () => setSwitchFailed(key),                 // shown in the forecast slot; the next refresh retries
     ).finally(() => fetching.current.delete(key));
   }, [missing, seasonNumber, server, stale, view]);
