@@ -261,7 +261,7 @@ export default function Dashboard() {
             // a forecast for another season, or the first of an undated one: the season moved
             if (p && (p.season !== season.season || !season.starts_at)) return void (await reload());
             const before = held.current.predictions[server];
-            // a new run republished every server: the others held.current are out of date now
+            // a new run republished every server: the other servers held are out of date now
             const others = p && before && p.issued_at !== before.issued_at ? {} : held.current.predictions;
             show({ ...held.current, predictions: { ...others, [server]: p } });
           } catch {
