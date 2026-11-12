@@ -44,11 +44,13 @@ site ── writes ──> inbox: validated, rate-limited player reports ── 
 
 | Contract | Direction | Status |
 |---|---|---|
-| `prediction.schema.json` | engine → site | 0.1.0 (draft) |
+| `prediction.schema.json` | engine → site | 0.7.0 (draft) |
 | `season.schema.json` | engine → site | 0.4.0 (draft) |
-| `history.schema.json` | engine → site | 0.1.0 (draft) |
-| `report.schema.json` | site → engine | 0.1.0 (draft) |
+| `history.schema.json` | engine → site | 0.3.0 (draft) |
+| `report.schema.json` | site → engine | 0.2.0 (draft) |
 | `final-report.schema.json` | site → engine | 0.1.0 (draft) |
+| `finals.schema.json` | engine → site | 0.1.0 (draft) |
+| `frame.schema.json` | engine → site (uat, previews) | 0.1.0 (draft) |
 
 ## API
 
@@ -64,8 +66,10 @@ All API routes are served by the Worker under `/api/*` (`worker/`). Responses ar
 | `GET /api/latest/<server>.json` | The server's prediction for the season `season.json` names (`predictions/s<n>/<server>.json`, same body and ETag), so the page asks for it alongside `season.json` instead of after it. `404` when there is no season or no prediction yet, `400` (`bad_server`) for anything but `jp`, `kr`, `na`, `sea`, `tw`, `gb`. |
 
 - **Order of the intake checks:** request shape first, then the contract, then the Turnstile call, then the rate limit, then the insert. Nothing is stored unless every step passes.
-- **Rate limiting:** at most 10 reports per hour per key. The key is SHA-256(`RATE_KEY_SALT`, UTC date, client address). Because the date is in the key, reports can't be linked across days, and the address is never stored.
-- **Counting final results:** each final result carries two salted SHA-256 keys: the client address with the season (`season_key`, also its rate-limit key, 10 per hour) and the page's random browser id (`browser_key`). The engine counts results sharing either key as one player. Neither the address nor the browser id is stored.
+- **Rate limiting:** at most 10 reports per hour per key. The key is SHA-256(`RATE_KEY_SALT`, UTC date, client network), so it changes every day. The address is never stored.
+- **Client network:** every key is made from the client's network, not its full address: an IPv4 address as it is, an IPv6 address as its /64 (`clientNetwork` in `worker/reports.ts`). One connection is handed a whole /64, so the full address would make one player look like many.
+- **One player's reports in a season:** each in-raid report also carries `season_key` (report contract 0.2.0), SHA-256(`RATE_KEY_SALT`, season, client network). It is the same all season and the same value that network's final result carries, so the engine can tell one player's reports from many players'. We keep no account or player id, so a key names a network, never a person.
+- **Counting final results:** each final result carries two salted SHA-256 keys: the client network with the season (`season_key`, also its rate-limit key, 10 per hour) and the page's random browser id (`browser_key`). The engine counts results sharing either key as one player. Neither the address nor the browser id is stored.
 - **Inbox schema:** the D1 table lives in `migrations/`. Apply new migrations with `npx wrangler d1 migrations apply einkk-inbox --remote`.
 - **Secrets:** the Worker needs `TURNSTILE_SECRET` and `RATE_KEY_SALT`, set as Worker secrets (Production only).
 

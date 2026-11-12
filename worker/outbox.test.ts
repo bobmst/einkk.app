@@ -100,6 +100,14 @@ describe("GET /api/latest/<server>.json", () => {
     expect((await latest("jp", e, { headers: { "If-None-Match": PREDICTION_ETAG } })).status).toBe(304);
   });
 
+  it("answers 502 as JSON when season.json can't be read or names no season", async () => {
+    for (const body of ["{", "null", JSON.stringify({ season: "42" })]) {
+      const response = await latest("jp", bucket({ "season.json": { body, etag: ETAG } }).env);
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({ error: "bad_season" });
+    }
+  });
+
   it("answers 404 when there is no season or no prediction for this server yet", async () => {
     expect((await latest("jp", bucket({}).env)).status).toBe(404);
     expect((await latest("kr", bucket({ "season.json": { body: SEASON, etag: ETAG } }).env)).status).toBe(404);

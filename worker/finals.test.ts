@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import finalSchema from "../contracts/final-report.schema.json";
 import type { WorkerEnv } from "./env";
 import { FINALS_PER_HOUR, handleFinal } from "./finals";
+import { seasonKeyFor } from "./reports";
 
 // S42: ranked play closed 10/31 04:59 JST; the survey closes 11/20 23:59 JST
 const SEASON = {
@@ -87,6 +88,16 @@ describe("POST /api/finals", () => {
     expect(c.browser_key).toBe(a.browser_key);
     expect(d.browser_key).not.toBe(a.browser_key);
     expect(d.season_key).toBe(a.season_key);
+  });
+
+  it("counts every address inside one IPv6 /64 as one network, and its in-raid reports carry the same key", async () => {
+    await handleFinal(post(valid, "2001:db8:1:2::1"), env, NOW);
+    await handleFinal(post(valid, "2001:db8:1:2:aaaa:bbbb:cccc:dddd"), env, NOW);
+    await handleFinal(post(valid, "2001:db8:1:3::1"), env, NOW);
+    const [a, b, c] = db.rows;
+    expect(b.season_key).toBe(a.season_key);
+    expect(c.season_key).not.toBe(a.season_key);
+    expect(a.season_key).toBe(await seasonKeyFor("salt", valid.season, "2001:db8:1:2::99"));
   });
 
   it.each([

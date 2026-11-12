@@ -6,7 +6,7 @@ engine. This directory is the single source of truth for both sides.
 | Schema | Written by | Read by | Version |
 |---|---|---|---|
 | `prediction.schema.json` | engine (outbox) | site | 0.7.0 (draft): optional nested `bands` (0.2.0), the `residuals` they come from (0.3.0), `shadow_nowcast`, the reference-only final line with today's player reports (0.4.0; 0.5.0 made it this server's final line instead of JP's day line), `code_sha`, the engine commit that made the forecast (0.6.0), and `rank_slide`, where a rank read now is likely to end at the close, per start rank, for the checker (0.7.0) |
-| `report.schema.json` | site (inbox) | engine | 0.1.0 (draft) |
+| `report.schema.json` | site (inbox) | engine | 0.2.0 (draft): optional `client.season_key`, one network's key for the whole season (0.2.0) |
 | `final-report.schema.json` | site (inbox, `final_reports`) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.4.0 (draft): optional `previous`, the season before while its final results are still taken (0.2.0); `starts_at`/`ends_at` may be null while the season is upcoming and its dates aren't known (0.3.0); optional `finals_close_at`, an early end to final results (0.4.0) |
 | `history.schema.json` | engine (outbox) | site | 0.3.0 (draft): the band is optional, `hit: null` without one (0.2.0); `final.estimate` and the `survey_and_reports` source (0.3.0) |
@@ -15,7 +15,11 @@ engine. This directory is the single source of truth for both sides.
 
 `report.schema.json` describes one in-raid player report as the site stores it. It holds numbers
 only, with exactly one of `rank_pc` / `rank_n`. The site sets `id`, `submitted_at` and `client`;
-`client` carries a salted hash for rate limiting and never an IP address or account.
+`client` carries salted hashes and never an IP address or account: `rate_key`, which changes every
+UTC day and only limits how many reports one network sends in an hour, and `season_key` (0.2.0),
+which stays the same all season and equals the `season_key` of a final result from the same network.
+Reports stored before 0.2.0 have no `season_key`. A reader of stored reports accepts every earlier
+minor version of the same major: the schema pins the version the site writes today.
 
 `final-report.schema.json` is one player's final result for a closed season, kept apart from the
 in-raid reports. It has no `read_at`, and its `client` carries two salted keys (address + season,

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/report.schema.json",
-  "title": "In-raid player report (draft 0.1.0)",
+  "title": "In-raid player report (draft 0.2.0)",
   "description": "One player report as the site stores it in the inbox; the private engine reads it. Numbers only: no images, no OCR. The site fills in id, submitted_at and client; the player supplies the rest and confirms the damage shown back formatted (e.g. \"223.16 亿\") before sending. Damage is in 0.1B (1e8) units.",
   "type": "object",
   "additionalProperties": false,
@@ -29,7 +29,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "id": {
       "description": "Set by the site (UUID v4), so the engine can de-duplicate pulls and point DQ results at one report.",
@@ -92,7 +92,12 @@
           "type": "boolean"
         },
         "rate_key": {
-          "description": "SHA-256 (hex) of the rate-limit key, salted on the site so it can't be reversed to an address.",
+          "description": "SHA-256 (hex) of the rate-limit key: the site's salt, the UTC day and the client's network. It changes every day and is used only for the hourly limit.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "season_key": {
+          "description": "SHA-256 (hex) of the site's salt, the season and the client's network (0.2.0): the same for one network all season, and the same value a final result from that network carries, so the engine can tell one player's reports from many players'. Absent on reports stored before 0.2.0.",
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
         }

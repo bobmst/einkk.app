@@ -2,7 +2,7 @@ import { Validator, type Schema } from "@cfworker/json-schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import reportSchema from "../contracts/report.schema.json";
 import type { WorkerEnv } from "./env";
-import { handleReport, rateKeyFor, REPORTS_PER_HOUR } from "./reports";
+import { clientNetwork, handleReport, rateKeyFor, REPORTS_PER_HOUR, seasonKeyFor } from "./reports";
 
 const NOW = new Date("2026-10-30T03:41:12Z");
 const IP = "203.0.113.7";
@@ -72,7 +72,9 @@ describe("POST /api/reports", () => {
     expect(doc.submitted_at).toBe("2026-10-30T03:41:12Z");
     expect(doc.read_at).toBe("2026-10-30T03:40:00Z");
     expect(db.rows[0].submitted_at).toBe("2026-10-30T03:41:12Z");
-    expect(doc.client).toEqual({ turnstile: true, rate_key: await rateKeyFor("salt", IP, NOW) });
+    expect(doc.client).toEqual({
+      turnstile: true, rate_key: await rateKeyFor("salt", IP, NOW), season_key: await seasonKeyFor("salt", 42, IP),
+    });
     expect(new Validator(reportSchema as unknown as Schema, "2020-12").validate(doc).valid).toBe(true);
     expect(db.rows[0].doc).not.toContain(IP);
     expect(doc).not.toHaveProperty("turnstile_token");
@@ -90,6 +92,45 @@ describe("POST /api/reports", () => {
     const response = await handleReport(post({ ...valid, screenshot: "data:image/png;base64,AA" }), env, NOW);
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "unknown_fields", fields: ["screenshot"] });
+  });
+
+  it("gives one network the same season key on every day of the raid, and another network another", async () => {
+    await handleReport(post(valid), env, new Date("2026-10-26T03:00:00Z"));
+    await handleReport(post(valid), env, NOW);
+    await handleReport(post(valid, { "CF-Connecting-IP": "198.51.100.9" }), env, NOW);
+    const [a, b, c] = db.rows.map((r) => JSON.parse(r.doc).client);
+    expect(a.season_key).toMatch(/^[0-9a-f]{64}$/);
+    expect(b.season_key).toBe(a.season_key);
+    expect(b.rate_key).not.toBe(a.rate_key);          // the rate key still changes with the UTC day
+    expect(c.season_key).not.toBe(a.season_key);
+  });
+
+  it("counts every address inside one IPv6 /64 as the same network, for the keys and the limit", async () => {
+    const from = (ip: string) => handleReport(post(valid, { "CF-Connecting-IP": ip }), env, NOW);
+    for (let i = 0; i < REPORTS_PER_HOUR; i++) {
+      expect((await from(`2001:db8:1:2::${(i + 1).toString(16)}`)).status).toBe(201);
+    }
+    expect(new Set(db.rows.map((r) => JSON.parse(r.doc).client.season_key)).size).toBe(1);
+    expect((await from("2001:db8:1:2:aaaa:bbbb:cccc:dddd")).status).toBe(429);
+    expect((await from("2001:db8:1:3::1")).status).toBe(201);      // the next /64 is another network
+    expect(db.rows.every((r) => !r.doc.includes("2001:db8"))).toBe(true);
+  });
+
+  it("stores nothing, and answers 403, when the Turnstile check itself can't be made", async () => {
+    turnstile.mockRejectedValueOnce(new TypeError("fetch failed"));
+    expect((await handleReport(post(valid), env, NOW)).status).toBe(403);
+    turnstile.mockResolvedValueOnce(new Response("<html>", { status: 200 }));
+    const response = await handleReport(post(valid), env, NOW);
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "turnstile_failed" });
+    expect(db.rows).toHaveLength(0);
+  });
+
+  it("refuses a body whose declared size is over the limit without reading it", async () => {
+    const request = post(valid, { "Content-Length": "999999" });
+    const read = vi.spyOn(request, "text");
+    expect((await handleReport(request, env, NOW)).status).toBe(413);
+    expect(read).not.toHaveBeenCalled();
   });
 
   it("stores nothing when Turnstile fails", async () => {
@@ -173,6 +214,23 @@ describe("POST /api/reports", () => {
   ])("refuses %s", async (_name, request, status) => {
     expect((await handleReport(request, env, NOW)).status).toBe(status);
     expect(db.rows).toHaveLength(0);
+  });
+});
+
+describe("clientNetwork", () => {
+  it.each([
+    ["203.0.113.7", "203.0.113.7"],
+    ["2001:db8:1:2:aaaa:bbbb:cccc:dddd", "2001:db8:1:2::/64"],
+    ["2001:0DB8:0001:0002::1", "2001:db8:1:2::/64"],
+    ["2001:db8::1", "2001:db8:0:0::/64"],
+    ["::1", "0:0:0:0::/64"],
+    ["::ffff:203.0.113.7", "203.0.113.7"],
+    ["fe80::1%eth0", "fe80:0:0:0::/64"],
+    ["not:an:address", "not:an:address"],
+    ["1::2::3", "1::2::3"],
+    ["", ""],
+  ])("%j -> %j", (ip, network) => {
+    expect(clientNetwork(ip)).toBe(network);
   });
 });
 
