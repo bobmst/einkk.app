@@ -110,7 +110,12 @@ export async function handleLatest(request: Request, env: WorkerEnv, server: str
   const origin = new URL(request.url).origin;
   const season = await readOutbox(env, ctx, origin, "season.json");
   if ("missing" in season) return respond(request, season);
-  const number = (JSON.parse(season.body) as { season?: unknown }).season;
+  let number: unknown;
+  try {
+    number = (JSON.parse(season.body) as { season?: unknown }).season;
+  } catch {
+    return error(502, "bad_season");
+  }
   if (!Number.isInteger(number)) return error(502, "bad_season");
   return respond(request, await readOutbox(env, ctx, origin, `predictions/s${number}/${server}.json`));
 }

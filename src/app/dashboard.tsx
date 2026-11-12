@@ -1,7 +1,7 @@
 "use client";
 // The live page. Everything is read in the browser from the outbox through
 // /api/outbox (docs/ARCHITECTURE.md), so a new forecast needs no rebuild; it
-// polls each minute. Each player follows one server: its 3% line, its
+// polls every 5 minutes while the raid is live and every 30 otherwise. Each player follows one server: its 3% line, its
 // damage-by-rank curve and its track record.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Alert from "@mui/material/Alert";
@@ -146,6 +146,7 @@ export default function Dashboard() {
   const [view, setView] = useState<View>({ frame: null, at: null });
   const followed = useRef(server);                    // the refresh reads it, without restarting
   const fetching = useRef(new Set<string>());
+  const unsaved = useRef<{ data: Data; at: number } | null>(null);
   const [switchFailed, setSwitchFailed] = useState<string | null>(null);   // that forecast's key
   useEffect(() => {
     followed.current = server;
@@ -190,7 +191,8 @@ export default function Dashboard() {
           setLoaded(fresh);
           setLoadedAt(at);
           setFailed(false);
-          if (!asks) saveSnapshot(fresh, at);            // a frame or a frozen time is no visit to resume
+          // a frame or a frozen time is no visit to resume
+          unsaved.current = asks ? null : { data: fresh, at };
         },
         () => alive && setFailed(true),
       ).finally(() => {
@@ -213,6 +215,14 @@ export default function Dashboard() {
       document.removeEventListener("visibilitychange", onShow);
     };
   }, []);
+
+  // Kept for the next visit only once the page has rendered it: an effect runs after the
+  // commit, so documents the page can't draw never become the snapshot the next visit opens with.
+  useEffect(() => {
+    if (!unsaved.current) return;
+    saveSnapshot(unsaved.current.data, unsaved.current.at);
+    unsaved.current = null;
+  }, [loaded]);
 
   // a newly followed server's forecast; each refresh then keeps only the followed one
   const seasonNumber = data?.season?.season;

@@ -38,11 +38,14 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
   const rateKey = await rateKeyFor(env.RATE_KEY_SALT, ip, now);
   // the hour's window can reach back into yesterday (UTC), whose reports carry yesterday's key
   const earlierKey = await rateKeyFor(env.RATE_KEY_SALT, ip, new Date(now.getTime() - 3_600_000));
+  // one network's reports all season (0.2.0); the rate key above changes daily and only limits
+  const seasonKey = await seasonKeyFor(env.RATE_KEY_SALT, Number(fields.season), ip);
 
   const doc: Record<string, unknown> = { schema_version: SCHEMA_VERSION, id: crypto.randomUUID() };
   for (const key of PLAYER_FIELDS) if (key in fields) doc[key] = fields[key];
   doc.submitted_at = utcSeconds(now);
-  doc.client = { turnstile: true, rate_key: rateKey };   // stored only if the check below passes
+  // stored only if the check below passes
+  doc.client = { turnstile: true, rate_key: rateKey, season_key: seasonKey };
 
   const invalid = contractErrors(validator, doc);
   if (invalid) return invalid;
@@ -86,6 +89,9 @@ export async function readFields(request: Request, allowed: Set<string>): Promis
   if (!(request.headers.get("Content-Type") ?? "").startsWith("application/json")) {
     return error(415, "json_only");
   }
+  // a declared size over the limit is refused before the body is read; the check after
+  // reading covers a missing or wrong header
+  if (Number(request.headers.get("Content-Length") ?? 0) > MAX_BODY_BYTES) return error(413, "too_large");
   const text = await request.text();
   if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) return error(413, "too_large");
 
@@ -118,11 +124,40 @@ export async function sha256Hex(text: string): Promise<string> {
   return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// SHA-256 of a secret salt, the UTC day and the client address. The day is in
-// the hash so one player's reports can't be linked across days; the address
+/**
+ * What a key is made from in place of the address: an IPv4 address as it is, an IPv6
+ * address as its /64 network. One connection is handed a whole /64 and its devices move
+ * around inside it, so the full address would make one player look like many and give
+ * each address its own hourly allowance. Anything unreadable is kept as sent.
+ */
+export function clientNetwork(ip: string): string {
+  const address = ip.trim().toLowerCase().replace(/%.*$/, "");
+  if (!address.includes(":")) return address;
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(address);
+  if (mapped) return mapped[1];
+  const halves = address.split("::");
+  if (halves.length > 2) return address;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 2 ? missing < 1 : missing !== 0) return address;
+  const groups = [...head, ...Array<string>(halves.length === 2 ? missing : 0).fill("0"), ...tail];
+  if (!groups.every((g) => /^[0-9a-f]{1,4}$/.test(g))) return address;
+  return `${groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":")}::/64`;
+}
+
+// SHA-256 of a secret salt, the UTC day and the client's network. The day is in
+// the hash, so this key can't link one player's reports across days; the address
 // itself is never stored.
 export async function rateKeyFor(salt: string, ip: string, now: Date): Promise<string> {
-  return sha256Hex(`${salt}:${now.toISOString().slice(0, 10)}:${ip}`);
+  return sha256Hex(`${salt}:${now.toISOString().slice(0, 10)}:${clientNetwork(ip)}`);
+}
+
+// SHA-256 of the salt, the season and the client's network: the same for one network
+// all season, on in-raid reports and final results alike, so the engine can tell one
+// player's results from many players' without an address or an account.
+export async function seasonKeyFor(salt: string, season: number, ip: string): Promise<string> {
+  return sha256Hex(`${salt}:season:${season}:${clientNetwork(ip)}`);
 }
 
 // A pass only counts if the token was issued on this site's own host (siteverify
@@ -133,10 +168,14 @@ export async function turnstilePassed(secret: string, token: unknown, ip: string
   form.append("secret", secret);
   form.append("response", token);
   if (ip) form.append("remoteip", ip);
-  const response = await fetch(TURNSTILE_VERIFY, { method: "POST", body: form });
-  if (!response.ok) return false;
-  const outcome = (await response.json()) as { success?: boolean; hostname?: string };
-  return outcome.success === true && (host === null || outcome.hostname === host);
+  try {
+    const response = await fetch(TURNSTILE_VERIFY, { method: "POST", body: form });
+    if (!response.ok) return false;
+    const outcome = (await response.json()) as { success?: boolean; hostname?: string };
+    return outcome.success === true && (host === null || outcome.hostname === host);
+  } catch {
+    return false;                       // siteverify unreachable or not JSON: no pass, nothing stored
+  }
 }
 
 /** The start of the rate-limit window: an hour before `now`, in the stored format. */

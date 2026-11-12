@@ -8,14 +8,17 @@
 // season's close through the end of its survey window.
 //
 // Two salted keys let the engine count distinct players without an address:
-// the client address hashed with the season (stable for the whole window) and
+// the client's network hashed with the season (stable for the whole window; an IPv6
+// address counts as its /64, see clientNetwork) and
 // a random id the page keeps in the browser. Reports sharing either key are
 // one player there.
 import { Validator, type Schema } from "@cfworker/json-schema";
 import finalSchema from "../contracts/final-report.schema.json";
 import type { WorkerEnv } from "./env";
 import { error, json } from "./http";
-import { contractErrors, hourBefore, readFields, sha256Hex, turnstilePassed, utcSeconds } from "./reports";
+import {
+  contractErrors, hourBefore, readFields, seasonKeyFor, sha256Hex, turnstilePassed, utcSeconds,
+} from "./reports";
 import { currentSeason, finalSeason, inFinalWindow } from "./season";
 
 const validator = new Validator(finalSchema as unknown as Schema, "2020-12", false);
@@ -37,7 +40,7 @@ export async function handleFinal(request: Request, env: WorkerEnv, now = new Da
   }
   const ip = request.headers.get("CF-Connecting-IP") ?? "";
   const season = Number(fields.season);
-  const seasonKey = await sha256Hex(`${env.RATE_KEY_SALT}:season:${season}:${ip}`);
+  const seasonKey = await seasonKeyFor(env.RATE_KEY_SALT, season, ip);
   const browserKey = await sha256Hex(`${env.RATE_KEY_SALT}:browser:${fields.browser_id.toLowerCase()}`);
 
   const doc: Record<string, unknown> = { schema_version: SCHEMA_VERSION, id: crypto.randomUUID() };
