@@ -1,8 +1,9 @@
 "use client";
 // The live page. Everything is read in the browser from the outbox through
 // /api/outbox (docs/ARCHITECTURE.md), so a new forecast needs no rebuild; it
-// polls every 5 minutes while the raid is live and every 30 otherwise. Each player follows one server: its 3% line, its
-// damage-by-rank curve and its track record.
+// checks again when the engine can have published (src/lib/refresh.ts). Each
+// player follows one server: its 3% line, its damage-by-rank curve and its track
+// record.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Alert from "@mui/material/Alert";
 import AppBar from "@mui/material/AppBar";
@@ -35,19 +36,15 @@ import {
 import { freeze, frozenAt, now as clockNow, viewFrom, viewKey, type View } from "@/lib/clock";
 import { saveSnapshot, snapshotStore, type Snapshot } from "@/lib/snapshot";
 import { chooseMode } from "@/lib/theme-storage";
+import { RETRY_MS, nextDue, plan, type Kind, type Known } from "@/lib/refresh";
 import FinalsView from "./finals-view";
 import ReportForm from "./report-form";
 import SeasonCard from "./season-card";
 import { Distribution, Forecast } from "./server-view";
 import TrackRecord from "./track-record";
 
-// Every /api request runs the Worker, and the free plan allows 100k a day. The
-// engine republishes at most every 15-30 minutes during a raid and a few times a
-// day outside one, so a tab checks every 5 minutes while the raid is live, every
-// 30 otherwise, and not at all while it is hidden (it catches up when shown).
-const LIVE_REFRESH_MS = 5 * 60_000;
-const IDLE_REFRESH_MS = 30 * 60_000;
-const FAILED_RETRY_MS = 60_000;
+// Every /api request runs the Worker, and the free plan allows 100k a day: when
+// each document is checked again is src/lib/refresh.ts's (#86).
 const ISSUES = "https://github.com/bobmst/einkk.app/issues/new/choose";
 const HTML_LANG: Record<Lang, string> = { en: "en", ja: "ja", ko: "ko", zhs: "zh-Hans", zht: "zh-Hant", es: "es" };
 
@@ -79,7 +76,7 @@ async function load(server: Server, known: Health | null, view: View): Promise<D
     // a frame by key; otherwise only when /api/latest answered for another season
     view.frame || (current && current.season !== season.season)
       ? outbox<Prediction>(key(predictionKey(season.season, server))) : current,
-    ended ? outbox<Finals>(key(finalsKey(season.season))) : null,
+    ended ? outbox<Finals>(key(finalsKey(season.season))) : undefined,   // undefined: not read (src/lib/refresh.ts)
   ]);
   return { health: h, season, predictions: { [server]: prediction }, history, finals };
 }
@@ -156,18 +153,49 @@ export default function Dashboard() {
     let alive = true;
     let known: Health | null = null;
     let shown: View | null = null;                 // what the link asks for, once health is known
-    let every = LIVE_REFRESH_MS;
-    let last = 0;
     const asks = linkAsks();
+    const jitter = Math.random();                  // this tab's share of the checks' spread
+    let held: Data | null = null;                  // what the page shows, for the plan
+    const fetched: Known["fetched"] = { season: 0, prediction: 0, finals: null };
+    const retry: Partial<Record<Kind | "all", number>> = {};
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const refresh = () => {
+    let busy = false;
+
+    const show = (fresh: Data) => {
+      held = fresh;
+      const at = Date.now();
+      setLoaded(fresh);
+      setLoadedAt(at);
+      setFailed(false);
+      unsaved.current = asks ? null : { data: fresh, at };   // a frame or a frozen time is no visit to resume
+    };
+    const knownNow = (): Known => ({
+      season: held?.season ?? null,
+      issuedAt: held?.predictions[followed.current]?.issued_at ?? null,
+      finals: held?.finals && held.finals.season === held.season?.season
+        ? { settles_at: held.finals.settles_at, settled: held.finals.settled } : null,
+      fetched,
+    });
+    // the earliest check due, retries included; null: nothing is due by time
+    const nextCheck = (): number | null => {
+      const times = [held ? nextDue(plan(knownNow(), Date.now(), jitter)) : 0, ...Object.values(retry)]
+        .filter((t): t is number => t !== undefined && t !== null);
+      return times.length ? Math.min(...times) : null;
+    };
+    const schedule = () => {
       clearTimeout(timer);
-      last = Date.now();
-      let ok = false;
+      // a frozen clock shows one moment: nothing to check for
+      if (!alive || busy || (held && frozenAt() !== null)) return;
+      const at = nextCheck();
+      if (at !== null) timer = setTimeout(() => !document.hidden && check(), Math.max(0, at - Date.now()));
+    };
+
+    // everything, in one round: on open, and when the season changes under the page
+    const reload = async () => {
       // Only a link that asks for a frame or a time waits for the site's mode first; every
       // other open (production's always) loads in one round as before, health included.
-      const viewed = shown || !asks ? Promise.resolve(shown ?? REAL_VIEW)
-        : health().then(async (h) => {
+      const v = shown || !asks ? shown ?? REAL_VIEW
+        : await health().then(async (h) => {
           known = h;
           shown = await openView(h);
           if (alive) {
@@ -176,36 +204,87 @@ export default function Dashboard() {
           }
           return shown;
         });
-      viewed.then((v) => load(followed.current, known, v)).then(
-        (fresh) => {
-          if (!alive) return;
-          ok = true;
-          known = fresh.health;
-          const at = Date.now();
-          const state = fresh.season ? stateAt(fresh.season, clockNow()) : null;
-          every = state === "live" ? LIVE_REFRESH_MS : IDLE_REFRESH_MS;
-          // a page open before the start switches to the live cadence at the start itself
-          if (fresh.season?.starts_at && state === "upcoming") {
-            every = Math.min(every, Date.parse(fresh.season.starts_at) - at + 5_000);
+      const fresh = await load(followed.current, known, v);
+      if (!alive) return;
+      known = fresh.health;
+      fetched.season = fetched.prediction = Date.now();
+      fetched.finals = fresh.finals === undefined ? null : Date.now();
+      show(fresh);
+    };
+
+    // what is due: everything until the first load works, then the followed forecast,
+    // season.json and the finals, each on its own time (src/lib/refresh.ts)
+    const check = async () => {
+      if (!alive || busy) return;
+      busy = true;
+      clearTimeout(timer);
+      const now = Date.now();
+      try {
+        if (!held) {
+          try {
+            await reload();
+            delete retry.all;
+          } catch {
+            retry.all = Date.now() + RETRY_MS;
+            if (alive) setFailed(true);
           }
-          setLoaded(fresh);
-          setLoadedAt(at);
-          setFailed(false);
-          // a frame or a frozen time is no visit to resume
-          unsaved.current = asks ? null : { data: fresh, at };
-        },
-        () => alive && setFailed(true),
-      ).finally(() => {
-        // a frozen clock shows one moment: nothing to poll for
-        if (alive && !(ok && frozenAt() !== null)) {
-          timer = setTimeout(() => !document.hidden && refresh(), ok ? every : FAILED_RETRY_MS);
+          return;
         }
-      });
+        const due = plan(knownNow(), now, jitter);
+        const isDue = (k: Kind) => (due[k] !== null && (due[k] as number) <= now) || (retry[k] ?? Infinity) <= now;
+        if (isDue("season")) {
+          delete retry.season;
+          try {
+            const s = await outbox<Season>(viewKey(shown ?? REAL_VIEW, "season.json"));
+            fetched.season = Date.now();
+            if (!alive) return;
+            if (s?.season !== held.season?.season) return void (await reload());
+            show({ ...held, season: s });
+          } catch {
+            retry.season = Date.now() + RETRY_MS;
+          }
+        }
+        const season = held.season;
+        if (isDue("prediction") && season) {
+          delete retry.prediction;
+          const server = followed.current;
+          try {
+            const p = await latestPrediction(server);
+            fetched.prediction = Date.now();
+            if (!alive) return;
+            // a forecast for another season, or the first of an undated one: the season moved
+            if (p && (p.season !== season.season || !season.starts_at)) return void (await reload());
+            const before = held.predictions[server];
+            // a new run republished every server: the others held are out of date now
+            const others = p && before && p.issued_at !== before.issued_at ? {} : held.predictions;
+            show({ ...held, predictions: { ...others, [server]: p } });
+          } catch {
+            retry.prediction = Date.now() + RETRY_MS;
+          }
+        }
+        if (isDue("finals") && season) {
+          delete retry.finals;
+          try {
+            const f = await outbox<Finals>(viewKey(shown ?? REAL_VIEW, finalsKey(season.season)));
+            fetched.finals = Date.now();
+            if (alive) show({ ...held, finals: f });
+          } catch {
+            retry.finals = Date.now() + RETRY_MS;
+          }
+        }
+      } finally {
+        busy = false;
+        schedule();
+      }
     };
+
+    // a hidden tab checks nothing; shown again, it catches up on whatever came due
     const onShow = () => {
-      if (!document.hidden && frozenAt() === null && Date.now() - last >= every) refresh();
+      if (document.hidden || (held && frozenAt() !== null)) return;
+      const at = nextCheck();
+      if (at !== null && at <= Date.now()) void check();
     };
-    refresh();
+    void check();
     document.addEventListener("visibilitychange", onShow);
     const tick = setInterval(() => setNow(clockNow()), 30_000);
     return () => {
@@ -224,7 +303,7 @@ export default function Dashboard() {
     unsaved.current = null;
   }, [loaded]);
 
-  // a newly followed server's forecast; each refresh then keeps only the followed one
+  // a newly followed server's forecast; a refresh keeps the others until a new run replaces them
   const seasonNumber = data?.season?.season;
   const missing = seasonNumber !== undefined && !(server in (data?.predictions ?? {}));
   useEffect(() => {
