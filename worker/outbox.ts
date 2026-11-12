@@ -25,7 +25,7 @@ const SERVER = /^(jp|kr|na|sea|tw|gb)$/;
 export const MAX_AGE_SECONDS = 30;
 // The longest a colo goes on serving its copy of a document: a new forecast reaches
 // a quiet colo at most this long after it was published (the engine republishes
-// every 15-30 minutes in a raid, the page polls every 5).
+// every 15-30 minutes in a raid, the page checks every 30, src/lib/refresh.ts).
 export const STALE_SECONDS = 600;
 
 type CacheState = "hit" | "stale" | "miss";
