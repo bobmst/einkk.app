@@ -5,7 +5,7 @@ engine. This directory is the single source of truth for both sides.
 
 | Schema | Written by | Read by | Version |
 |---|---|---|---|
-| `prediction.schema.json` | engine (outbox) | site | 0.7.0 (draft): optional nested `bands` (0.2.0), the `residuals` they come from (0.3.0), `shadow_nowcast`, the reference-only final line with today's player reports (0.4.0; 0.5.0 made it this server's final line instead of JP's day line), `code_sha`, the engine commit that made the forecast (0.6.0), and `rank_slide`, where a rank read now is likely to end at the close, per start rank, for the checker (0.7.0) |
+| `prediction.schema.json` | engine (outbox) | site | 0.8.0 (draft): optional nested `bands` (0.2.0), the `residuals` they come from (0.3.0), `shadow_nowcast`, the reference-only final line with today's player reports (0.4.0; 0.5.0 made it this server's final line instead of JP's day line), `code_sha`, the engine commit that made the forecast (0.6.0), `rank_slide`, where a rank read now is likely to end at the close, per start rank, for the checker (0.7.0), and `band.method` `conformal_shifted` with `band.shifted_from`, a band moved from another route (0.8.0) |
 | `report.schema.json` | site (inbox) | engine | 0.2.0 (draft): optional `client.season_key`, one network's key for the whole season (0.2.0) |
 | `final-report.schema.json` | site (inbox, `final_reports`) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.4.0 (draft): optional `previous`, the season before while its final results are still taken (0.2.0); `starts_at`/`ends_at` may be null while the season is upcoming and its dates aren't known (0.3.0); optional `finals_close_at`, an early end to final results (0.4.0) |
@@ -89,4 +89,6 @@ breaks exactly one rule. `npm test` (also run in CI) checks two things:
   output validates against it in CI.
 - Units are 0.1B (1e8 damage) unless a field says otherwise. Percentiles are raw percentages
   (`3.0` = the top 3%).
-- A band always travels with the confidence level it actually certifies and with the method that built it.
+- A band always travels with the confidence level it actually certifies and with the method that built it. A band
+  moved from another route's forecast says so (`conformal_shifted`) and names that route: it keeps the level it
+  was built for, but has no walk-forward record of its own.
