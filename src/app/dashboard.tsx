@@ -178,7 +178,8 @@ export default function Dashboard() {
     });
     // the earliest check due, retries included; null: nothing is due by time
     const nextCheck = (): number | null => {
-      const times = [held ? nextDue(plan(knownNow(), Date.now(), jitter)) : 0, ...Object.values(retry)]
+      // before the first load works, only its retry: never a zero that would spin
+      const times = [held ? nextDue(plan(knownNow(), Date.now(), jitter)) : null, ...Object.values(retry)]
         .filter((t): t is number => t !== undefined && t !== null);
       return times.length ? Math.min(...times) : null;
     };
