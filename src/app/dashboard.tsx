@@ -180,9 +180,12 @@ export default function Dashboard() {
     });
     // the earliest check due, retries included; null: nothing is due by time
     const nextCheck = (): number | null => {
-      // before the first load works, only its retry: never a zero that would spin
-      const times = [held.current ? nextDue(plan(knownNow(), Date.now(), jitter)) : null, ...Object.values(retry)]
-        .filter((t): t is number => t !== undefined && t !== null);
+      // Before the first load works, only its retry: never a zero that would spin. After a
+      // failed check its document stays due by the plan, so a due time already past waits
+      // for the retry instead of firing again at once.
+      const retries = Object.values(retry).filter((t): t is number => t !== undefined);
+      const planned = held.current ? nextDue(plan(knownNow(), Date.now(), jitter)) : null;
+      const times = planned !== null && !(retries.length && planned <= Date.now()) ? [planned, ...retries] : retries;
       return times.length ? Math.min(...times) : null;
     };
     const schedule = () => {
