@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FETCH_TIMEOUT_MS, finalWindowOpen, health, latestPrediction, outbox, previousFinalOpen, stateAt, surveyLink,
+import { FETCH_TIMEOUT_MS, finalWindowOpen, health, latest, outbox, previousFinalOpen, stateAt, surveyLink,
   type Season } from "./outbox";
 
 const season: Season = {
@@ -88,11 +88,11 @@ describe("outbox fetches", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("asks the latest route for the followed server's forecast", async () => {
-    const fetch = vi.fn(async (_path: string) => json({ season: 42, server: "kr" }));
+  it("asks one route for the season and every server's forecast", async () => {
+    const fetch = vi.fn(async (_path: string) => json({ season: { season: 42 }, predictions: {} }));
     vi.stubGlobal("fetch", fetch);
-    expect(await latestPrediction("kr")).toEqual({ season: 42, server: "kr" });
-    expect(fetch.mock.calls[0][0]).toBe("/api/latest/kr.json");
+    expect(await latest()).toEqual({ season: { season: 42 }, predictions: {} });
+    expect(fetch.mock.calls[0][0]).toBe("/api/now.json");
   });
 
   it("tries a failed or 5xx request once more, and gives up after that", async () => {

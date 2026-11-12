@@ -29,7 +29,7 @@ import {
   LANG_NAMES, LANGS, SERVER_ORDER, duration, langStore, serverName, serverStore, text, type Lang,
 } from "@/lib/i18n";
 import {
-  finalWindowOpen, finalsKey, health, latestPrediction, outbox, predictionKey, previousFinalOpen, stateAt,
+  finalWindowOpen, finalsKey, health, latest, outbox, predictionKey, previousFinalOpen, stateAt,
   surveyLink, type Finals, type Health, type History, type Prediction, type Predictions, type Season,
   type Server,
 } from "@/lib/outbox";
@@ -56,26 +56,30 @@ interface Data {
   finals?: Finals | null;               // once the raid has closed (solo_raid_predict #63)
 }
 
-// health (site mode, Turnstile key) doesn't change while the page is open: fetched once.
-// Of the forecasts only the followed server's: the page shows one server, and each
-// document is a Worker request. Another server's is fetched when the player follows it.
-// All in one round: /api/latest finds the season on the Worker's side, so the page
-// doesn't wait for season.json before it can ask for the forecast.
-// A frame (src/lib/clock.ts) has no /api/latest: its documents are read by key, season.json first.
+// health (site mode, Turnstile key) doesn't change while the page is open: fetched once,
+// and history.json too (it changes once a season). Everything else comes in one request,
+// /api/now.json (worker/now.ts): season.json, every server's forecast, and from the close
+// the finals, so following another server costs nothing (#86).
+// A frame (src/lib/clock.ts) has no /api/now.json: its documents are read by key,
+// season.json first, then the followed server's forecast.
 async function load(server: Server, known: Health | null, view: View): Promise<Data> {
   const key = (k: string) => viewKey(view, k);
-  const [h, season, history, current] = await Promise.all([
+  if (!view.frame) {
+    const [h, now, history] = await Promise.all([known ?? health(), latest(), outbox<History>(key("history.json"))]);
+    if (!now) return { health: h, season: null, predictions: {}, history };
+    // the Worker includes the finals by its clock; a page on a frozen time asks for them itself
+    const ended = ["measuring", "closed"].includes(stateAt(now.season, clockNow()));
+    const finals = now.finals !== undefined ? now.finals
+      : ended ? await outbox<Finals>(key(finalsKey(now.season.season))) : undefined;   // undefined: not read
+    return { health: h, season: now.season, predictions: now.predictions, history, finals };
+  }
+  const [h, season, history] = await Promise.all([
     known ?? health(), outbox<Season>(key("season.json")), outbox<History>(key("history.json")),
-    view.frame ? null : latestPrediction(server),
   ]);
   if (!season) return { health: h, season, predictions: {}, history };
-  // The Worker's read of season.json and the page's are cached separately (30 s each),
-  // so right at a new season they can name different seasons: the page's decides.
   const ended = ["measuring", "closed"].includes(stateAt(season, clockNow()));
   const [prediction, finals] = await Promise.all([
-    // a frame by key; otherwise only when /api/latest answered for another season
-    view.frame || (current && current.season !== season.season)
-      ? outbox<Prediction>(key(predictionKey(season.season, server))) : current,
+    outbox<Prediction>(key(predictionKey(season.season, server))),
     ended ? outbox<Finals>(key(finalsKey(season.season))) : undefined,   // undefined: not read (src/lib/refresh.ts)
   ]);
   return { health: h, season, predictions: { [server]: prediction }, history, finals };
@@ -232,44 +236,25 @@ export default function Dashboard() {
         }
         const due = plan(knownNow(), now, jitter);
         const isDue = (k: Kind) => (due[k] !== null && (due[k] as number) <= now) || (retry[k] ?? Infinity) <= now;
-        if (isDue("season")) {
+        // whichever is due, one request brings all three (src/lib/refresh.ts says when)
+        if ((["season", "prediction", "finals"] as Kind[]).some(isDue)) {
           delete retry.season;
-          try {
-            const s = await outbox<Season>(viewKey(shown ?? REAL_VIEW, "season.json"));
-            fetched.season = Date.now();
-            if (!alive) return;
-            if (s?.season !== held.season?.season) return void (await reload());
-            show({ ...held, season: s });
-          } catch {
-            retry.season = Date.now() + RETRY_MS;
-          }
-        }
-        const season = held.season;
-        if (isDue("prediction") && season) {
           delete retry.prediction;
-          const server = followed.current;
-          try {
-            const p = await latestPrediction(server);
-            fetched.prediction = Date.now();
-            if (!alive) return;
-            // a forecast for another season, or the first of an undated one: the season moved
-            if (p && (p.season !== season.season || !season.starts_at)) return void (await reload());
-            const before = held.predictions[server];
-            // a new run republished every server: the others held are out of date now
-            const others = p && before && p.issued_at !== before.issued_at ? {} : held.predictions;
-            show({ ...held, predictions: { ...others, [server]: p } });
-          } catch {
-            retry.prediction = Date.now() + RETRY_MS;
-          }
-        }
-        if (isDue("finals") && season) {
           delete retry.finals;
           try {
-            const f = await outbox<Finals>(viewKey(shown ?? REAL_VIEW, finalsKey(season.season)));
-            fetched.finals = Date.now();
-            if (alive) show({ ...held, finals: f });
+            const fresh = await latest();
+            const at = Date.now();
+            fetched.season = fetched.prediction = at;
+            if (!alive) return;
+            if (!fresh || fresh.season.season !== held.season?.season) return void (await reload());
+            let finals = held.finals;
+            if (fresh.finals !== undefined) {
+              finals = fresh.finals;
+              fetched.finals = at;
+            }
+            show({ ...held, season: fresh.season, predictions: fresh.predictions, finals });
           } catch {
-            retry.finals = Date.now() + RETRY_MS;
+            retry.prediction = Date.now() + RETRY_MS;
           }
         }
       } finally {
@@ -303,7 +288,7 @@ export default function Dashboard() {
     unsaved.current = null;
   }, [loaded]);
 
-  // a newly followed server's forecast; a refresh keeps the others until a new run replaces them
+  // a newly followed server's forecast: only a frame needs one (/api/now.json brings every server's)
   const seasonNumber = data?.season?.season;
   const missing = seasonNumber !== undefined && !(server in (data?.predictions ?? {}));
   useEffect(() => {

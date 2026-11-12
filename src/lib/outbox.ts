@@ -94,7 +94,7 @@ export interface Prediction {
   issued_at: string;
   season: number;
   server: Server;
-  model_version: string;
+  model_version?: string;                                // not in /api/now.json: the page doesn't read it
   code_sha?: string;                                     // the engine commit (contract 0.6.0)
   state: { raid_day: number; day_fraction?: number; hours_to_close: number; known_days: number; method: string };
   prediction: number;
@@ -102,7 +102,7 @@ export interface Prediction {
   cells?: Cell[];
   bands?: { level: number; lo: number; hi: number }[];   // narrowest first (contract 0.2.0)
   residuals?: { season: number; error_pct: number }[];   // the misses the bands come from (contract 0.3.0)
-  inputs: { anchors: { day: number; value: number }[] };
+  inputs?: { anchors: { day: number; value: number }[] };   // likewise
   // reference only, never used by the forecast: this server's final line with today's reports (contract 0.5.0)
   shadow_nowcast?: { day: number; final: number; reports_used: number; servers: Partial<Record<Server, number>> };
 }
@@ -183,11 +183,19 @@ async function getJson<T>(path: string, init: RequestInit = {}): Promise<T | nul
 /** One outbox document, or null when it isn't published (404). */
 export const outbox = <T>(key: string) => getJson<T>(`/api/outbox/${key}`);
 
+/** /api/now.json (worker/now.ts): season.json, every server's prediction, finals from the close. */
+export interface Latest {
+  season: Season;
+  predictions: Record<Server, Prediction | null>;
+  finals?: Finals | null;                           // present from the close: null while none is published
+}
+
 /**
- * The server's prediction for the season the Worker reads from season.json, in the
- * same round of requests as season.json itself; null when none is published.
+ * Everything the page checks again while it is open, in one request; null without a
+ * season. The browser revalidates it with its ETag once the 30 s max-age is up, so an
+ * unchanged check comes back 304 with no body.
  */
-export const latestPrediction = (server: Server) => getJson<Prediction>(`/api/latest/${server}.json`);
+export const latest = () => getJson<Latest>("/api/now.json");
 
 export async function health(): Promise<Health | null> {
   try {
