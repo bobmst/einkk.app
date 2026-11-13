@@ -37,7 +37,7 @@ import {
 import { freeze, frozenAt, now as clockNow, viewFrom, viewKey, type View } from "@/lib/clock";
 import { saveSnapshot, snapshotStore, type Snapshot } from "@/lib/snapshot";
 import { chooseMode } from "@/lib/theme-storage";
-import { screenVersions } from "@/lib/versions";
+import { screenVersions, tooNew } from "@/lib/versions";
 import Section from "./section";
 import { RETRY_MS, nextDue, plan, type Kind, type Known } from "@/lib/refresh";
 import FinalsView from "./finals-view";
@@ -143,7 +143,12 @@ export default function Dashboard() {
   // a link asking for a frame or a time never shows the last visit's data: it may be live
   // data, or another frame's
   const asked = useSyncExternalStore(noSubscription, linkAsks, () => false);
-  const usable = asked ? null : saved;
+  // a snapshot saved by another build is screened too (#90): a newer build's documents are
+  // never drawn here, and an older page's "outdated" mark is not this page's
+  const usable = useMemo(() => {
+    if (asked || !saved) return null;
+    return { ...saved, data: screenVersions(saved.data) as Data };   // sets "outdated" afresh
+  }, [asked, saved]);
   const stale = !loaded && usable !== null;
   const data = loaded ?? usable?.data ?? null;
   const shownAt = loaded ? loadedAt : usable?.saved_at ?? null;
@@ -179,7 +184,8 @@ export default function Dashboard() {
       setLoaded(fresh);
       setLoadedAt(at);
       setFailed(false);
-      unsaved.current = asks ? null : { data: fresh, at };   // a frame or a frozen time is no visit to resume
+      // a frame or a frozen time is no visit to resume, nor is what an outdated page could read (#90)
+      unsaved.current = asks || fresh.outdated ? null : { data: fresh, at };
     };
     const knownNow = (): Known => ({
       season: held.current?.season ?? null,
@@ -317,7 +323,9 @@ export default function Dashboard() {
       (p) => {
         const prev = held.current;
         if (!prev || prev.season?.season !== seasonNumber) return;
-        held.current = { ...prev, predictions: { ...prev.predictions, [server]: p } };
+        const newer = tooNew(p);                     // a frame's forecast from a newer contract (#90)
+        held.current = { ...prev, predictions: { ...prev.predictions, [server]: newer ? null : p },
+          ...(newer ? { outdated: true } : {}) };
         setLoaded(held.current);
       },
       () => setSwitchFailed(key),                 // shown in the forecast slot; the next refresh retries
