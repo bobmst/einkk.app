@@ -19,8 +19,8 @@ import { throughMinute } from "../src/lib/windows";
 export const SERVERS = ["jp", "kr", "na", "sea", "tw", "gb"] as const;
 
 /** The prediction fields the page reads (src/lib/outbox.ts Prediction); the rest isn't sent here. */
-export const PAGE_FIELDS = ["revision", "issued_at", "season", "server", "state", "prediction", "band", "cells",
-  "bands", "residuals", "shadow_nowcast"] as const;
+export const PAGE_FIELDS = ["schema_version", "revision", "issued_at", "season", "server", "state", "prediction",
+  "band", "cells", "bands", "residuals", "shadow_nowcast"] as const;   // schema_version: the page's guard (#90)
 
 const pick = (doc: Record<string, unknown>) =>
   Object.fromEntries(PAGE_FIELDS.filter((f) => f in doc).map((f) => [f, doc[f]]));

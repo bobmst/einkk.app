@@ -58,7 +58,8 @@ describe("GET /api/now.json", () => {
     const body = await (await get(env, LIVE)).json() as { predictions: Record<string, Record<string, unknown>> };
     expect(Object.keys(body.predictions.jp).sort()).toEqual(
       PAGE_FIELDS.filter((f) => f in prediction("jp")).sort());
-    for (const dropped of ["inputs", "dq", "run_id", "schema_version", "model_version", "code_sha"]) {
+    expect(body.predictions.jp.schema_version).toBe("0.8.0");            // the page's version guard (#90)
+    for (const dropped of ["inputs", "dq", "run_id", "model_version", "code_sha"]) {
       expect(body.predictions.jp).not.toHaveProperty(dropped);
     }
   });
