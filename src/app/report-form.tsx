@@ -28,6 +28,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { SERVER_ORDER, damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
 import { digitCheck, raidProgress, regroupField, scoreToTenthB } from "@/lib/numbers";
+import { tooNew } from "@/lib/versions";
 import { outbox, predictionKey, type Health, type Prediction, type Predictions, type Season, type Server } from "@/lib/outbox";
 
 const TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -174,7 +175,8 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
     if (!fetchOther) return;
     let alive = true;
     outbox<Prediction>(predictionKey(season.season, server)).then(
-      (p) => alive && setOthers((o) => ({ ...o, [server]: p })),
+      // a forecast from a newer contract than this page reads gives no digit check (#90)
+      (p) => alive && setOthers((o) => ({ ...o, [server]: tooNew(p) ? null : p })),
       () => alive && setOthers((o) => ({ ...o, [server]: null })),   // no digit check then, and no retry loop
     );
     return () => { alive = false; };

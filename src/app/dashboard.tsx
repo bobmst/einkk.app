@@ -6,6 +6,7 @@
 // record.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Alert from "@mui/material/Alert";
+import Button from "@mui/material/Button";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -36,6 +37,8 @@ import {
 import { freeze, frozenAt, now as clockNow, viewFrom, viewKey, type View } from "@/lib/clock";
 import { saveSnapshot, snapshotStore, type Snapshot } from "@/lib/snapshot";
 import { chooseMode } from "@/lib/theme-storage";
+import { screenVersions, tooNew } from "@/lib/versions";
+import Section from "./section";
 import { RETRY_MS, nextDue, plan, type Kind, type Known } from "@/lib/refresh";
 import FinalsView from "./finals-view";
 import ReportForm from "./report-form";
@@ -54,6 +57,7 @@ interface Data {
   predictions: Predictions;
   history: History | null;
   finals?: Finals | null;               // once the raid has closed (solo_raid_predict #63)
+  outdated?: boolean;                   // a document was too new for this page and set aside (#90)
 }
 
 // health (site mode, Turnstile key) doesn't change while the page is open: fetched once,
@@ -139,7 +143,12 @@ export default function Dashboard() {
   // a link asking for a frame or a time never shows the last visit's data: it may be live
   // data, or another frame's
   const asked = useSyncExternalStore(noSubscription, linkAsks, () => false);
-  const usable = asked ? null : saved;
+  // a snapshot saved by another build is screened too (#90): a newer build's documents are
+  // never drawn here, and an older page's "outdated" mark is not this page's
+  const usable = useMemo(() => {
+    if (asked || !saved) return null;
+    return { ...saved, data: screenVersions(saved.data) as Data };   // sets "outdated" afresh
+  }, [asked, saved]);
   const stale = !loaded && usable !== null;
   const data = loaded ?? usable?.data ?? null;
   const shownAt = loaded ? loadedAt : usable?.saved_at ?? null;
@@ -167,13 +176,16 @@ export default function Dashboard() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let busy = false;
 
-    const show = (fresh: Data) => {
+    const show = (incoming: Data) => {
+      // a document from a newer contract major than this page knows is never drawn (#90)
+      const fresh = screenVersions(incoming) as Data;
       held.current = fresh;
       const at = Date.now();
       setLoaded(fresh);
       setLoadedAt(at);
       setFailed(false);
-      unsaved.current = asks ? null : { data: fresh, at };   // a frame or a frozen time is no visit to resume
+      // a frame or a frozen time is no visit to resume, nor is what an outdated page could read (#90)
+      unsaved.current = asks || fresh.outdated ? null : { data: fresh, at };
     };
     const knownNow = (): Known => ({
       season: held.current?.season ?? null,
@@ -311,7 +323,9 @@ export default function Dashboard() {
       (p) => {
         const prev = held.current;
         if (!prev || prev.season?.season !== seasonNumber) return;
-        held.current = { ...prev, predictions: { ...prev.predictions, [server]: p } };
+        const newer = tooNew(p);                     // a frame's forecast from a newer contract (#90)
+        held.current = { ...prev, predictions: { ...prev.predictions, [server]: newer ? null : p },
+          ...(newer ? { outdated: true } : {}) };
         setLoaded(held.current);
       },
       () => setSwitchFailed(key),                 // shown in the forecast slot; the next refresh retries
@@ -387,6 +401,11 @@ export default function Dashboard() {
       <Container maxWidth={false} sx={{ py: 3, maxWidth: pageWidth }}>
         <Stack spacing={2.5}>
           {data?.health?.mode === "rehearsal" && <Alert severity="warning">{t.rehearsal}</Alert>}
+          {data?.outdated && (
+            <Alert severity="warning" action={
+              <Button color="inherit" size="small" onClick={() => window.location.reload()}>{t.reload}</Button>
+            }>{t.pageOutdated}</Alert>
+          )}
           {frozenAt() !== null && (
             <Alert severity="info">{t.frozen(new Date(frozenAt() as number).toLocaleString(HTML_LANG[lang]),
               view.frame)}</Alert>
@@ -417,15 +436,17 @@ export default function Dashboard() {
               gridTemplateRows: { lg: wide ? "auto auto 1fr auto" : "none" },
             }}>
               <Box sx={{ gridArea: "season" }}>
-                <SeasonCard key={season.season} season={season} lang={lang} t={t} now={now} />
+                <Section key={`season-${season.season}`} message={t.sectionFailed} reload={t.reload}><SeasonCard key={season.season} season={season} lang={lang} t={t} now={now} /></Section>
               </Box>
 
               {/* after the close the forecast and its table would only invite players to report
                   their numbers back as final results: hidden until this season's own lines exist */}
               {ended && data?.finals?.season === season.season ? (
                 <Box sx={{ gridArea: "forecast" }}>
-                  <FinalsView finals={data.finals} server={server} lang={lang} t={t} now={now}
-                    entry={data.history?.entries.find((e) => e.season === season.season && e.server === server)} />
+                  <Section key={`finals-${server}`} message={t.sectionFailed} reload={t.reload}>
+                    <FinalsView finals={data.finals} server={server} lang={lang} t={t} now={now}
+                      entry={data.history?.entries.find((e) => e.season === season.season && e.server === server)} />
+                  </Section>
                 </Box>
               ) : prediction && ended ? (
                 <Typography variant="body2" color="text.secondary" sx={{ gridArea: "forecast" }}>
@@ -434,10 +455,10 @@ export default function Dashboard() {
               ) : prediction ? (
                 <>
                   <Box sx={{ gridArea: "forecast" }}>
-                    <Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen} ended={ended} />
+                    <Section key={`forecast-${server}`} message={t.sectionFailed} reload={t.reload}><Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen} ended={ended} /></Section>
                   </Box>
                   <Box sx={{ gridArea: "dist" }}>
-                    <Distribution p={prediction} lang={lang} t={t} />
+                    <Section key={`dist-${server}`} message={t.sectionFailed} reload={t.reload}><Distribution p={prediction} lang={lang} t={t} /></Section>
                   </Box>
                 </>
               ) : prediction === undefined && switchFailed === predictionKey(season.season, server) ? (
@@ -454,13 +475,17 @@ export default function Dashboard() {
                   the season before keeps its final-result card until its own window ends. While
                   the raid is live its own card comes first, otherwise the open final window */}
               <Stack id="report" spacing={2.5} sx={{ gridArea: "report", scrollMarginTop: 128 }}>
-                {season.state === "live" ? <>{ownCard}{previousCard}</> : <>{previousCard}{ownCard}</>}
+                <Section key={`report-${server}`} message={t.sectionFailed} reload={t.reload}>
+                  {season.state === "live" ? <>{ownCard}{previousCard}</> : <>{previousCard}{ownCard}</>}
+                </Section>
               </Stack>
 
               {data?.history && (
                 <Box sx={{ gridArea: "hist" }}>
-                  <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
-                    current={season.season} measuring={ended} />
+                  <Section key={`hist-${server}`} message={t.sectionFailed} reload={t.reload}>
+                    <TrackRecord entries={data.history.entries} server={server} lang={lang} t={t}
+                      current={season.season} measuring={ended} />
+                  </Section>
                 </Box>
               )}
             </Box>
