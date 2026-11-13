@@ -9,9 +9,11 @@
 //   POST /api/finals          post-raid final result -> D1 final_reports (finals.ts)
 //   GET  /api/outbox/<key>    published engine JSON from R2 (outbox.ts)
 //   GET  /api/latest/<server>.json   that server's prediction for the current season (outbox.ts)
+//   GET  /api/now.json        season.json + every server's prediction (+ finals from the close) (now.ts)
 import type { WorkerEnv } from "./env";
 import { error } from "./http";
 import { handleFinal } from "./finals";
+import { handleNow } from "./now";
 import { handleLatest, handleOutbox } from "./outbox";
 import { handleReport } from "./reports";
 
@@ -41,6 +43,7 @@ export default {
     if (pathname.startsWith(OUTBOX_PREFIX)) {
       return handleOutbox(request, env, pathname.slice(OUTBOX_PREFIX.length), ctx);
     }
+    if (pathname === "/api/now.json") return handleNow(request, env, ctx);
     const latest = LATEST.exec(pathname);
     if (latest) return handleLatest(request, env, latest[1], ctx);
     return error(404, "not_found");

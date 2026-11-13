@@ -14,7 +14,8 @@
 // - history.json: once on open.
 // - finals/s<n>.json, from the close: every 30 minutes until the results settle,
 //   every 4 hours after.
-// Each check waits a fixed share of a few minutes, drawn once per tab, so tabs
+// Whatever is due, the check is one request, /api/now.json (worker/now.ts), which
+// carries all three. Each check waits a fixed share of a few minutes, drawn once per tab, so tabs
 // opened together don't all ask at once. A hidden tab asks for nothing; it catches
 // up when shown (the dashboard does that).
 import { FINAL_WINDOW_MS, throughMinute } from "./windows";
