@@ -501,6 +501,9 @@ export default function Dashboard() {
             <Link href="https://ikken-border.jp/" target="_blank" rel="noopener" variant="caption" color="text.secondary">
               {t.ikkenLink}
             </Link>
+            <Link href="https://soloraidhistory.vercel.app/" target="_blank" rel="noopener" variant="caption" color="text.secondary">
+              {t.krFinalsLink}
+            </Link>
             <Link href={ISSUES} target="_blank" rel="noopener" variant="caption" color="text.secondary">
               {t.feedback}
             </Link>
