@@ -88,14 +88,29 @@ function browserId(): string {
   return id;
 }
 
-export default function ReportForm({ season, health, server: followed, lang, t, final = false, surveyUrl,
+// The form's server field: the page's server, and picking one is the page's onServer (#96).
+export function ServerSelect({ server, onServer, lang, label }: {
+  server: Server; onServer: (server: Server) => void; lang: Lang; label: string;
+}) {
+  return (
+    <TextField select size="small" label={label} value={server}
+               onChange={(e) => onServer(e.target.value as Server)}>
+      {SERVER_ORDER.map((s) => <MenuItem key={s} value={s}>{serverName(lang, s)}</MenuItem>)}
+    </TextField>
+  );
+}
+
+// One current server on the page (#96): the form shows the page's server and picking one here
+// switches the page (tabs, forecast) through onServer. It keeps no copy of its own, so the two
+// can't disagree, and the form keeps what was typed when the server changes.
+export default function ReportForm({ season, health, server, onServer, lang, t, final = false, surveyUrl,
   predictions }: {
-  season: Pick<Season, "season" | "state">; health: Health | null; server: Server; lang: Lang; t: Text;
+  season: Pick<Season, "season" | "state">; health: Health | null; server: Server;
+  onServer: (server: Server) => void; lang: Lang; t: Text;
   final?: boolean; surveyUrl?: string | null;
   predictions?: Predictions;      // the page's forecasts for this season; without them the form fetches its own
 }) {
   const [step, setStep] = useState<Step>("form");
-  const [server, setServer] = useState<Server>(followed);
   const [score, setScore] = useState("");
   const [mode, setMode] = useState<"pc" | "n" | null>(null);
   const [pct, setPct] = useState("");
@@ -110,7 +125,7 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
   const card = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const shown = useRef<Step>(step);
-  const [others, setOthers] = useState<Predictions>({});   // forecasts of servers the page doesn't follow
+  const [others, setOthers] = useState<Predictions>({});   // forecasts the page doesn't hold (another season's)
 
   // On a phone the form is far taller than the review and sent steps. After Next the
   // browser keeps its scroll position, so the shorter card ends up above the screen
@@ -167,10 +182,10 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
 
   // a score a digit short or long for its rank, against the chosen server's curve
   // and how far the raid has come (a numeric rank is a top-200 one: the top cell)
-  // the page fetches only the followed server's forecast; a report for another server fetches its own
-  const shared = predictions ?? {};
-  const forecast = (server in shared ? shared[server] : others[server]) ?? undefined;
-  const fetchOther = (server !== followed || !predictions) && !(server in shared) && !(server in others);
+  // the page's forecasts when it has this season's (it fetches the current server's itself); only the
+  // closing season's final-results card, which the page holds no forecasts for, fetches its own
+  const forecast = (predictions ? predictions[server] : others[server]) ?? undefined;
+  const fetchOther = !predictions && !(server in others);
   useEffect(() => {
     if (!fetchOther) return;
     let alive = true;
@@ -272,10 +287,7 @@ export default function ReportForm({ season, health, server: followed, lang, t, 
             {final && surveyUrl && (
               <Link href={surveyUrl} target="_blank" rel="noopener" variant="body2">{t.finalOrSurvey}</Link>
             )}
-            <TextField select size="small" label={t.server} value={server}
-                       onChange={(e) => setServer(e.target.value as Server)}>
-              {SERVER_ORDER.map((s) => <MenuItem key={s} value={s}>{serverName(lang, s)}</MenuItem>)}
-            </TextField>
+            <ServerSelect server={server} onServer={onServer} lang={lang} label={t.server} />
 
             <Stack spacing={1}>
               <Typography variant="subtitle2">{t.damageLabel}</Typography>

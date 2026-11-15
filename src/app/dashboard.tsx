@@ -355,17 +355,19 @@ export default function Dashboard() {
   const previous = season ? previousFinalOpen(season, now) : null;
 
   const ownCard = !season ? null : finalWindowOpen(season, now) ? (
-    <ReportForm key={`final-${season.season}-${server}`} final season={season}
-                health={data?.health ?? null} server={server} predictions={data?.predictions ?? {}}
+    <ReportForm key={`final-${season.season}`} final season={season}
+                health={data?.health ?? null} server={server} onServer={serverStore.set}
+                predictions={data?.predictions ?? {}}
                 lang={lang} t={t} surveyUrl={surveyLink(season.survey, now)} />
   ) : (season.state === "live" || season.state === "upcoming") ? (
-    <ReportForm key={server} season={season} health={data?.health ?? null} server={server}
+    <ReportForm key={`report-${season.season}`} season={season} health={data?.health ?? null}
+                server={server} onServer={serverStore.set}
                 lang={lang} t={t} predictions={data?.predictions ?? {}} />
   ) : null;
   const previousCard = previous && (
-    <ReportForm key={`final-${previous.season}-${server}`} final
+    <ReportForm key={`final-${previous.season}`} final
                 season={{ season: previous.season, state: "measuring" }}
-                health={data?.health ?? null} server={server}
+                health={data?.health ?? null} server={server} onServer={serverStore.set}
                 lang={lang} t={t} surveyUrl={surveyLink(previous.survey, now)} />
   );
 
@@ -475,7 +477,8 @@ export default function Dashboard() {
                   the season before keeps its final-result card until its own window ends. While
                   the raid is live its own card comes first, otherwise the open final window */}
               <Stack id="report" spacing={2.5} sx={{ gridArea: "report", scrollMarginTop: 128 }}>
-                <Section key={`report-${server}`} message={t.sectionFailed} reload={t.reload}>
+                {/* not keyed by server: the forms follow the page's server and keep what was typed (#96) */}
+                <Section key="report" message={t.sectionFailed} reload={t.reload}>
                   {season.state === "live" ? <>{ownCard}{previousCard}</> : <>{previousCard}{ownCard}</>}
                 </Section>
               </Stack>
