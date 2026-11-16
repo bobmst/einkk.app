@@ -33,19 +33,19 @@ export default function FinalsView({ finals, server, entry, lang, t, now }: {
   return (
     <Card>
       <CardContent>
-        <Typography variant="overline" color="text.secondary">
+        <Typography variant="label">
           {serverName(lang, server)} · {t.finalsTitle}
         </Typography>
         {!finals.settled || !s?.line ? (
           <Box sx={{ mt: 0.5 }}>
             <Typography>{players ? t.finalsCollecting(players) : t.finalsNone}</Typography>
             {players > 0 && server !== "jp" && (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="muted">
                 {t.finalsNear3(s?.near_3 ?? 0, CONFIRM_PLAYERS)}
               </Typography>
             )}
             {!finals.settled && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="muted" sx={{ mt: 1 }}>
                 {now < Date.parse(finals.settles_at)
                   ? t.finalsReveal(duration(lang, Date.parse(finals.settles_at) - now)) : t.finalsRevealSoon}
               </Typography>
@@ -70,11 +70,11 @@ function Settled({ s, line, server, entry, lang, t }: {
       <Typography sx={{ fontSize: { xs: "2.4rem", sm: "3rem" }, fontWeight: 700, lineHeight: 1.1 }}>
         {line.confirmed ? "" : "≈ "}{damage(lang, line.value)}
       </Typography>
-      <Typography variant="caption" color="text.secondary" component="p">
+      <Typography variant="note" component="p">
         {server === "jp" ? t.finalsJp : t.finalsFrom(s.players)}
       </Typography>
       {!line.confirmed && (
-        <Typography variant="caption" color="text.secondary" component="p">{t.finalsUnconfirmed}</Typography>
+        <Typography variant="note" component="p">{t.finalsUnconfirmed}</Typography>
       )}
       {forecast !== undefined && grading && (
         <Box sx={{ mt: 1.5 }}>
@@ -128,7 +128,7 @@ function Curve({ points, cells, line, lang, t }: {
           <ChartsYAxis axisId="dmg" />
         </ChartsContainer>
       </Box>
-      <Typography variant="caption" color="text.secondary">{t.finalsPoints}</Typography>
+      <Typography variant="note">{t.finalsPoints}</Typography>
       <Table size="small" sx={{ mt: 1.5 }}>
         <TableHead>
           <TableRow>
@@ -146,7 +146,7 @@ function Curve({ points, cells, line, lang, t }: {
         </TableBody>
       </Table>
       {sorted.some((c) => c.extrapolated) && (
-        <Typography variant="caption" color="text.secondary">{t.estimated}</Typography>
+        <Typography variant="note">{t.estimated}</Typography>
       )}
     </Box>
   );
