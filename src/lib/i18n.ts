@@ -175,7 +175,7 @@ const en = {
   ikkenLink: "JP daily borders: ikken-border.jp",
   krFinalsLink: "KR final results: 솔레 금서고",
   feedback: "Report a problem",
-  notice: "Unofficial fan site, not affiliated with SHIFT UP or Level Infinite. Reports and checks anonymously keep only server, rank, damage and time; no personal information is recorded.",
+  notice: "Unofficial fan site, not affiliated with SHIFT UP or Level Infinite. Reports and damage checks are stored anonymously, with only server, rank, damage and time; no personal information is recorded.",
   theme: "Light / dark",
   language: "Language",
 };
@@ -893,7 +893,7 @@ const es: Text = {
   ikkenLink: "Líneas de corte diarias de JP: ikken-border.jp",
   krFinalsLink: "Resultados finales de KR: 솔레 금서고",
   feedback: "Reportar un problema",
-  notice: "Sitio de fans no oficial, sin relación con SHIFT UP ni Level Infinite. Los reportes y las consultas guardan de forma anónima solo servidor, posición, daño y hora; no se registra ningún dato personal.",
+  notice: "Sitio de fans no oficial, sin relación con SHIFT UP ni Level Infinite. Los reportes y las consultas se guardan de forma anónima, solo con servidor, posición, daño y hora; no se registra ningún dato personal.",
   theme: "Claro / oscuro",
   language: "Idioma",
 };
