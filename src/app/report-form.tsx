@@ -270,7 +270,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
           {final ? t.finalTitle(season.season) : t.report}
         </Typography>
         {!open ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="textSecondary">
             {frozen ? t.reportFrozen : season.state === "live" ? t.reportUnavailable : t.reportClosed}
           </Typography>
         ) : step === "sent" ? (
@@ -282,15 +282,15 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
           <Stack spacing={2}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t.reviewTitle}</Typography>
             <Box component="dl" sx={{ m: 0, display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 2, rowGap: 0.5 }}>
-              <Typography component="dt" color="text.secondary">{t.server}</Typography>
+              <Typography component="dt" color="textSecondary">{t.server}</Typography>
               <Typography component="dd" sx={{ m: 0 }}>{serverName(lang, server)}</Typography>
-              <Typography component="dt" color="text.secondary">{t.damageLabel}</Typography>
+              <Typography component="dt" color="textSecondary">{t.damageLabel}</Typography>
               <Typography component="dd" sx={{ m: 0 }}>{score} ({tenthB ? fmt(lang, tenthB) : ""})</Typography>
-              <Typography component="dt" color="text.secondary">{t.rank}</Typography>
+              <Typography component="dt" color="textSecondary">{t.rank}</Typography>
               <Typography component="dd" sx={{ m: 0 }}>{rankText}</Typography>
             </Box>
             {digitWarning && <Alert severity="warning">{digitWarning === "low" ? t.digitsLow : t.digitsHigh}</Alert>}
-            <Typography variant="body2" color="text.secondary">{t.reviewNote}</Typography>
+            <Typography variant="body2" color="textSecondary">{t.reviewNote}</Typography>
             <div ref={box} />
             {error && <Alert severity="error">{error}</Alert>}
             <Stack direction="row" spacing={1}>
@@ -302,8 +302,8 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
           </Stack>
         ) : (
           <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <Typography variant="body2" color="text.secondary">{final ? t.finalIntro : t.reportIntro}</Typography>
-            {!final && <Typography variant="body2" color="text.secondary">{t.reportNearLine}</Typography>}
+            <Typography variant="body2" color="textSecondary">{final ? t.finalIntro : t.reportIntro}</Typography>
+            {!final && <Typography variant="body2" color="textSecondary">{t.reportNearLine}</Typography>}
             {remembered && score === "" && (
               <Alert severity="info" action={
                 <Stack direction="row" spacing={0.5}>
@@ -322,7 +322,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
 
             <Stack spacing={1}>
               <Typography variant="subtitle2">{t.damageLabel}</Typography>
-              <Typography variant="body2" color="text.secondary">{t.damageHelp}</Typography>
+              <Typography variant="body2" color="textSecondary">{t.damageHelp}</Typography>
               <Box component="img" src="/survey/survey_dmg.webp" alt="" sx={{ width: "100%", maxWidth: 480, borderRadius: 1 }} />
               <TextField size="small" value={score} placeholder="23,353,143,363"
                          onChange={(e) => setScore(regroupField(e, score))}
@@ -334,7 +334,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
 
             <Stack spacing={1}>
               <Typography variant="subtitle2">{t.rankDisplay}</Typography>
-              <Typography variant="body2" color="text.secondary">{t.rankDisplayHelp}</Typography>
+              <Typography variant="body2" color="textSecondary">{t.rankDisplayHelp}</Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 {([["pc", "%  —  0.83%", "/survey/survey_percent.webp"], ["n", "#  —  200", "/survey/survey_rank.webp"]] as const)
                   .map(([value, label, image]) => (
@@ -351,7 +351,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
             {mode === "pc" && (
               <Stack spacing={1}>
                 <Typography variant="subtitle2">{t.pctLabel}</Typography>
-                <Typography variant="body2" color="text.secondary">{t.pctHelp}</Typography>
+                <Typography variant="body2" color="textSecondary">{t.pctHelp}</Typography>
                 <TextField size="small" value={pct} placeholder="3.00"
                            onChange={(e) => setPct(e.target.value.replace(/[^\d.]/g, ""))}
                            slotProps={{ htmlInput: { inputMode: "decimal" } }}
@@ -362,7 +362,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
             {mode === "n" && (
               <Stack spacing={1}>
                 <Typography variant="subtitle2">{t.numLabel}</Typography>
-                <Typography variant="body2" color="text.secondary">{t.numHelp}</Typography>
+                <Typography variant="body2" color="textSecondary">{t.numHelp}</Typography>
                 <TextField size="small" value={num} placeholder="25"
                            onChange={(e) => setNum(e.target.value.replace(/\D/g, ""))}
                            slotProps={{ htmlInput: { inputMode: "numeric" } }}
@@ -376,7 +376,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
                          slotProps={{ inputLabel: { shrink: true } }} />
             ) : (
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "baseline" }}>
-                <Typography variant="body2" color="text.secondary">{t.readAtNow(localNow().slice(11, 16))}</Typography>
+                <Typography variant="body2" color="textSecondary">{t.readAtNow(localNow().slice(11, 16))}</Typography>
                 <Link component="button" type="button" variant="body2"
                       onClick={() => { setReadAt(localNow()); setTimeSet(true); }}>
                   {t.readAtChange}

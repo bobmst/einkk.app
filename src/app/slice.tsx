@@ -86,7 +86,7 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
         </Typography>
       )}
       {p.state.known_days < 3 && (
-        <Typography variant="caption" color="text.secondary" component="p">{t.earlyNote}</Typography>
+        <Typography variant="caption" color="textSecondary" component="p">{t.earlyNote}</Typography>
       )}
     </Box>
   );

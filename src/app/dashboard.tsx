@@ -380,7 +380,7 @@ export default function Dashboard() {
             <Typography variant="h6" component="h1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
               einkk.app
             </Typography>
-            <Typography variant="caption" color="text.secondary" component="p" noWrap>{t.tagline}</Typography>
+            <Typography variant="caption" color="textSecondary" component="p" noWrap>{t.tagline}</Typography>
           </Box>
           <TranslateOutlined fontSize="small" sx={{ color: "text.secondary" }} />
           <Select variant="standard" disableUnderline size="small" value={lang}
@@ -428,7 +428,7 @@ export default function Dashboard() {
               <Skeleton variant="rounded" height={160} />
             </Stack>
           )}
-          {data && !season && <Typography color="text.secondary">{t.nothing}</Typography>}
+          {data && !season && <Typography color="textSecondary">{t.nothing}</Typography>}
 
           {season && (
             <Box sx={{
@@ -451,7 +451,7 @@ export default function Dashboard() {
                   </Section>
                 </Box>
               ) : prediction && ended ? (
-                <Typography variant="body2" color="text.secondary" sx={{ gridArea: "forecast" }}>
+                <Typography variant="body2" color="textSecondary" sx={{ gridArea: "forecast" }}>
                   {t.distAfterClose}
                 </Typography>
               ) : prediction ? (
@@ -468,7 +468,7 @@ export default function Dashboard() {
               ) : prediction === undefined ? (
                 <Skeleton variant="rounded" height={160} sx={{ gridArea: "forecast" }} />
               ) : season.state === "upcoming" ? null : (
-                <Typography color="text.secondary" sx={{ gridArea: "forecast" }}>
+                <Typography color="textSecondary" sx={{ gridArea: "forecast" }}>
                   {season.state === "live" ? t.noForecast : t.noForecastEnded}
                 </Typography>
               )}
@@ -511,7 +511,7 @@ export default function Dashboard() {
               {t.feedback}
             </Link>
           </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center", pb: 2 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ textAlign: "center", pb: 2 }}>
             {t.notice}
           </Typography>
         </Stack>

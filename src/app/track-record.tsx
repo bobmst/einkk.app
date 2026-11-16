@@ -86,15 +86,15 @@ export default function TrackRecord({ entries, server, lang, t, current, measuri
             </TableBody>
           </Table>
         </TableContainer>
-        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+        <Typography variant="caption" color="textSecondary" component="p" sx={{ mt: 1 }}>
           {t.histNote}
         </Typography>
         {mine.some((e) => e.final?.estimate) && (
-          <Typography variant="caption" color="text.secondary" component="p">{t.histEstimate}</Typography>
+          <Typography variant="caption" color="textSecondary" component="p">{t.histEstimate}</Typography>
         )}
-        {legacy && <Typography variant="caption" color="text.secondary" component="p">{t.legacy}</Typography>}
+        {legacy && <Typography variant="caption" color="textSecondary" component="p">{t.legacy}</Typography>}
         {mine.some((e) => e.grading?.hit === null) && (
-          <Typography variant="caption" color="text.secondary" component="p">· {t.noRange}</Typography>
+          <Typography variant="caption" color="textSecondary" component="p">· {t.noRange}</Typography>
         )}
       </CardContent>
     </Card>
