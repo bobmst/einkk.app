@@ -460,7 +460,7 @@ export default function Dashboard() {
                     <Section key={`forecast-${server}`} message={t.sectionFailed} reload={t.reload}><Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen} ended={ended} /></Section>
                   </Box>
                   <Box sx={{ gridArea: "dist" }}>
-                    <Section key={`dist-${server}`} message={t.sectionFailed} reload={t.reload}><Distribution p={prediction} lang={lang} t={t} /></Section>
+                    <Section key={`dist-${server}`} message={t.sectionFailed} reload={t.reload}><Distribution p={prediction} lang={lang} t={t} live={reportOpen && frozenAt() === null} /></Section>
                   </Box>
                 </>
               ) : prediction === undefined && switchFailed === predictionKey(season.season, server) ? (

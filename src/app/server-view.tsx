@@ -1,7 +1,7 @@
 "use client";
 // One server's forecast: the 3% line with its nested ranges, the damage-by-rank
 // curve shaded the same way, and where the player's own damage lands on it.
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -26,6 +26,7 @@ import { axisDamage, placement, regroupField, scoreToTenthB } from "@/lib/number
 import type { Prediction } from "@/lib/outbox";
 import Slice from "./slice";
 import { chanceCell, chances, ratios, tierFor } from "@/lib/slice";
+import { plausible, recordCheck, reportPrefill, SETTLE_MS } from "@/lib/check-record";
 
 type Band = { level: number; lo: number; hi: number };
 
@@ -129,7 +130,9 @@ function YouMarker({ pct, value, label, color, onCurve }: {
   );
 }
 
-export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Text }) {
+// `live`: the raid is live on a running clock, so a checked damage is recorded (#100) and the
+// checker offers to report the player's rank
+export function Distribution({ p, lang, t, live = false }: { p: Prediction; lang: Lang; t: Text; live?: boolean }) {
   const theme = useTheme();
   const shade = useShade();
   const dark = useDark();
@@ -137,6 +140,14 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const typed = useDeferredValue(mine);                       // the charts catch up; typing never waits
   const [picked, setPicked] = useState<{ tier: number; score: number | null } | null>(null);
   const cells = [...(p.cells ?? [])].sort((a, b) => a.percentile - b.percentile);
+  const value = scoreToTenthB(typed);
+  // once the damage has stayed put for a moment, never per keystroke; fire and forget
+  const recordable = live && value !== null && cells.length >= 2 && plausible(cells, value);
+  useEffect(() => {
+    if (!recordable || value === null) return;
+    const timer = setTimeout(() => recordCheck({ season: p.season, server: p.server, damage: value }), SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [recordable, value, p.season, p.server]);
   if (cells.length < 2) return null;
 
   const pcts = cells.map((c) => c.percentile);
@@ -145,7 +156,6 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
   const at = (b: Band, side: "lo" | "hi") => cells.map((c) => (c.value * b[side]) / p.prediction);
   const fmt = (v: number | null) => (v === null ? "" : damage(lang, v));
   const hidden = () => null;                                  // kept out of the tooltip
-  const value = scoreToTenthB(typed);
   const where = value ? placement(cells, value) : null;
   const xs = ratios(p);
   const odds = value ? chances(xs, cells, value) : null;           // the chance it makes each tier
@@ -234,6 +244,16 @@ export function Distribution({ p, lang, t }: { p: Prediction; lang: Lang; t: Tex
                     : t.calcBelow(pctText(where.percentile))} />
             </Box>
           )}
+          {/* the report form below, with this damage and server filled in (Turnstile and all) */}
+          {where && live && (
+            <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
+              <Typography variant="body2">{t.rankAsk}</Typography>
+              <Button size="small" variant="outlined" href="#report" onClick={() => reportPrefill.set(mine)}>
+                {t.rankAskButton}
+              </Button>
+            </Stack>
+          )}
+          {live && <Typography variant="caption" color="text.secondary">{t.checkNote}</Typography>}
         </Stack>
 
         <Slice p={p} cells={cells} score={value} tier={tier} lang={lang} t={t}

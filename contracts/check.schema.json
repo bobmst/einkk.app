@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bobmst/einkk.app/main/contracts/check.schema.json",
+  "title": "Checked damage (draft 0.1.0)",
+  "description": "One damage a player looked up in the page's checker (\"is my damage enough?\") during a live raid, as the site stores it in the inbox's `checks` table. No rank: the checker doesn't ask for one. Low-trust by design: no Turnstile check, so the engine must treat it as a hint, never as a report. The same network, server and damage within a few hours is stored once. Damage is in 0.1B (1e8) units.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "server",
+    "season",
+    "damage",
+    "checked_at",
+    "client"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "id": {
+      "description": "Set by the site (UUID v4).",
+      "type": "string",
+      "format": "uuid"
+    },
+    "server": {
+      "enum": [
+        "jp",
+        "kr",
+        "na",
+        "sea",
+        "tw",
+        "gb"
+      ]
+    },
+    "season": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "damage": {
+      "description": "The damage as typed into the checker, in 0.1B (1e8) units. The upper bound is the same units guard as the report's.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 100000
+    },
+    "checked_at": {
+      "description": "Set by the site when it stored the check (UTC).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "client": {
+      "description": "Never an IP address or an account.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "season_key"
+      ],
+      "properties": {
+        "season_key": {
+          "description": "SHA-256 (hex) of the site's salt, the season and the client's network: the same `season_key` that network's in-raid reports (report 0.2.0) and final results carry, so the engine can join a check to that network's reports.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}
