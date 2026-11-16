@@ -13,7 +13,7 @@
 // distinct players. That season may be the one before the published one
 // (Season.previous), whose final window outlasts the next season's announcement.
 import { frozenAt } from "@/lib/clock";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -28,6 +28,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { SERVER_ORDER, damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
 import { digitCheck, raidProgress, regroupField, scoreToTenthB } from "@/lib/numbers";
+import { lastReport } from "@/lib/last-report";
 import { tooNew } from "@/lib/versions";
 import { outbox, predictionKey, type Health, type Prediction, type Predictions, type Season, type Server } from "@/lib/outbox";
 
@@ -125,7 +126,10 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
   const card = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const shown = useRef<Step>(step);
-  const [others, setOthers] = useState<Predictions>({});   // forecasts the page doesn't hold (another season's)
+  const [others, setOthers] = useState<Predictions>({});
+  // #98: the damage this browser last reported for this season and server, offered again
+  const remembered = useSyncExternalStore(lastReport.subscribe,
+    () => (final ? null : lastReport.get(season.season, server)), () => null);   // forecasts the page doesn't hold (another season's)
 
   // On a phone the form is far taller than the review and sent steps. After Next the
   // browser keeps its scroll position, so the shorter card ends up above the screen
@@ -218,6 +222,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
         }),
       });
       if (response.status === 201) {
+        if (!final) lastReport.set(season.season, server, score);
         setStep("sent");
       } else {
         const code = ((await response.json().catch(() => ({}))) as { error?: string }).error;
@@ -284,6 +289,18 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
         ) : (
           <Stack spacing={2.5} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">{final ? t.finalIntro : t.reportIntro}</Typography>
+            {!final && <Typography variant="body2" color="text.secondary">{t.reportNearLine}</Typography>}
+            {remembered && score === "" && (
+              <Alert severity="info" action={
+                <Stack direction="row" spacing={0.5}>
+                  <Button color="inherit" size="small" onClick={() => setScore(remembered)}>{t.rereportUse}</Button>
+                  <Button color="inherit" size="small"
+                          onClick={() => lastReport.forget(season.season, server)}>{t.rereportDismiss}</Button>
+                </Stack>
+              }>
+                {t.rereport(remembered)}
+              </Alert>
+            )}
             {final && surveyUrl && (
               <Link href={surveyUrl} target="_blank" rel="noopener" variant="body2">{t.finalOrSurvey}</Link>
             )}
