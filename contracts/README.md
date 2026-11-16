@@ -8,6 +8,7 @@ engine. This directory is the single source of truth for both sides.
 | `prediction.schema.json` | engine (outbox) | site | 0.8.0 (draft): optional nested `bands` (0.2.0), the `residuals` they come from (0.3.0), `shadow_nowcast`, the reference-only final line with today's player reports (0.4.0; 0.5.0 made it this server's final line instead of JP's day line), `code_sha`, the engine commit that made the forecast (0.6.0), `rank_slide`, where a rank read now is likely to end at the close, per start rank, for the checker (0.7.0), and `band.method` `conformal_shifted` with `band.shifted_from`, a band moved from another route (0.8.0) |
 | `report.schema.json` | site (inbox) | engine | 0.2.0 (draft): optional `client.season_key`, one network's key for the whole season (0.2.0) |
 | `final-report.schema.json` | site (inbox, `final_reports`) | engine | 0.1.0 (draft) |
+| `check.schema.json` | site (inbox, `checks`) | engine | 0.1.0 (draft) |
 | `season.schema.json` | engine (outbox) | site | 0.4.0 (draft): optional `previous`, the season before while its final results are still taken (0.2.0); `starts_at`/`ends_at` may be null while the season is upcoming and its dates aren't known (0.3.0); optional `finals_close_at`, an early end to final results (0.4.0) |
 | `history.schema.json` | engine (outbox) | site | 0.3.0 (draft): the band is optional, `hit: null` without one (0.2.0); `final.estimate` and the `survey_and_reports` source (0.3.0) |
 | `finals.schema.json` | engine (outbox, `finals/s<n>.json`) | site | 0.1.0 (draft) |
@@ -24,6 +25,11 @@ minor version of the same major: the schema pins the version the site writes tod
 `final-report.schema.json` is one player's final result for a closed season, kept apart from the
 in-raid reports. It has no `read_at`, and its `client` carries two salted keys (address + season,
 and a random browser id) so the engine can count distinct players.
+
+`check.schema.json` (#100) is one damage a player looked up in the checker during a live raid: server,
+season, damage and the time, plus the network's `season_key` (the same value its in-raid reports carry),
+and no rank. It has no Turnstile check behind it, so it is a hint, never a report. The same network,
+server and damage within 6 hours is stored once.
 
 `season.schema.json` is the season the site shows: boss, UTC schedule, `state` (upcoming → live →
 measuring → closed) and the Tally survey, which is `null` until the form exists. The site links

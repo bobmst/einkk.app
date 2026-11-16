@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1.0",
+  "id": "4b0e7d0c-3f5a-4c1e-9a43-6d2b1f8e9c10",
+  "server": "jp",
+  "season": 43,
+  "damage": 23353143363,
+  "checked_at": "2026-11-15T03:41:12Z",
+  "client": {
+    "season_key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

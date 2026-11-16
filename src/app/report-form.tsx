@@ -29,6 +29,7 @@ import Typography from "@mui/material/Typography";
 import { SERVER_ORDER, damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
 import { digitCheck, raidProgress, regroupField, scoreToTenthB } from "@/lib/numbers";
 import { lastReport } from "@/lib/last-report";
+import { reportPrefill } from "@/lib/check-record";
 import { tooNew } from "@/lib/versions";
 import { outbox, predictionKey, type Health, type Prediction, type Predictions, type Season, type Server } from "@/lib/outbox";
 
@@ -130,6 +131,19 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
   // #98: the damage this browser last reported for this season and server, offered again
   const remembered = useSyncExternalStore(lastReport.subscribe,
     () => (final ? null : lastReport.get(season.season, server)), () => null);   // forecasts the page doesn't hold (another season's)
+
+  // #100: the checker's "What is your rank now?" hands over its damage; the in-raid form takes it
+  // (the form is already on the page then: it is keyed by season, not by server)
+  useEffect(() => {
+    if (final) return;
+    return reportPrefill.subscribe(() => {
+      const handed = reportPrefill.get();
+      if (handed === null) return;
+      reportPrefill.clear();
+      setScore(handed);
+      setStep("form");
+    });
+  }, [final]);
 
   // On a phone the form is far taller than the review and sent steps. After Next the
   // browser keeps its scroll position, so the shorter card ends up above the screen

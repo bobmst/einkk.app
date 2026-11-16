@@ -6,11 +6,13 @@
 //
 //   GET  /api/health          bindings and intake configuration, no secrets
 //   POST /api/reports         in-raid player report -> D1 inbox (reports.ts)
+//   POST /api/checks          a damage looked up in the checker -> D1 checks (checks.ts)
 //   POST /api/finals          post-raid final result -> D1 final_reports (finals.ts)
 //   GET  /api/outbox/<key>    published engine JSON from R2 (outbox.ts)
 //   GET  /api/latest/<server>.json   that server's prediction for the current season (outbox.ts)
 //   GET  /api/now.json        season.json + every server's prediction (+ finals from the close) (now.ts)
 import type { WorkerEnv } from "./env";
+import { handleCheck } from "./checks";
 import { error } from "./http";
 import { handleFinal } from "./finals";
 import { handleNow } from "./now";
@@ -39,6 +41,7 @@ export default {
       );
     }
     if (pathname === "/api/reports") return handleReport(request, env);
+    if (pathname === "/api/checks") return handleCheck(request, env);
     if (pathname === "/api/finals") return handleFinal(request, env);
     if (pathname.startsWith(OUTBOX_PREFIX)) {
       return handleOutbox(request, env, pathname.slice(OUTBOX_PREFIX.length), ctx);
