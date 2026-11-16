@@ -303,7 +303,12 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
         ) : (
           <Stack spacing={2.5} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">{final ? t.finalIntro : t.reportIntro}</Typography>
-            {!final && <Typography variant="body2" color="text.secondary">{t.reportNearLine}</Typography>}
+            {!final && (
+              // extra guidance, set back from the intro: smaller and lighter, tucked under it
+              <Typography variant="caption" color="textSecondary" sx={{ mt: -1.5 }}>
+                {t.reportNearLine}
+              </Typography>
+            )}
             {remembered && score === "" && (
               <Alert severity="info" action={
                 <Stack direction="row" spacing={0.5}>
