@@ -253,7 +253,6 @@ export function Distribution({ p, lang, t, live = false }: { p: Prediction; lang
               </Button>
             </Stack>
           )}
-          {live && <Typography variant="caption" color="text.secondary">{t.checkNote}</Typography>}
         </Stack>
 
         <Slice p={p} cells={cells} score={value} tier={tier} lang={lang} t={t}
