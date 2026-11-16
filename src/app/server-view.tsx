@@ -61,13 +61,13 @@ export function Forecast({ p, lang, t, now, ended = false, report = false }: {
   return (
     <Card>
       <CardContent>
-        <Typography variant="overline" color="text.secondary">
+        <Typography variant="label">
           {serverName(lang, p.server)} · {t.forecastTitle}
         </Typography>
         <Typography sx={{ fontSize: { xs: "2.4rem", sm: "3rem" }, fontWeight: 700, lineHeight: 1.1 }}>
           {damage(lang, p.prediction)}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="note">
           {ended ? t.finalForecast : t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
         </Typography>
         {p.shadow_nowcast && p.shadow_nowcast.reports_used > 0 && !ended && (
@@ -75,10 +75,10 @@ export function Forecast({ p, lang, t, now, ended = false, report = false }: {
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {t.shadowTitle}: ≈ {damage(lang, p.shadow_nowcast.final)}
             </Typography>
-            <Typography variant="caption" color="text.secondary" component="p">
+            <Typography variant="note" component="p">
               {t.shadowReports(p.shadow_nowcast.reports_used)}
             </Typography>
-            <Typography variant="caption" color="text.secondary" component="p">{t.shadowNote}</Typography>
+            <Typography variant="note" component="p">{t.shadowNote}</Typography>
           </Box>
         )}
         {/* in one column the report card is a few screens down; in two it sits right below */}
@@ -221,7 +221,7 @@ export function Distribution({ p, lang, t, live = false }: { p: Prediction; lang
             )}
           </LineChart>
         </Box>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="note">
           {t.bandsLegend(bands.map((b) => pctLabel(b.level)).join(" / "))}
         </Typography>
 
@@ -290,7 +290,7 @@ export function Distribution({ p, lang, t, live = false }: { p: Prediction; lang
           </TableBody>
         </Table>
         {cells.some((c) => c.extrapolated) && (
-          <Typography variant="caption" color="text.secondary">{t.estimated}</Typography>
+          <Typography variant="note">{t.estimated}</Typography>
         )}
       </CardContent>
     </Card>

@@ -55,7 +55,7 @@ export default function SeasonCard({ season, lang, t, now }: {
         </Box>
         <Stack spacing={1.25} sx={{ p: 2.5, flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
-            <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+            <Typography variant="label" sx={{ lineHeight: 1.5 }}>
               {t.season(season.season)}
             </Typography>
             <Chip
@@ -83,16 +83,16 @@ export default function SeasonCard({ season, lang, t, now }: {
           )}
           {dated ? (
             <Box>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="muted">
                 {t.starts} {when(lang, season.starts_at!)}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="muted">
                 {t.ends} {when(lang, season.ends_at!)}
               </Typography>
-              <Typography variant="caption" color="text.secondary">{t.timeNote}</Typography>
+              <Typography variant="note">{t.timeNote}</Typography>
             </Box>
           ) : (
-            <Typography variant="body1" color="text.secondary">{t.datesTba}</Typography>
+            <Typography variant="mutedLarge">{t.datesTba}</Typography>
           )}
           {surveyOpen && (
             <Box>
