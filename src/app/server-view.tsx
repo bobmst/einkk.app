@@ -70,17 +70,8 @@ export function Forecast({ p, lang, t, now, ended = false, report = false }: {
         <Typography variant="note">
           {ended ? t.finalForecast : t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
         </Typography>
-        {p.shadow_nowcast && p.shadow_nowcast.reports_used > 0 && !ended && (
-          <Box sx={{ mt: 1.5, p: 1.25, border: 1, borderColor: "divider", borderStyle: "dashed", borderRadius: 1 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {t.shadowTitle}: ≈ {damage(lang, p.shadow_nowcast.final)}
-            </Typography>
-            <Typography variant="note" component="p">
-              {t.shadowReports(p.shadow_nowcast.reports_used)}
-            </Typography>
-            <Typography variant="note" component="p">{t.shadowNote}</Typography>
-          </Box>
-        )}
+        {/* shadow_nowcast stays in the document for the engine's own review; the page shows no
+            reference-only line (the user's decision of 2026-11-17) */}
         {/* in one column the report card is a few screens down; in two it sits right below */}
         {report && (
           <Button variant="contained" href="#report" endIcon={<ArrowDownward />} fullWidth
