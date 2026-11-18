@@ -77,6 +77,18 @@ function localNow(): string {
   return d.toISOString().slice(0, 16);                // <input type="datetime-local">
 }
 
+/** The instant a datetime-local value names, in this browser's zone. Built from its parts:
+ *  `new Date("YYYY-MM-DDTHH:mm")` is local time in current browsers but UTC in older Safari
+ *  and some in-app webviews, which stored a UTC+8 player's read time 8 hours late (#110). */
+export function fromLocal(value: string): Date {
+  const [date, time = "00:00"] = value.split("T");
+  const [y, m, d] = date.split("-").map(Number);
+  const [h, min] = time.split(":").map(Number);
+  return new Date(y, m - 1, d, h, min);
+}
+
+const READ_AHEAD_MS = 60_000;                         // a clock a minute fast is still "now"
+
 type Step = "form" | "review" | "sent";
 
 const BROWSER_ID = "einkk.browser-id";
@@ -231,7 +243,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
           season: season.season,
           ...(mode === "pc" ? { rank_pc: pctNumber } : { rank_n: numNumber }),
           damage: tenthB,
-          ...(final ? { browser_id: browserId() } : { read_at: new Date(readAt).toISOString() }),
+          ...(final ? { browser_id: browserId() } : { read_at: fromLocal(readAt).toISOString() }),
           turnstile_token: token,
         }),
       });
@@ -378,7 +390,7 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
             {!final && (timeSet ? (
               <TextField size="small" type="datetime-local" label={t.readAt} value={readAt}
                          onChange={(e) => setReadAt(e.target.value)}
-                         slotProps={{ inputLabel: { shrink: true } }} />
+                         slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: localNow() } }} />
             ) : (
               <Stack direction="row" spacing={1.5} sx={{ alignItems: "baseline" }}>
                 <Typography variant="muted">{t.readAtNow(localNow().slice(11, 16))}</Typography>
@@ -393,6 +405,10 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
               <Button variant="contained" disabled={!scoreOk || !rankOk || (!final && !readAt)}
                       onClick={() => {
                         if (!final && !timeSet) setReadAt(localNow());
+                        if (!final && timeSet && fromLocal(readAt).getTime() > Date.now() + READ_AHEAD_MS) {
+                          setError(t.readAtFuture);
+                          return;
+                        }
                         setError(null);
                         setStep("review");
                       }}>
