@@ -51,6 +51,8 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 const valid = { server: "jp", season: 42, rank_pc: 2.85, damage: 223.16, read_at: "2026-10-30T12:40:00+09:00", turnstile_token: "token" };
+// `valid` read at a given moment, for reports sent before its own read time (#110)
+const readAt = (at: string | Date) => ({ ...valid, read_at: new Date(at).toISOString().replace(".000Z", "Z") });
 
 function post(body: unknown, headers: Record<string, string> = {}) {
   return new Request("https://einkk.example/api/reports", {
@@ -95,7 +97,7 @@ describe("POST /api/reports", () => {
   });
 
   it("gives one network the same season key on every day of the raid, and another network another", async () => {
-    await handleReport(post(valid), env, new Date("2026-10-26T03:00:00Z"));
+    await handleReport(post(readAt("2026-10-26T03:00:00Z")), env, new Date("2026-10-26T03:00:00Z"));
     await handleReport(post(valid), env, NOW);
     await handleReport(post(valid, { "CF-Connecting-IP": "198.51.100.9" }), env, NOW);
     const [a, b, c] = db.rows.map((r) => JSON.parse(r.doc).client);
@@ -152,10 +154,20 @@ describe("POST /api/reports", () => {
   it("keeps the hourly limit across UTC midnight, where the rate key changes", async () => {
     const lateNight = new Date("2026-10-29T23:55:00Z");
     for (let i = 0; i < REPORTS_PER_HOUR; i++) {
-      expect((await handleReport(post(valid), env, lateNight)).status).toBe(201);
+      expect((await handleReport(post(readAt(lateNight)), env, lateNight)).status).toBe(201);
     }
-    expect((await handleReport(post(valid), env, new Date("2026-10-30T00:01:00Z"))).status).toBe(429);
-    expect((await handleReport(post(valid), env, new Date("2026-10-30T00:55:01Z"))).status).toBe(201);
+    expect((await handleReport(post(readAt("2026-10-30T00:01:00Z")), env, new Date("2026-10-30T00:01:00Z"))).status).toBe(429);
+    expect((await handleReport(post(readAt("2026-10-30T00:55:01Z")), env, new Date("2026-10-30T00:55:01Z"))).status).toBe(201);
+  });
+
+  it("refuses a read time after the submission, and takes one a few minutes fast (#110)", async () => {
+    // a UTC+8 player's local time read as UTC lands 8 hours after the send
+    const late = await handleReport(post({ ...valid, read_at: "2026-10-30T11:41:12Z" }), env, NOW);
+    expect(late.status).toBe(400);
+    expect(await late.json()).toEqual({ error: "invalid_report", errors: [{ at: "#/read_at", rule: "future" }] });
+    expect(db.rows).toHaveLength(0);
+    const fast = await handleReport(post({ ...valid, read_at: "2026-10-30T03:45:00Z" }), env, NOW);
+    expect(fast.status).toBe(201);
   });
 
   it("refuses a read time the contract allows but JavaScript can't read", async () => {
@@ -179,7 +191,7 @@ describe("POST /api/reports", () => {
   });
 
   it("takes a report in the ranked window's first and last minute", async () => {
-    expect((await handleReport(post(valid), env, new Date("2026-10-25T20:00:00Z"))).status).toBe(201);
+    expect((await handleReport(post(readAt("2026-10-25T20:00:00Z")), env, new Date("2026-10-25T20:00:00Z"))).status).toBe(201);
     expect((await handleReport(post(valid), env, new Date("2026-10-30T19:59:59Z"))).status).toBe(201);
   });
 

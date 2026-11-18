@@ -24,6 +24,8 @@ export function utcSeconds(t: Date): string {
   return t.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 export const REPORTS_PER_HOUR = 10;
+// how far a read time may sit after the submission: client clocks run a little fast
+export const READ_AHEAD_MS = 5 * 60_000;
 
 // What a player may send. Everything else in the stored document is set here.
 const PLAYER_FIELDS = ["server", "season", "rank_pc", "rank_n", "damage", "read_at"] as const;
@@ -59,6 +61,11 @@ export async function handleReport(request: Request, env: WorkerEnv, now = new D
   const season = await currentSeason(env.OUTBOX);
   if (!season || doc.season !== season.season || !inRankedWindow(season, now.getTime())) {
     return error(403, "closed");
+  }
+
+  // a read after the send is impossible: a client reading local time as UTC (#110), or a wrong date
+  if (readAt.getTime() > now.getTime() + READ_AHEAD_MS) {
+    return error(400, "invalid_report", { errors: [{ at: "#/read_at", rule: "future" }] });
   }
 
   // previews run Cloudflare's always-pass test key, whose verdict names no real host

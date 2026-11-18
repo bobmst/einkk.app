@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactElement } from "react";
-import ReportForm, { ServerSelect } from "./report-form";
+import ReportForm, { ServerSelect, fromLocal } from "./report-form";
 import { serverName, serverStore, text } from "@/lib/i18n";
 import type { Server } from "@/lib/outbox";
 
@@ -50,5 +50,15 @@ describe("the report form and the page share one server", () => {
     expect(serverStore.get()).toBe("na");
     expect(heard).toHaveBeenCalled();
     stop();
+  });
+});
+
+describe("the read time (#110)", () => {
+  it("is the local wall-clock time the field shows, built from its parts in every browser", () => {
+    const at = fromLocal("2026-11-15T22:46");
+    expect([at.getFullYear(), at.getMonth(), at.getDate(), at.getHours(), at.getMinutes()])
+      .toEqual([2026, 10, 15, 22, 46]);
+    // the same instant as the zone-explicit local parse, whatever zone the tests run in
+    expect(at.getTime()).toBe(new Date(2026, 10, 15, 22, 46).getTime());
   });
 });
