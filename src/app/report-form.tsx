@@ -27,7 +27,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { SERVER_ORDER, damage as fmt, serverName, type Lang, type Text } from "@/lib/i18n";
-import { digitCheck, raidProgress, regroupField, scoreToTenthB } from "@/lib/numbers";
+import { digitCheck, regroupField, scoreToTenthB } from "@/lib/numbers";
 import { lastReport } from "@/lib/last-report";
 import { reportPrefill } from "@/lib/check-record";
 import { tooNew } from "@/lib/versions";
@@ -226,7 +226,8 @@ export default function ReportForm({ season, health, server, onServer, lang, t, 
     );
     return () => { alive = false; };
   }, [fetchOther, season.season, server]);
-  const progress = final ? 1 : forecast ? raidProgress(forecast.state.raid_day, forecast.state.day_fraction ?? 0) : 0;
+  // how far the line has come, as the engine published it (#89); without it no "low" check
+  const progress = final ? 1 : forecast?.state.line_progress ?? null;
   const digitWarning = forecast?.cells && tenthB && rankOk
     ? digitCheck(forecast.cells, mode === "pc" ? pctNumber : 0, tenthB, progress) : null;
 

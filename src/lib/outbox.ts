@@ -96,7 +96,8 @@ export interface Prediction {
   server: Server;
   model_version?: string;                                // not in /api/now.json: the page doesn't read it
   code_sha?: string;                                     // the engine commit (contract 0.6.0)
-  state: { raid_day: number; day_fraction?: number; hours_to_close: number; known_days: number; method: string };
+  state: { raid_day: number; day_fraction?: number; hours_to_close: number; known_days: number; method: string;
+    line_progress?: number };
   prediction: number;
   band: Band;
   cells?: Cell[];

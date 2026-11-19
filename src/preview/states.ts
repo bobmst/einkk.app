@@ -98,7 +98,7 @@ function prediction(now: number, server: Server, o: PredictionOpts, seasonNo = S
   const issued = now - (o.issuedAgoMin ?? 12) * 60_000;
   // the whole contract document; the page's type names only the fields it reads
   const doc = {
-    schema_version: "0.8.0",
+    schema_version: "0.9.0",
     run_id: `s${seasonNo}-preview-${server}`,
     revision: 1,
     issued_at: iso(issued),

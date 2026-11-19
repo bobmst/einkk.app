@@ -23,7 +23,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.8.0"
+      "const": "0.9.0"
     },
     "run_id": {
       "type": "string",
@@ -92,6 +92,12 @@
         },
         "method": {
           "type": "string"
+        },
+        "line_progress": {
+          "description": "How far this server's 3% line had come toward its final value when the forecast was issued, 0..1. The page's digit check reads it to tell a damage a digit short from an early one; without it, that check is skipped.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       }
     },
@@ -238,7 +244,7 @@
       }
     },
     "provisional": {
-      "description": "true while the latest finished day's official border is not confirmed yet and an estimate from reports stands in for it.",
+      "description": "true while the latest finished day's posted line is not out yet and an estimate from reports stands in for it.",
       "type": "boolean"
     },
     "inputs": {
@@ -270,8 +276,9 @@
                 "type": "number"
               },
               "source": {
+                "description": "x_post: the day's line from the community post on X. reports_estimate: estimated from player reports while that post is not out yet.",
                 "enum": [
-                  "official",
+                  "x_post",
                   "reports_estimate"
                 ]
               }
