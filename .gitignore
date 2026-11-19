@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /out/
+# the text-review preview build (npm run states)
+/out-states/
 
 # production
 /build

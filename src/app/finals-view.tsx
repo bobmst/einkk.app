@@ -74,7 +74,7 @@ function Settled({ s, line, server, entry, lang, t }: {
         {server === "jp" ? t.finalsJp : t.finalsFrom(s.players)}
       </Typography>
       {!line.confirmed && (
-        <Typography variant="note" component="p">{t.finalsUnconfirmed}</Typography>
+        <Typography variant="note" component="p">{t.finalsUnconfirmed(CONFIRM_PLAYERS)}</Typography>
       )}
       {forecast !== undefined && grading && (
         <Box sx={{ mt: 1.5 }}>
