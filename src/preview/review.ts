@@ -1,8 +1,10 @@
 // The review's order and the owner's marks: every state x language x theme, one page each, in
 // the order the index and the view page's bar walk them (language by language). Marks live in
-// this browser's localStorage only.
+// this browser's real localStorage only, even on the view page, whose page storage is in memory
+// (storage.ts).
 import { LANGS, type Lang } from "@/lib/i18n";
 import { STATES } from "./states";
+import { realStorage } from "./storage";
 
 export const THEMES = ["light", "dark"] as const;
 export type Theme = (typeof THEMES)[number];
@@ -26,7 +28,7 @@ const MARKS = "einkk.states-review";
 
 export function readMarks(): Record<string, Mark> {
   try {
-    return JSON.parse(localStorage.getItem(MARKS) ?? "{}") as Record<string, Mark>;
+    return JSON.parse(realStorage()?.getItem(MARKS) ?? "{}") as Record<string, Mark>;
   } catch {
     return {};
   }
@@ -37,6 +39,6 @@ export function setMark(c: Cell, mark: Mark | null) {
   if (mark) marks[cellKey(c)] = mark;
   else delete marks[cellKey(c)];
   try {
-    localStorage.setItem(MARKS, JSON.stringify(marks));
+    realStorage()?.setItem(MARKS, JSON.stringify(marks));
   } catch {}
 }

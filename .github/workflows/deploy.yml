@@ -2,7 +2,8 @@ name: Deploy
 
 # Where the site goes live (#33, docs/ARCHITECTURE.md "Hosting"):
 # - uat (einkk-app-uat, uat.einkk.app) on every push to main, so a change is seen on
-#   the rehearsal site before players get it;
+#   the rehearsal site before players get it. Its build also has the text-review preview
+#   (STATE_PREVIEW=1: uat.einkk.app/states, src/preview/README.md);
 # - production (einkk-app, einkk.app) only on a published GitHub release, behind the
 #   "production" environment's required approval.
 # Workers Builds still builds a preview for every other branch; its production-branch
@@ -40,7 +41,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # the text-review preview's pages (/states) are in uat's build only
       - run: npm run build
+        env:
+          STATE_PREVIEW: "1"
       - name: Deploy einkk-app-uat
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -67,6 +71,12 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: No text-review preview in production
+        run: |
+          if [ -e out/states.html ] || [ -e out/states ]; then
+            echo "out/ has the /states preview pages: production is built without STATE_PREVIEW" >&2
+            exit 1
+          fi
       - name: Deploy einkk-app
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

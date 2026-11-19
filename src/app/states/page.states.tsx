@@ -1,7 +1,7 @@
 "use client";
 // The text-review index (#112): every state of the page (src/preview/states.ts) x language x
 // light/dark, each a link to its preview, with the keys the state shows and the owner's marks.
-// A page only in the STATE_PREVIEW build (next.config.ts), never in production.
+// A page only in the STATE_PREVIEW build (next.config.ts: local and uat), never in production.
 import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
