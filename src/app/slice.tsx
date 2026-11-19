@@ -25,8 +25,9 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
                   strokeOpacity: dark ? 0.75 : 1, shapeRendering: "crispEdges" as const };
   const cell = cells.find((c) => c.percentile === tier) ?? cells[0];
   const xs = ratios(p);
-  // the 9-in-10 range comes from the same curve as the chance; the line marks the
-  // tier's forecast damage, the same value as the table's damage column
+  // this range comes from the same curve as the chance. It is worded as a range from past misses,
+  // never as a "90%": the table and the shaded band carry the band the engine certified (#92).
+  // The line marks the tier's forecast damage, the same value as the table's damage column.
   const lo = cell.value * quantile(xs, 0.05);
   const hi = cell.value * quantile(xs, 0.95);
 
