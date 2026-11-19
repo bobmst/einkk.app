@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
-// The text-review preview (src/preview/README.md, #112): `npm run states` builds with
-// STATE_PREVIEW=1, which adds the pages named `page.states.tsx` (the state index and the
-// fixture view); scripts/states.mjs then moves the export from out/ to out-states/, so out/
-// never holds them. Without the flag those files are not pages at all, so a production or
-// uat build has no such route.
+// The text-review preview (src/preview/README.md, #112): STATE_PREVIEW=1 adds the pages
+// named `page.states.tsx` (the state index and the fixture view). `npm run states` builds
+// with it and moves the export from out/ to out-states/; uat's deploy builds with it, so
+// uat.einkk.app/states has them (.github/workflows/deploy.yml). Without the flag those files
+// are not pages at all, so a production build has no such route, and its deploy checks that.
 const STATES = process.env.STATE_PREVIEW === "1";
 
 const nextConfig: NextConfig = {

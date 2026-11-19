@@ -2,7 +2,7 @@
 // One state of the page from its fixture (src/preview/states.ts), in one language and theme:
 // /states/view?s=<state>&lang=<lang>&theme=light|dark[&post=<error code>]. The real dashboard
 // renders it; only /api/* is answered by src/preview/fake-api.ts. A page only in the
-// STATE_PREVIEW build (next.config.ts), never in production.
+// STATE_PREVIEW build (next.config.ts: local and uat), never in production.
 import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -16,7 +16,11 @@ import { saveSnapshot } from "@/lib/snapshot";
 import { installFakeApi } from "@/preview/fake-api";
 import { ORDER, THEMES, cellKey, readMarks, setMark, viewHref, type Cell, type Mark, type Theme } from "@/preview/review";
 import { stateById, type PreviewState } from "@/preview/states";
+import { isolateStorage } from "@/preview/storage";
 import Dashboard from "../../dashboard";
+
+// before the page or its providers read anything: a fixture never reaches the site's own storage
+isolateStorage();
 
 function Bar({ cell, state }: { cell: Cell; state: PreviewState }) {
   const [open, setOpen] = useState(true);
@@ -62,7 +66,8 @@ export default function StateView() {
   const once = useRef(false);
 
   // Everything the page reads at its first render is set before it mounts: the language,
-  // the followed server, the saved snapshot and remembered report, and the fake API.
+  // the followed server, the saved snapshot and remembered report (all in this tab's in-memory
+  // storage), and the fake API.
   useEffect(() => {
     if (once.current) return;
     once.current = true;

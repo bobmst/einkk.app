@@ -69,5 +69,6 @@ reviewer's clicks:
 ## Preview
 
 `npm run states` builds the site with the preview pages switched on and serves it at
-http://localhost:4173/states (see `src/preview/README.md`). Nothing of it is in the production
-build: the pages exist only when `STATE_PREVIEW=1` is set at build time.
+http://localhost:4173/states (see `src/preview/README.md`); uat has the same pages at
+https://uat.einkk.app/states. Nothing of it is in the production build: the pages exist only
+when `STATE_PREVIEW=1` is set at build time, and only uat's deploy sets it.

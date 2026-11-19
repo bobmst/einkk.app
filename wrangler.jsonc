@@ -85,8 +85,9 @@
   // UAT: the rehearsal site on a fixed address for testers, uat.einkk.app. A
   // separate Worker (einkk-app-uat) with the same bindings as the previews, so
   // it shows the engine's mock season and never touches production data.
-  // .github/workflows/deploy.yml deploys it on every push to main (#33); by hand:
-  // `npm run build && npx wrangler deploy --env uat`.
+  // .github/workflows/deploy.yml deploys it on every push to main (#33), built with
+  // STATE_PREVIEW=1 so it also has the text-review preview at /states; by hand:
+  // `STATE_PREVIEW=1 npm run build && npx wrangler deploy --env uat`.
   // Its secrets (Turnstile's test TURNSTILE_SECRET and its own RATE_KEY_SALT) are
   // set with `wrangler secret put <NAME> --env uat`.
   "env": {
