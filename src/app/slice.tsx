@@ -10,6 +10,7 @@ import Typography from "@mui/material/Typography";
 import { alpha, useColorScheme, useTheme } from "@mui/material/styles";
 import { ChartsReferenceLine } from "@mui/x-charts/ChartsReferenceLine";
 import { LineChart } from "@mui/x-charts/LineChart";
+import Measured from "./measured";
 import { damage, type Lang, type Text } from "@/lib/i18n";
 import type { Cell, Prediction } from "@/lib/outbox";
 import { cdf, chanceText, density, quantile, ratios } from "@/lib/slice";
@@ -52,7 +53,9 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
         ))}
       </Stack>
       <Box sx={{ mx: -1 }}>
+        <Measured>{(width) => (
         <LineChart
+          width={width}
           height={150}
           margin={{ left: 8, right: 16, top: 8, bottom: 4 }}
           xAxis={[{ data: values, scaleType: "linear", min: values[0], max: values[values.length - 1],
@@ -77,6 +80,7 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
                                  labelStyle={{ fill: warn, fontWeight: 700, fontSize: 12 }} />
           )}
         </LineChart>
+        )}</Measured>
       </Box>
       <Typography variant="body2">
         {t.damage} <b>{damage(lang, cell.value)}</b> · {t.likelyRange(damage(lang, lo), damage(lang, hi))}
