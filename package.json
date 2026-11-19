@@ -10,7 +10,8 @@
     "cf-typegen": "wrangler types",
     "typecheck": "next typegen && wrangler types && tsc --noEmit && tsc --noEmit -p worker",
     "test": "vitest run",
-    "boss-image": "node scripts/boss-image.mjs"
+    "boss-image": "node scripts/boss-image.mjs",
+    "states": "node scripts/states.mjs"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.1",
