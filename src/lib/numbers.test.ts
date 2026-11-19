@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { digitCheck, groupDigits, raidProgress, regroup, valueAt } from "./numbers";
+import { digitCheck, groupDigits, regroup, valueAt } from "./numbers";
 
 describe("regroup", () => {
   it("keeps the caret after the digit typed mid-number", () => {
@@ -47,12 +47,16 @@ describe("digitCheck", () => {
     { percentile: 10, value: 150 },
   ];
 
-  it("flags a score a digit short once the line has grown, never early on day 1", () => {
-    const day2 = raidProgress(2, 0.25);
-    expect(digitCheck(cells, 2.33, 22.33, day2)).toBe("low");          // 2,233,445,566 for ~22B
-    expect(digitCheck(cells, 2.33, 223.3, day2)).toBeNull();
-    expect(digitCheck(cells, 3, 6, raidProgress(1, 0.1))).toBeNull();   // a first attempt on day 1
-    expect(digitCheck(cells, 3, 6, raidProgress(6, 0))).toBe("low");    // the same as a final result
+  it("flags a score a digit short once the line has grown, never early on", () => {
+    expect(digitCheck(cells, 2.33, 22.33, 0.5)).toBe("low");            // 2,233,445,566 for ~22B
+    expect(digitCheck(cells, 2.33, 223.3, 0.5)).toBeNull();
+    expect(digitCheck(cells, 3, 6, 0.05)).toBeNull();                   // a first attempt early on day 1
+    expect(digitCheck(cells, 3, 6, 1)).toBe("low");                     // the same as a final result
+  });
+
+  it("skips the low check without the forecast's line_progress, never the high one (#89)", () => {
+    expect(digitCheck(cells, 3, 6, null)).toBeNull();
+    expect(digitCheck(cells, 3, 2200, null)).toBe("high");
   });
 
   it("flags a score a digit long", () => {
