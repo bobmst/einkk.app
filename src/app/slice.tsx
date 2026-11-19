@@ -1,8 +1,8 @@
 "use client";
 // A slice through the damage-by-rank chart at one tier: where that tier's final
-// line may land (a curve from the forecast's past misses both ways round, the forecast
-// and the 9-in-10 range marked), and, with the player's score entered, the
-// chance it makes that tier.
+// line may land (a curve from the forecast's past misses both ways round, with the
+// forecast and the engine's band for that tier marked), and, with the player's score
+// entered, the chance it makes that tier.
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
@@ -13,7 +13,7 @@ import { LineChart } from "@mui/x-charts/LineChart";
 import Measured from "./measured";
 import { damage, type Lang, type Text } from "@/lib/i18n";
 import type { Cell, Prediction } from "@/lib/outbox";
-import { cdf, chanceText, density, quantile, ratios } from "@/lib/slice";
+import { cdf, chanceText, density, quantile, ratios, tierRange } from "@/lib/slice";
 
 export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
   p: Prediction; cells: Cell[]; score: number | null; tier: number; onTier: (tier: number) => void;
@@ -26,14 +26,14 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
                   strokeOpacity: dark ? 0.75 : 1, shapeRendering: "crispEdges" as const };
   const cell = cells.find((c) => c.percentile === tier) ?? cells[0];
   const xs = ratios(p);
-  // this range comes from the same curve as the chance. It is worded as a range from past misses,
-  // never as a "90%": the table and the shaded band carry the band the engine certified (#92).
-  // The line marks the tier's forecast damage, the same value as the table's damage column.
-  const lo = cell.value * quantile(xs, 0.05);
-  const hi = cell.value * quantile(xs, 0.95);
+  // The range is the engine's widest band scaled to this tier, the same numbers and level as
+  // the tier table's range column (#92); the curve only draws the shape and gives the chance.
+  // The solid line marks the tier's forecast damage, the same value as the table's damage column.
+  const { lo, hi, level } = tierRange(p, cell.value);
 
-  const from = quantile(xs, 0.002);
-  const to = quantile(xs, 0.998);
+  // the axis covers the curve and the band, so both dashed lines always show
+  const from = Math.min(quantile(xs, 0.002), lo / cell.value);
+  const to = Math.max(quantile(xs, 0.998), hi / cell.value);
   const grid = Array.from({ length: 81 }, (_, i) => from + ((to - from) * i) / 80);
   const ys = density(xs, grid);
   const values = grid.map((r) => cell.value * r);
@@ -83,7 +83,8 @@ export default function Slice({ p, cells, score, tier, onTier, lang, t }: {
         )}</Measured>
       </Box>
       <Typography variant="body2">
-        {t.damage} <b>{damage(lang, cell.value)}</b> · {t.likelyRange(damage(lang, lo), damage(lang, hi))}
+        {t.sliceLine(cell.percentile, damage(lang, cell.value), Math.round(level * 1000) / 10,
+                     damage(lang, lo), damage(lang, hi))}
       </Typography>
       {chance !== null && (
         <Typography variant="body1" sx={{ mt: 0.5, fontWeight: 700, color: "warning.main" }}>

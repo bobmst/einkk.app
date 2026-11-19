@@ -183,7 +183,7 @@ const latest = (s: Season, p: Latest["predictions"], f?: Finals | null): Latest 
 const LIVE_KEYS: Key[] = [
   "season", "states.live", "weakness", "endsIn", "starts", "ends", "timeNote",
   "forecastTitle", "raidDay", "updated", "report", "distTitle", "topPct", "bandsLegend", "calcTitle",
-  "calcPlaceholder", "sliceTitle", "damage", "likelyRange", "tier", "range", "reportIntro",
+  "calcPlaceholder", "sliceTitle", "damage", "sliceLine", "tier", "range", "reportIntro",
   "reportNearLine", "server", "damageLabel", "damageHelp", "rankDisplay", "rankDisplayHelp", "readAtNow",
   "readAtChange", "next",
 ];

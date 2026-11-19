@@ -26,16 +26,8 @@ import { axisDamage, placement, regroupField, scoreToTenthB } from "@/lib/number
 import type { Prediction } from "@/lib/outbox";
 import Measured from "./measured";
 import Slice from "./slice";
-import { chanceCell, chances, ratios, tierFor } from "@/lib/slice";
+import { bandsOf, chanceCell, chances, ratios, tierFor, type Band } from "@/lib/slice";
 import { plausible, recordCheck, reportPrefill, SETTLE_MS } from "@/lib/check-record";
-
-type Band = { level: number; lo: number; hi: number };
-
-/** The prediction's bands, narrowest first; a pre-0.2 document has just the one. */
-function bandsOf(p: Prediction): Band[] {
-  if (p.bands?.length) return p.bands;
-  return [{ level: p.band.level ?? 0.9, lo: p.band.lo, hi: p.band.hi }];
-}
 
 const pctLabel = (level: number) => `${Math.round(level * 1000) / 10}%`;
 function useDark() {

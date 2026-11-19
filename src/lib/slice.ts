@@ -2,9 +2,24 @@
 // values, and the chance a given score clears it. Built from the forecast's own
 // walk-forward misses (prediction.residuals), each taken both ways round: with
 // 6-15 seasons their signs are mostly noise, and a walk-forward over S12-S41
-// scored the signed curve worse on every route (bobmst/einkk.app#50). The
-// slice's 9-in-10 range and the chance both come from this one curve.
+// scored the signed curve worse on every route (bobmst/einkk.app#50). The range
+// the slice marks is not read off this curve: it is the engine's band, the same
+// one the tier table shows (#92), so the page never shows two ranges for one line.
 import type { Cell, Prediction } from "./outbox";
+
+export type Band = { level: number; lo: number; hi: number };
+
+/** The prediction's bands, narrowest first; a pre-0.2 document has just the one. */
+export function bandsOf(p: Prediction): Band[] {
+  if (p.bands?.length) return p.bands;
+  return [{ level: p.band.level ?? 0.9, lo: p.band.lo, hi: p.band.hi }];
+}
+
+/** A tier's range: the widest band scaled to the tier's forecast damage, as the tier table shows it. */
+export function tierRange(p: Prediction, value: number): Band {
+  const band = bandsOf(p).at(-1)!;
+  return { level: band.level, lo: (value * band.lo) / p.prediction, hi: (value * band.hi) / p.prediction };
+}
 
 const SQRT2 = Math.SQRT2;
 

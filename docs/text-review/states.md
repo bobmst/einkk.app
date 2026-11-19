@@ -57,7 +57,7 @@ reviewer's clicks:
   add `&post=<code>` (`invalid_report`, `turnstile_failed`, `rate_limited`, `closed`,
   `intake_not_configured`, `other`) to a preview link to see that error instead.
 - **Damage checker** (the distribution card): `calcTitle`, `calcPlaceholder`, `calcResult` /
-  `calcAbove` / `calcBelow`, `you`, `sliceTitle`, `likelyRange`, `chance`, `tierChance`,
+  `calcAbove` / `calcBelow`, `you`, `sliceTitle`, `sliceLine`, `chance`, `tierChance`,
   `range` / `rangeUncertified`, `forecastLine` (the chart's tooltip), `bandsLegend`.
 
 ## Not reachable from the preview
