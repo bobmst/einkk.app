@@ -24,6 +24,7 @@ import { LineChart, lineClasses } from "@mui/x-charts/LineChart";
 import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
 import { axisDamage, placement, regroupField, scoreToTenthB } from "@/lib/numbers";
 import type { Prediction } from "@/lib/outbox";
+import Measured from "./measured";
 import Slice from "./slice";
 import { chanceCell, chances, ratios, tierFor } from "@/lib/slice";
 import { plausible, recordCheck, reportPrefill, SETTLE_MS } from "@/lib/check-record";
@@ -188,7 +189,9 @@ export function Distribution({ p, lang, t, live = false }: { p: Prediction; lang
           {serverName(lang, p.server)} · {t.distTitle}
         </Typography>
         <Box sx={{ mx: -1 }}>
+          <Measured>{(width) => (
           <LineChart
+            width={width}
             height={300}
             margin={{ left: 8, right: 16 }}
             xAxis={[{ data: pcts, scaleType: "log", label: t.topPct, tickInterval: pcts,
@@ -211,6 +214,7 @@ export function Distribution({ p, lang, t, live = false }: { p: Prediction; lang
                          onCurve={where.kind === "at"} />
             )}
           </LineChart>
+          )}</Measured>
         </Box>
         <Typography variant="note">
           {t.bandsLegend(bands.map((b) => pctLabel(b.level)).join(" / "))}
