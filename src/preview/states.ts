@@ -315,7 +315,7 @@ export const STATES: PreviewState[] = [
   // ---- after the close ----
   {
     id: "closed-no-finals", group: "After the close", title: "Just closed, no final results document yet", server: "gb",
-    keys: ["states.measuring", "survey", "distAfterClose", ...FINAL_FORM_KEYS, ...TRACK_KEYS],
+    keys: ["reportFinal", "states.measuring", "survey", "distAfterClose", ...FINAL_FORM_KEYS, ...TRACK_KEYS],
     build: (now) => ({
       health: HEALTH, history: history(now),
       now: latest(season(now, { state: "measuring", start: -121, end: -1, survey: true }),
@@ -324,7 +324,7 @@ export const STATES: PreviewState[] = [
   },
   {
     id: "closed-no-forecast", group: "After the close", title: "Closed, no forecast was published for this server", server: "sea",
-    keys: ["states.measuring", "noForecastEnded", ...FINAL_FORM_KEYS],
+    keys: ["reportFinal", "states.measuring", "noForecastEnded", ...FINAL_FORM_KEYS],
     build: (now) => ({
       health: HEALTH, history: null,
       now: latest(season(now, { state: "measuring", start: -121, end: -1, survey: true }),
@@ -333,7 +333,7 @@ export const STATES: PreviewState[] = [
   },
   {
     id: "closed-collecting", group: "After the close", title: "Final results coming in (counts only)", server: "kr",
-    keys: ["finalsTitle", "finalsCollecting", "finalsNear3", "finalsReveal", ...FINAL_FORM_KEYS],
+    keys: ["reportFinal", "finalsTitle", "finalsCollecting", "finalsNear3", "finalsReveal", ...FINAL_FORM_KEYS],
     build: (now) => ({
       health: HEALTH, history: history(now),
       now: latest(season(now, { state: "measuring", start: -125, end: -5, survey: true }),
@@ -343,7 +343,7 @@ export const STATES: PreviewState[] = [
   },
   {
     id: "closed-reveal-soon", group: "After the close", title: "Settle time passed, document not settled yet; no results here", server: "na",
-    keys: ["finalsTitle", "finalsNone", "finalsRevealSoon", ...FINAL_FORM_KEYS],
+    keys: ["reportFinal", "finalsTitle", "finalsNone", "finalsRevealSoon", ...FINAL_FORM_KEYS],
     build: (now) => ({
       health: HEALTH, history: history(now),
       now: latest(season(now, { state: "measuring", start: -133, end: -13, survey: true }),
@@ -353,7 +353,7 @@ export const STATES: PreviewState[] = [
   },
   {
     id: "settled-confirmed", group: "After the close", title: "Settled, line confirmed, with the curve", server: "gb",
-    keys: ["finalsTitle", "finalsFrom", "finalsForecast", "finalsError", "finalsCurveTitle", "topPct", "finalsPoints",
+    keys: ["reportFinal", "finalsTitle", "finalsFrom", "finalsForecast", "finalsError", "finalsCurveTitle", "topPct", "finalsPoints",
       "tier", "damage", "estimated", ...TRACK_KEYS],
     build: (now) => ({
       health: HEALTH, history: history(now, { graded: true }),
@@ -364,7 +364,7 @@ export const STATES: PreviewState[] = [
   },
   {
     id: "settled-estimate", group: "After the close", title: "Settled, the line is only an estimate", server: "kr",
-    keys: ["finalsTitle", "finalsFrom", "finalsUnconfirmed", "histEstimate"],
+    keys: ["reportFinal", "finalsTitle", "finalsFrom", "finalsUnconfirmed", "histEstimate"],
     build: (now) => ({
       health: HEALTH, history: history(now, { estimate: true }),
       now: latest(season(now, { state: "measuring", start: -168, end: -48, survey: true }),
@@ -374,7 +374,7 @@ export const STATES: PreviewState[] = [
   },
   {
     id: "settled-jp", group: "After the close", title: "Settled, JP (forecast outside its range)", server: "jp",
-    keys: ["finalsTitle", "finalsJp", "finalsForecast", "finalsError", "finalsCurveTitle", "finalsPoints"],
+    keys: ["reportFinal", "finalsTitle", "finalsJp", "finalsForecast", "finalsError", "finalsCurveTitle", "finalsPoints"],
     build: (now) => ({
       health: HEALTH, history: history(now, { graded: true }),
       now: latest(season(now, { state: "measuring", start: -168, end: -48, survey: true }),
@@ -384,7 +384,7 @@ export const STATES: PreviewState[] = [
   },
   {
     id: "settled-no-results", group: "After the close", title: "Settled, no results from this server", server: "na",
-    keys: ["finalsTitle", "finalsNone"],
+    keys: ["reportFinal", "finalsTitle", "finalsNone"],
     build: (now) => ({
       health: HEALTH, history: history(now, { graded: true }),
       now: latest(season(now, { state: "measuring", start: -168, end: -48, survey: true }),

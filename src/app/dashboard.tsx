@@ -23,6 +23,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useColorScheme } from "@mui/material/styles";
+import ArrowDownward from "@mui/icons-material/ArrowDownward";
 import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
 import TranslateOutlined from "@mui/icons-material/TranslateOutlined";
@@ -344,12 +345,6 @@ export default function Dashboard() {
     [published, stateNow]);
   const prediction = data?.predictions[server];
   const ended = season?.state === "measuring" || season?.state === "closed";
-  // From lg (1200px) the page splits in two: the season, the forecast and the report
-  // card on the left, the distribution beside them. Without a forecast, or once the raid
-  // has closed (no distribution then), there is no second column.
-  const wide = Boolean(season && prediction && !ended);
-  const pageWidth = { md: 900, lg: wide ? 1240 : 900 };
-  const one = `"season" "forecast" "dist" "report" "hist"`;
   const reportOpen = season?.state === "live" && !finalWindowOpen(season, now);
   // the closing season's final results, still taken after the next season is published
   const previous = season ? previousFinalOpen(season, now) : null;
@@ -370,6 +365,21 @@ export default function Dashboard() {
                 health={data?.health ?? null} server={server} onServer={serverStore.set}
                 lang={lang} t={t} surveyUrl={surveyLink(previous.survey, now)} />
   );
+
+  // From lg (1200px) the page splits in two. While the raid is on: the season, the forecast
+  // and the report card on the left, the distribution beside them. After the close, while
+  // final results are taken: the season and its final lines on the left, the final-result
+  // card beside them. Otherwise (no forecast in the raid, or no form after it) one column,
+  // where an ended season gets a button near the top that jumps down to the form.
+  const raidWide = Boolean(season && prediction && !ended);
+  const finalWide = Boolean(ended && (ownCard || previousCard));
+  const wide = raidWide || finalWide;
+  const pageWidth = { md: 900, lg: wide ? 1240 : 900 };
+  const one = finalWide ? `"season" "jump" "forecast" "report" "hist"` : `"season" "forecast" "dist" "report" "hist"`;
+  const columns = raidWide ? "minmax(0, 5fr) minmax(0, 7fr)" : finalWide ? "minmax(0, 7fr) minmax(0, 5fr)" : "minmax(0, 1fr)";
+  const areas = raidWide ? `"season dist" "forecast dist" "report dist" "hist hist"`
+    : finalWide ? `"season report" "forecast report" "hist hist"` : one;
+  const rows = raidWide ? "auto auto 1fr auto" : finalWide ? "auto 1fr auto" : "none";
 
   return (
     <>
@@ -433,13 +443,23 @@ export default function Dashboard() {
           {season && (
             <Box sx={{
               display: "grid", gap: 2.5, alignItems: "start",
-              gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: wide ? "minmax(0, 5fr) minmax(0, 7fr)" : "minmax(0, 1fr)" },
-              gridTemplateAreas: { xs: one, lg: wide ? `"season dist" "forecast dist" "report dist" "hist hist"` : one },
-              gridTemplateRows: { lg: wide ? "auto auto 1fr auto" : "none" },
+              gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: columns },
+              gridTemplateAreas: { xs: one, lg: areas },
+              gridTemplateRows: { lg: rows },
             }}>
               <Box sx={{ gridArea: "season" }}>
                 <Section key={`season-${season.season}`} message={t.sectionFailed} reload={t.reload}><SeasonCard key={season.season} season={season} lang={lang} t={t} now={now} /></Section>
               </Box>
+
+              {/* in one column the final-result card is below the season's lines: say it's there */}
+              {finalWide && (
+                <Box sx={{ gridArea: "jump", display: { xs: "block", lg: "none" } }}>
+                  <Button variant="contained" href="#report" endIcon={<ArrowDownward />} fullWidth
+                          sx={{ minHeight: 44 }}>
+                    {t.reportFinal}
+                  </Button>
+                </Box>
+              )}
 
               {/* after the close the forecast and its table would only invite players to report
                   their numbers back as final results: hidden until this season's own lines exist */}
