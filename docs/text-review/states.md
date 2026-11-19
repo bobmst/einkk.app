@@ -31,14 +31,14 @@ for screen readers, present whenever a season is shown.
 | `live-day1` | Live, early: no daily line yet (`known_days` 0); the checker's `rankAsk` shows after typing a damage. | `states.live`, `endsIn`, `starts`, `ends`, `timeNote`, forecast keys, `report` (button), distribution keys, `earlyNote`, `rankAsk`, `rankAskButton` (after typing a damage), report form keys |
 | `live-day3` | Live, mid-raid; a damage reported earlier this season is remembered (#98); a long track record. | as `live-day1` (`earlyNote` shows until three daily lines are in), plus `rereport`, `rereportUse`, `rereportDismiss`, track record keys: `history`, `seasonCol`, `histForecast`, `error`, `histFinal`, `hit`, `miss`, `noRange`, `pending`, `noFinal`, `histNote`, `histEstimate`, `legacy` |
 | `live-no-forecast` | Live, nothing published for this server, and the report intake is off (`health.intake` false). | `noForecast`, `reportUnavailable` |
-| `closed-no-finals` | The raid has closed, a forecast exists but no final-results document yet. | `states.measuring`, `distAfterClose`, `survey` (season card, survey open), `finalChip`, `finalTitle`, `finalIntro`, `finalOrSurvey`, form keys |
-| `closed-no-forecast` | Closed, no forecast was published for this server, no final-results document. | `noForecastEnded`, final form keys |
-| `closed-collecting` | Closed, final results coming in, before they settle (non-JP server). | `finalsTitle`, `finalsCollecting`, `finalsNear3`, `finalsReveal`, final form keys |
-| `closed-reveal-soon` | Past the settle time but the document isn't settled yet; nobody on this server sent a result. | `finalsTitle`, `finalsNone`, `finalsRevealSoon` |
-| `settled-confirmed` | Settled, the server's line confirmed by results near 3%, with the curve. | `finalsTitle`, `finalsFrom`, `finalsForecast`, `finalsError` (inside), `finalsCurveTitle`, `topPct`, `finalsPoints`, `tier`, `damage`, `estimated`, track record (this season's row selected) |
-| `settled-estimate` | Settled, the line is an estimate (too few results near 3%). | `finalsTitle`, `finalsFrom`, `finalsUnconfirmed`, `histEstimate` |
-| `settled-jp` | Settled, JP. | `finalsTitle`, `finalsJp`, `finalsForecast`, `finalsError` (outside), curve keys |
-| `settled-no-results` | Settled, no results from this server. | `finalsTitle`, `finalsNone` |
+| `closed-no-finals` | The raid has closed, a forecast exists but no final-results document yet. | `reportFinal` (narrow screens), `states.measuring`, `distAfterClose`, `survey` (season card, survey open), `finalChip`, `finalTitle`, `finalIntro`, `finalOrSurvey`, form keys |
+| `closed-no-forecast` | Closed, no forecast was published for this server, no final-results document. | `reportFinal` (narrow screens), `noForecastEnded`, final form keys |
+| `closed-collecting` | Closed, final results coming in, before they settle (non-JP server). | `reportFinal` (narrow screens), `finalsTitle`, `finalsCollecting`, `finalsNear3`, `finalsReveal`, final form keys |
+| `closed-reveal-soon` | Past the settle time but the document isn't settled yet; nobody on this server sent a result. | `reportFinal` (narrow screens), `finalsTitle`, `finalsNone`, `finalsRevealSoon` |
+| `settled-confirmed` | Settled, the server's line confirmed by results near 3%, with the curve. | `reportFinal` (narrow screens), `finalsTitle`, `finalsFrom`, `finalsForecast`, `finalsError` (inside), `finalsCurveTitle`, `topPct`, `finalsPoints`, `tier`, `damage`, `estimated`, track record (this season's row selected) |
+| `settled-estimate` | Settled, the line is an estimate (too few results near 3%). | `reportFinal` (narrow screens), `finalsTitle`, `finalsFrom`, `finalsUnconfirmed`, `histEstimate` |
+| `settled-jp` | Settled, JP. | `reportFinal` (narrow screens), `finalsTitle`, `finalsJp`, `finalsForecast`, `finalsError` (outside), curve keys |
+| `settled-no-results` | Settled, no results from this server. | `reportFinal` (narrow screens), `finalsTitle`, `finalsNone` |
 | `ended` | After the final-results window (`closed`): no forms. | `states.closed`, finals keys as `settled-confirmed` |
 
 ## Keys reached by using the page
