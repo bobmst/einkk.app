@@ -24,6 +24,7 @@ import { LineChart, lineClasses } from "@mui/x-charts/LineChart";
 import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
 import { axisDamage, placement, regroupField, scoreToTenthB } from "@/lib/numbers";
 import type { Prediction } from "@/lib/outbox";
+import Measured from "./measured";
 import Slice from "./slice";
 import { chanceCell, chances, ratios, tierFor } from "@/lib/slice";
 import { plausible, recordCheck, reportPrefill, SETTLE_MS } from "@/lib/check-record";
@@ -70,17 +71,8 @@ export function Forecast({ p, lang, t, now, ended = false, report = false }: {
         <Typography variant="note">
           {ended ? t.finalForecast : t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
         </Typography>
-        {p.shadow_nowcast && p.shadow_nowcast.reports_used > 0 && !ended && (
-          <Box sx={{ mt: 1.5, p: 1.25, border: 1, borderColor: "divider", borderStyle: "dashed", borderRadius: 1 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {t.shadowTitle}: ≈ {damage(lang, p.shadow_nowcast.final)}
-            </Typography>
-            <Typography variant="note" component="p">
-              {t.shadowReports(p.shadow_nowcast.reports_used)}
-            </Typography>
-            <Typography variant="note" component="p">{t.shadowNote}</Typography>
-          </Box>
-        )}
+        {/* shadow_nowcast stays in the document for the engine's own review; the page shows no
+            reference-only line (the user's decision of 2026-11-17) */}
         {/* in one column the report card is a few screens down; in two it sits right below */}
         {report && (
           <Button variant="contained" href="#report" endIcon={<ArrowDownward />} fullWidth
@@ -197,7 +189,9 @@ export function Distribution({ p, lang, t, live = false }: { p: Prediction; lang
           {serverName(lang, p.server)} · {t.distTitle}
         </Typography>
         <Box sx={{ mx: -1 }}>
+          <Measured>{(width) => (
           <LineChart
+            width={width}
             height={300}
             margin={{ left: 8, right: 16 }}
             xAxis={[{ data: pcts, scaleType: "log", label: t.topPct, tickInterval: pcts,
@@ -220,6 +214,7 @@ export function Distribution({ p, lang, t, live = false }: { p: Prediction; lang
                          onCurve={where.kind === "at"} />
             )}
           </LineChart>
+          )}</Measured>
         </Box>
         <Typography variant="note">
           {t.bandsLegend(bands.map((b) => pctLabel(b.level)).join(" / "))}
