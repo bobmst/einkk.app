@@ -22,6 +22,7 @@ import { ScatterPlot } from "@mui/x-charts/ScatterChart";
 import { damage, duration, serverName, type Lang, type Text } from "@/lib/i18n";
 import { axisDamage } from "@/lib/numbers";
 import type { Cell, Finals, FinalsServer, HistoryEntry, Server } from "@/lib/outbox";
+import Measured from "./measured";
 
 const CONFIRM_PLAYERS = 3;                    // results inside 2.85-3.15% that confirm a line
 
@@ -107,7 +108,9 @@ function Curve({ points, cells, line, lang, t }: {
     <Box sx={{ mt: 2 }}>
       <Typography variant="subtitle2">{t.finalsCurveTitle}</Typography>
       <Box sx={{ mx: -1 }}>
+        <Measured>{(width) => (
         <ChartsContainer
+          width={width}
           height={280}
           margin={{ left: 8, right: 16 }}
           xAxis={[{ id: "pct", data: pcts, scaleType: "log", label: t.topPct, tickInterval: pcts,
@@ -127,6 +130,7 @@ function Curve({ points, cells, line, lang, t }: {
           <ChartsXAxis axisId="pct" />
           <ChartsYAxis axisId="dmg" />
         </ChartsContainer>
+        )}</Measured>
       </Box>
       <Typography variant="note">{t.finalsPoints}</Typography>
       <Table size="small" sx={{ mt: 1.5 }}>
