@@ -48,8 +48,8 @@ function rangeLabel(t: Text, level: number | null) {
   return level === null ? t.rangeUncertified : t.range(Math.round(level * 1000) / 10);
 }
 
-export function Forecast({ p, lang, t, now, ended = false, report = false }: {
-  p: Prediction; lang: Lang; t: Text; now: number; ended?: boolean; report?: boolean;
+export function Forecast({ p, lang, t, now, ended = false, upcoming = false, report = false }: {
+  p: Prediction; lang: Lang; t: Text; now: number; ended?: boolean; upcoming?: boolean; report?: boolean;
 }) {
   return (
     <Card>
@@ -61,7 +61,7 @@ export function Forecast({ p, lang, t, now, ended = false, report = false }: {
           {damage(lang, p.prediction)}
         </Typography>
         <Typography variant="note">
-          {ended ? t.finalForecast : t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
+          {ended ? t.finalForecast : upcoming ? t.beforeRaid : t.raidDay(p.state.raid_day)} · {t.updated(duration(lang, now - Date.parse(p.issued_at)))}
         </Typography>
         {/* shadow_nowcast stays in the document for the engine's own review; the page shows no
             reference-only line (the user's decision of 2026-11-17) */}

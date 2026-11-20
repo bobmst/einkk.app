@@ -477,7 +477,7 @@ export default function Dashboard() {
               ) : prediction ? (
                 <>
                   <Box sx={{ gridArea: "forecast" }}>
-                    <Section key={`forecast-${server}`} message={t.sectionFailed} reload={t.reload}><Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen} ended={ended} /></Section>
+                    <Section key={`forecast-${server}`} message={t.sectionFailed} reload={t.reload}><Forecast p={prediction} lang={lang} t={t} now={now} report={reportOpen} ended={ended} upcoming={season.state === "upcoming"} /></Section>
                   </Box>
                   <Box sx={{ gridArea: "dist" }}>
                     <Section key={`dist-${server}`} message={t.sectionFailed} reload={t.reload}><Distribution p={prediction} lang={lang} t={t} live={reportOpen && frozenAt() === null} /></Section>

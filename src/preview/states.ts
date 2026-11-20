@@ -278,7 +278,7 @@ export const STATES: PreviewState[] = [
   {
     id: "upcoming-dated", group: "Before the raid", title: "Dated, before the start; last season's final results still open",
     server: "gb",
-    keys: ["states.upcoming", "startsIn", "starts", "ends", "timeNote", "forecastTitle", "raidDay", "updated",
+    keys: ["states.upcoming", "startsIn", "starts", "ends", "timeNote", "forecastTitle", "beforeRaid", "updated",
       "distTitle", "earlyNote", "report", "reportClosed", ...FINAL_FORM_KEYS, ...TRACK_KEYS],
     build: (now) => ({
       health: HEALTH, history: history(now),
