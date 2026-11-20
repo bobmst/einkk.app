@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Roboto } from "next/font/google";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
+import { siteOrigin } from "@/lib/site";
 import Providers from "./providers";
 
 const roboto = Roboto({
@@ -12,7 +13,7 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://einkk.app"),
+  metadataBase: new URL(siteOrigin(process.env)),
   title: {
     default: "einkk.app — NIKKE Solo Raid border forecasts",
     template: "%s | einkk.app",
@@ -26,7 +27,9 @@ export const metadata: Metadata = {
     title: "einkk.app — NIKKE Solo Raid border forecasts",
     description: "Top 3% border forecasts for every NIKKE server, updated during the Solo Raid.",
   },
-  twitter: { card: "summary" },
+  // the card's picture is src/app/opengraph-image.png (+ .alt.txt): Next adds og:image and its
+  // size, type and alt to every page, and twitter:image from it (scripts/share-image.mjs, #120)
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };

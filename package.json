@@ -11,6 +11,7 @@
     "typecheck": "next typegen && wrangler types && tsc --noEmit && tsc --noEmit -p worker",
     "test": "vitest run",
     "boss-image": "node scripts/boss-image.mjs",
+    "share-image": "node scripts/share-image.mjs",
     "states": "node scripts/states.mjs"
   },
   "dependencies": {
