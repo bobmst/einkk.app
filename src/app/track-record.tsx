@@ -14,6 +14,7 @@ import Typography from "@mui/material/Typography";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { damage, serverName, type Lang, type Text } from "@/lib/i18n";
 import type { HistoryEntry, Server } from "@/lib/outbox";
+import Measured from "./measured";
 
 const HIT = "#009e73";                 // Okabe–Ito bluish green / vermillion: told apart under colour blindness
 const MISS = "#d55e00";
@@ -40,7 +41,9 @@ export default function TrackRecord({ entries, server, lang, t, current, measuri
           {serverName(lang, server)} · {t.history}
         </Typography>
         {graded.length > 0 && (
+          <Measured>{(width) => (
           <BarChart
+            width={width}
             height={220}
             margin={{ left: 8, right: 8 }}
             xAxis={[{ scaleType: "band", data: graded.map((e) => e.season) }]}
@@ -54,6 +57,7 @@ export default function TrackRecord({ entries, server, lang, t, current, measuri
                 stack: "e", label: t.noRange, color: NONE, valueFormatter: signed }] : []),
             ]}
           />
+          )}</Measured>
         )}
         <TableContainer sx={{ maxHeight: 360, mt: 1 }}>
           <Table size="small" stickyHeader>
